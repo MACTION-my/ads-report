@@ -1,10 +1,13 @@
 """
 meta_ads_pull.py  —  从 Meta Marketing API 拉数据，生成 dashboard_data.json。
-按 campaign_mapping.json 工作：只拉登记过的 campaign，自动推导要访问的账户。
+按【广告账户】抓：只要在下面 ACCOUNTS 里的账户，所有有花费的 campaign 都会自动进报告
+（新开的 campaign 无需手动登记就会自动显示）。
+campaign_mapping.json 只作"美化/补充"：给某个 campaign 起好听的场名、填讲座日期/预算/广告组，
+或用 "exclude": true 把某个 campaign 排除。
 Token 从环境变量 META_ACCESS_TOKEN 读，绝不写进代码/仓库。
 用法:  python scripts/meta_ads_pull.py
 """
-import os, json, sys, urllib.parse, urllib.request
+import os, json, sys, urllib.parse, urllib.request, datetime
 from collections import defaultdict
 from process import build_dashboard_data
 
@@ -13,17 +16,23 @@ ROOT = os.path.dirname(HERE)
 API_VERSION = "v21.0"
 TOKEN = os.environ.get("META_ACCESS_TOKEN", "")
 
-# 时间范围：默认拉最近 40 天（覆盖当前所有在跑的场）。CI 里可按需改。
-import datetime
-UNTIL = datetime.date.today()
-SINCE = UNTIL - datetime.timedelta(days=39)
-
-# 哪些 action 算一个 Lead（Lead Form / WhatsApp / 网站 pixel 都覆盖）
-LEAD_ACTION_TYPES = {
-    "lead", "onsite_conversion.lead_grouped",
-    "offsite_conversion.fb_pixel_lead",
-    "onsite_conversion.messaging_conversation_started_7d",
+# ========== 要纳入报告的广告账户（新增账户就加一行） ==========
+ACCOUNTS = {
+    "act_1670543204163828": {"line": "Maction", "name": "Maction Franchise (Sandy)"},
+    "act_637010841817597":  {"line": "Maction", "name": "Recruit Maction"},
+    "act_837976407618020":  {"line": "Pinyu",   "name": "M9品誉"},
+    "act_2070031456723180": {"line": "Pinyu",   "name": "PINYU品誉"},
+    "act_3967944443497832": {"line": "Pinyu",   "name": "Pinyu Malaysia (Adrian & Amanda)"},
 }
+
+# 拉取窗口（天）。累计 = 该窗口内累计。当日增量不受影响。
+DAYS = 45
+UNTIL = datetime.date.today()
+SINCE = UNTIL - datetime.timedelta(days=DAYS - 1)
+
+# Lead 口径：用统一的 "lead" 一个即可（避免同一批 lead 被多种类型重复计算）
+LEAD_ACTION = "lead"
+MIN_SPEND = 1.0   # 整段窗口总花费低于这个就不进报告（滤掉噪声）
 
 def api_get(path, params):
     params = dict(params); params["access_token"] = TOKEN
@@ -31,12 +40,15 @@ def api_get(path, params):
     with urllib.request.urlopen(url, timeout=90) as resp:
         return json.loads(resp.read().decode())
 
-def leads_from_actions(actions):
-    return sum(float(a["value"]) for a in (actions or []) if a.get("action_type") in LEAD_ACTION_TYPES)
+def lead_value(actions):
+    for a in (actions or []):
+        if a.get("action_type") == LEAD_ACTION:
+            return float(a["value"])
+    return 0.0
 
 def fetch_daily(account_id):
     params = {"level": "campaign", "time_increment": 1,
-              "fields": "campaign_id,spend,inline_link_clicks,actions,date_start",
+              "fields": "campaign_id,campaign_name,spend,inline_link_clicks,actions,date_start",
               "time_range": json.dumps({"since": str(SINCE), "until": str(UNTIL)}),
               "limit": 500}
     rows, path = [], f"{account_id}/insights"
@@ -53,33 +65,42 @@ def fetch_daily(account_id):
 def main():
     if not TOKEN:
         sys.exit("缺少 META_ACCESS_TOKEN 环境变量。")
-    mapping = {k: v for k, v in json.load(open(os.path.join(ROOT, "campaign_mapping.json"),
-                                              encoding="utf-8")).items() if not k.startswith("_")}
-    accounts = sorted({m["account_id"] for m in mapping.values()})
+    overrides = {k: v for k, v in json.load(open(os.path.join(ROOT, "campaign_mapping.json"),
+                                                 encoding="utf-8")).items() if not k.startswith("_")}
 
-    # 每个账户拉一次，按 campaign+date 取当天 spend/leads/clicks
+    # 每账户每 campaign 每天的 spend/leads/clicks + campaign 名字
     daily = defaultdict(lambda: {"spend": 0.0, "leads": 0.0, "clicks": 0.0})
-    for acct in accounts:
-        for row in fetch_daily(acct):
+    cname = {}; total_spend = defaultdict(float)
+    for aid, meta in ACCOUNTS.items():
+        for row in fetch_daily(aid):
             cid = row.get("campaign_id")
-            if cid not in mapping:   # 只保留登记过的 campaign
-                continue
-            k = (cid, row.get("date_start"))
-            daily[k]["spend"] += float(row.get("spend", 0) or 0)
-            daily[k]["leads"] += leads_from_actions(row.get("actions"))
+            cname[cid] = row.get("campaign_name", cid)
+            k = (aid, cid, row.get("date_start"))
+            sp = float(row.get("spend", 0) or 0)
+            daily[k]["spend"] += sp
+            daily[k]["leads"] += lead_value(row.get("actions"))
             daily[k]["clicks"] += float(row.get("inline_link_clicks", 0) or 0)
+            total_spend[cid] += sp
 
     # 累计成"截至当天"的快照
     cum = defaultdict(lambda: {"spend": 0.0, "leads": 0.0, "clicks": 0.0})
     records = []
-    for (cid, d) in sorted(daily, key=lambda k: (k[0], k[1])):
-        v = daily[(cid, d)]; m = mapping[cid]
-        c = cum[cid]
+    for (aid, cid, d) in sorted(daily, key=lambda k: (k[1], k[2])):
+        if total_spend[cid] < MIN_SPEND:      # 整段几乎没花钱的跳过
+            continue
+        ov = overrides.get(cid, {})
+        if ov.get("exclude"):                  # 手动排除的跳过
+            continue
+        v = daily[(aid, cid, d)]; c = cum[cid]
         c["spend"] += v["spend"]; c["leads"] += v["leads"]; c["clicks"] += v["clicks"]
         records.append({
-            "line": m["line"], "account": m.get("account"), "label": m.get("label"),
-            "marketer": m.get("marketer"), "variant": m.get("variant"),
-            "report_date": d, "preview_date": m.get("preview_date"), "budget": m.get("budget"),
+            "line": ACCOUNTS[aid]["line"],
+            "account": ACCOUNTS[aid]["name"],
+            "label": ov.get("label") or cname.get(cid),   # 有起好的名用它，否则用 campaign 原名
+            "variant": ov.get("variant"),
+            "report_date": d,
+            "preview_date": ov.get("preview_date"),
+            "budget": ov.get("budget"),
             "spend": round(c["spend"], 2), "received": round(c["leads"]),
             "used": None, "junk": None, "clicks": round(c["clicks"]),
         })
@@ -87,7 +108,7 @@ def main():
     out = build_dashboard_data(records, source="Meta Marketing API")
     open(os.path.join(ROOT, "dashboard_data.json"), "w", encoding="utf-8").write(
         json.dumps(out, ensure_ascii=False, indent=1))
-    print(f"[OK] 从 Meta 拉取 {len(records)} 条快照 / {len(out['campaigns'])} 场 "
+    print(f"[OK] 从 Meta 拉取（近 {DAYS} 天）{len(out['campaigns'])} 场 / {len(ACCOUNTS)} 账户 "
           f"-> dashboard_data.json (报告日 {out['report_date']})")
 
 if __name__ == "__main__":
