@@ -1,0 +1,39 @@
+{
+  "_说明": "key 可以是 Meta 的 campaign_id（推荐，最稳）或 campaign_name。把每个广告 campaign 对应到哪一场课程。复制本文件为 campaign_mapping.json 再填你的真实值。",
+
+  "120200000000000001": {
+    "line": "Maction",
+    "marketer": "Maction",
+    "variant": null,
+    "preview_date": "2026-09-25",
+    "budget": 3000
+  },
+  "Maction Franchise - 25 Sep - AdsetA": {
+    "line": "Maction",
+    "marketer": "Maction",
+    "variant": "A",
+    "preview_date": "2026-09-25",
+    "budget": 3000
+  },
+  "Pinyu Winfred - 21 Sep": {
+    "line": "Pinyu",
+    "marketer": "Winfred",
+    "variant": null,
+    "preview_date": "2026-09-21",
+    "budget": 6000
+  },
+  "Pinyu Wilson - 21 Sep": {
+    "line": "Pinyu",
+    "marketer": "Wilson",
+    "variant": null,
+    "preview_date": "2026-09-21",
+    "budget": 3000
+  },
+  "Pinyu Sandy - 21 Sep": {
+    "line": "Pinyu",
+    "marketer": "Sandy",
+    "variant": null,
+    "preview_date": "2026-09-21",
+    "budget": 2000
+  }
+}

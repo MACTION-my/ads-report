@@ -1,0 +1,19 @@
+{
+  "_说明": "每个 Meta campaign 对应到课程场次。key=campaign_id。line=业务线, account=广告账户(报告里可筛选), label=场标题, preview_date=讲座/课程日期(没有填null), variant=广告组(A/B/null), budget=预算RM(不确定填null), account_id=账户ID。budget/preview_date 你可随时改。",
+
+  "52597947782478": {"line":"Maction","account":"Maction Franchise (Sandy)","account_id":"act_1670543204163828","label":"连锁申请 · 25 Sep 场","preview_date":"2026-09-25","variant":null,"budget":3000,"_name":"11/9(LF) 连锁申请 25 Sep 主"},
+  "52599315435678": {"line":"Maction","account":"Maction Franchise (Sandy)","account_id":"act_1670543204163828","label":"连锁申请 · 25 Sep 场","preview_date":"2026-09-25","variant":"A","budget":3000,"_name":"17/9(LF) 连锁申请 25 Sep (1)"},
+  "52599339760078": {"line":"Maction","account":"Maction Franchise (Sandy)","account_id":"act_1670543204163828","label":"连锁申请 · 25 Sep 场","preview_date":"2026-09-25","variant":"B","budget":3000,"_name":"17/9(LF) 连锁申请 25 Sep (2)"},
+  "52595397030878": {"line":"Maction","account":"Maction Franchise (Sandy)","account_id":"act_1670543204163828","label":"连锁申请 · 11 Sep 场","preview_date":"2026-09-11","variant":null,"budget":3000,"_name":"2/9(LF) 连锁申请 11 Sep"},
+
+  "120243867936270139": {"line":"Maction","account":"Recruit Maction","account_id":"act_637010841817597","label":"Maction 招募 (WhatsApp)","preview_date":null,"variant":null,"budget":null,"_name":"CBO 26/6 Maction Jacky WA 常年招募"},
+
+  "120252074823520720": {"line":"Pinyu","account":"M9品誉","account_id":"act_837976407618020","label":"品誉 · Wilson","preview_date":null,"variant":null,"budget":null,"_name":"04/09 Wilson 5 Pic"},
+
+  "120250456133160239": {"line":"Pinyu","account":"PINYU品誉","account_id":"act_2070031456723180","label":"品誉绩效系统","preview_date":null,"variant":null,"budget":null,"_name":"10/9(LF) 品誉绩效系统"},
+
+  "120250551427580185": {"line":"Pinyu","account":"Pinyu Malaysia (Adrian & Amanda)","account_id":"act_3967944443497832","label":"Pinyu Online · Aug 图文","preview_date":null,"variant":null,"budget":null,"_name":"26/8 Pinyu Online August Image"},
+  "120250672453730185": {"line":"Pinyu","account":"Pinyu Malaysia (Adrian & Amanda)","account_id":"act_3967944443497832","label":"Pinyu Online · Aug 视频","preview_date":null,"variant":null,"budget":null,"_name":"1/9 Pinyu Online August Video LF"},
+  "120250646358030185": {"line":"Pinyu","account":"Pinyu Malaysia (Adrian & Amanda)","account_id":"act_3967944443497832","label":"Pinyu Online · Aug 图文(LF)","preview_date":null,"variant":null,"budget":null,"_name":"1/9 Pinyu Online August Image LF"},
+  "120250836161930185": {"line":"Pinyu","account":"Pinyu Malaysia (Adrian & Amanda)","account_id":"act_3967944443497832","label":"Pinyu Online · Industries","preview_date":null,"variant":null,"budget":null,"_name":"13/09 Pinyu Online Industries Image"}
+}

@@ -1,0 +1,3160 @@
+<title>每日广告报告</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+:root{
+  --bg:#eef1f6; --panel:#ffffff; --panel-2:#f6f8fc; --ink:#1b2230;
+  --muted:#5e677a; --line:#e2e7f0; --line-strong:#cdd5e3;
+  --accent:#3f4cd6; --accent-soft:#e9ebfc;
+  --good:#137a4b; --good-bg:#e2f5ec; --warn:#a76a00; --warn-bg:#fbeed3; --bad:#c0342e; --bad-bg:#fbe4e2;
+  --chart-spend:#3f4cd6; --chart-lead:#0f9d8f;
+  --shadow:0 1px 2px rgba(20,30,60,.05),0 6px 20px rgba(20,30,60,.06);
+}
+:root:not([data-theme="light"]) { }
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0e1220; --panel:#161c2c; --panel-2:#1c2436; --ink:#eef2fb; --muted:#9aa6bd;
+    --line:#273049; --line-strong:#35415f; --accent:#8b95ff; --accent-soft:#232a4a;
+    --good:#4cd08a; --good-bg:#123527; --warn:#ecb964; --warn-bg:#3a2c10; --bad:#f28e88; --bad-bg:#3a1f1e;
+    --chart-spend:#8b95ff; --chart-lead:#3fd3c2;
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.35);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0e1220; --panel:#161c2c; --panel-2:#1c2436; --ink:#eef2fb; --muted:#9aa6bd;
+  --line:#273049; --line-strong:#35415f; --accent:#8b95ff; --accent-soft:#232a4a;
+  --good:#4cd08a; --good-bg:#123527; --warn:#ecb964; --warn-bg:#3a2c10; --bad:#f28e88; --bad-bg:#3a1f1e;
+  --chart-spend:#8b95ff; --chart-lead:#3fd3c2;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.35);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font-family:"IBM Plex Sans",-apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif;
+  line-height:1.5;-webkit-font-smoothing:antialiased}
+.num{font-family:"IBM Plex Mono","IBM Plex Sans",monospace;font-variant-numeric:tabular-nums}
+.wrap{max-width:1160px;margin:0 auto;padding-inline:18px;padding-block:0 56px}
+
+/* header */
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--bg);
+  border-bottom:1px solid var(--line);padding-block:16px 12px}
+.top-row{display:flex;flex-wrap:wrap;align-items:flex-end;gap:12px 18px;justify-content:space-between}
+h1{font-family:"Sora",sans-serif;font-weight:700;font-size:23px;margin:0;letter-spacing:-.01em}
+.sub{color:var(--muted);font-size:13px;margin-top:3px}
+.date-pill{font-family:"Sora";font-weight:600;font-size:13px;background:var(--accent-soft);color:var(--accent);
+  padding:5px 12px;border-radius:999px;white-space:nowrap}
+.tabs{display:flex;gap:6px;margin-top:12px;flex-wrap:wrap}
+.tab{font-family:"Sora";font-weight:600;font-size:13px;border:1px solid var(--line-strong);background:var(--panel);
+  color:var(--muted);padding:7px 14px;border-radius:9px;cursor:pointer;transition:.12s}
+.tab:hover{border-color:var(--accent)}
+.tab[aria-selected="true"]{background:var(--accent);border-color:var(--accent);color:#fff}
+
+/* kpi */
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:20px}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:15px 16px;box-shadow:var(--shadow)}
+.kpi .lab{font-size:12px;color:var(--muted);font-weight:600;letter-spacing:.03em;text-transform:uppercase}
+.kpi .big{font-family:"Sora";font-weight:700;font-size:29px;margin-top:7px;letter-spacing:-.02em}
+.kpi .big small{font-size:15px;font-weight:600;color:var(--muted);margin-left:2px}
+.kpi .foot{font-size:12px;color:var(--muted);margin-top:5px}
+
+.sec-h{display:flex;align-items:baseline;gap:10px;margin:30px 0 14px}
+.sec-h h2{font-family:"Sora";font-weight:600;font-size:16px;margin:0}
+.sec-h .hint{font-size:12px;color:var(--muted)}
+
+/* cards */
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(268px,1fr));gap:13px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:15px;box-shadow:var(--shadow);
+  display:flex;flex-direction:column;gap:11px}
+.card.attn{border-color:var(--bad);box-shadow:0 0 0 1px var(--bad) inset,var(--shadow)}
+.c-top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+.c-name{font-family:"Sora";font-weight:600;font-size:15px}
+.c-prev{font-size:11.5px;color:var(--muted);margin-top:2px}
+.chip{font-size:11px;font-weight:600;padding:3px 8px;border-radius:7px;white-space:nowrap}
+.chip.line-m{background:var(--accent-soft);color:var(--accent)}
+.chip.line-p{background:var(--panel-2);color:var(--muted);border:1px solid var(--line-strong)}
+.today-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;border-top:1px dashed var(--line-strong);
+  border-bottom:1px dashed var(--line-strong);padding:11px 0}
+.tg .l{font-size:11px;color:var(--muted);font-weight:600}
+.tg .v{font-family:"Sora";font-weight:700;font-size:19px;margin-top:2px}
+.tg .v small{font-size:11px;font-weight:600;color:var(--muted)}
+.cpl-tag{display:inline-block;padding:1px 7px;border-radius:6px;font-size:11px;font-weight:700;margin-top:4px}
+.good{color:var(--good)} .warn{color:var(--warn)} .bad{color:var(--bad)}
+.bg-good{background:var(--good-bg);color:var(--good)} .bg-warn{background:var(--warn-bg);color:var(--warn)} .bg-bad{background:var(--bad-bg);color:var(--bad)}
+.budget-row{font-size:12px;color:var(--muted);display:flex;justify-content:space-between;margin-bottom:5px}
+.bar{height:7px;border-radius:5px;background:var(--panel-2);overflow:hidden;border:1px solid var(--line)}
+.bar > i{display:block;height:100%;border-radius:5px}
+.spark{margin-top:2px}
+.mini-tbl{font-size:11.5px;color:var(--muted)}
+.mini-tbl b{color:var(--ink);font-weight:600}
+
+/* ranking */
+.rank{background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:var(--shadow)}
+.rrow{display:grid;grid-template-columns:26px 1fr auto auto;gap:12px;align-items:center;padding:11px 15px;border-top:1px solid var(--line)}
+.rrow:first-child{border-top:none}
+.rrow .rk{font-family:"Sora";font-weight:700;color:var(--muted);font-size:13px}
+.rrow .rn{font-weight:600;font-size:14px}
+.rrow .rn span{font-size:11.5px;color:var(--muted);font-weight:400;margin-left:6px}
+.rrow .rc{font-family:"Sora";font-weight:700;font-size:16px}
+.rrow .rs{font-size:12px;color:var(--muted);text-align:right}
+
+/* table */
+.tbl-scroll{overflow-x:auto;border:1px solid var(--line);border-radius:14px;background:var(--panel);box-shadow:var(--shadow)}
+table{border-collapse:collapse;width:100%;font-size:12.5px;min-width:720px}
+th,td{padding:9px 12px;text-align:right;white-space:nowrap;border-bottom:1px solid var(--line)}
+th:first-child,td:first-child{text-align:left;position:sticky;left:0;background:var(--panel)}
+thead th{background:var(--panel-2);font-family:"Sora";font-weight:600;font-size:11.5px;color:var(--muted);
+  text-transform:uppercase;letter-spacing:.03em;position:sticky;top:0}
+tbody tr:hover td{background:var(--panel-2)}
+.grp-td{background:var(--panel-2)!important;font-family:"Sora";font-weight:600;color:var(--accent);font-size:12px}
+
+.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:12px;color:var(--muted);margin-top:12px;align-items:center}
+.dot{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:5px;vertical-align:middle}
+.note{background:var(--panel-2);border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:10px;
+  padding:13px 15px;font-size:12.5px;color:var(--muted);margin-top:26px;line-height:1.6}
+.note b{color:var(--ink)}
+.filters{display:flex;flex-wrap:wrap;gap:9px 13px;align-items:center;margin-top:11px}
+.filters .fg{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted);font-weight:600}
+.filters input[type=date],.filters select{font-family:"IBM Plex Sans",sans-serif;font-size:13px;color:var(--ink);background:var(--panel);
+  border:1px solid var(--line-strong);border-radius:8px;padding:6px 9px;color-scheme:light dark}
+.filters select{font-weight:600;cursor:pointer;max-width:260px}
+.filters .qbtn{font-family:"Sora";font-size:12px;font-weight:600;border:1px solid var(--line-strong);background:var(--panel);
+  color:var(--muted);padding:6px 11px;border-radius:8px;cursor:pointer;transition:.12s}
+.filters .qbtn:hover{border-color:var(--accent);color:var(--accent)}
+.c-course{font-family:"Sora";font-weight:600;font-size:15px;line-height:1.25}
+.c-meta{font-size:11.5px;color:var(--muted);margin-top:3px;display:flex;flex-wrap:wrap;gap:4px 8px;align-items:center}
+.c-date{color:var(--accent);font-weight:600}
+.c-mk{background:var(--panel-2);border:1px solid var(--line-strong);border-radius:5px;padding:0 6px}
+@media(max-width:720px){.kpis{grid-template-columns:1fr 1fr}}
+@media(max-width:430px){h1{font-size:20px}.kpi .big{font-size:24px}}
+</style>
+
+<div class="top">
+  <div class="wrap" style="padding-block:0">
+    <div class="top-row">
+      <div>
+        <h1>每日广告报告 · Daily Ads Report</h1>
+        <div class="sub">课程广告花费 / Lead / 单价分析 &nbsp;·&nbsp; Maction 连锁 + 品誉绩效</div>
+      </div>
+      <div class="date-pill" id="datePill">报告日 —</div>
+    </div>
+    <div class="tabs" id="tabs" role="tablist">
+      <button class="tab" role="tab" data-f="all" aria-selected="true">全部</button>
+      <button class="tab" role="tab" data-f="Maction" aria-selected="false">Maction 连锁</button>
+      <button class="tab" role="tab" data-f="Pinyu" aria-selected="false">品誉绩效</button>
+    </div>
+    <div class="filters">
+      <span class="fg">广告账户</span>
+      <select id="fAccount"></select>
+    </div>
+    <div class="filters">
+      <span class="fg">广告户口日期</span>
+      <span class="fg">从 <input type="date" id="fSince"></span>
+      <span class="fg">到 <input type="date" id="fUntil"></span>
+      <button class="qbtn" data-q="7">近 7 天</button>
+      <button class="qbtn" data-q="14">近 14 天</button>
+      <button class="qbtn" data-q="all">全部</button>
+    </div>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="kpis" id="kpis"></div>
+
+  <div class="sec-h"><h2>报告日各场明细</h2><span class="hint" id="activeHint"></span></div>
+  <div class="cards" id="cards"></div>
+
+  <div class="sec-h"><h2>报告日 Cost per Lead 排名</h2><span class="hint">从便宜到贵 · 一眼看出哪场效果好</span></div>
+  <div class="rank" id="rank"></div>
+  <div class="legend">
+    <span><i class="dot" style="background:var(--good)"></i>CPL ≤ 60 便宜</span>
+    <span><i class="dot" style="background:var(--warn)"></i>60–120 一般</span>
+    <span><i class="dot" style="background:var(--bad)"></i>&gt; 120 偏贵</span>
+    <span style="margin-left:auto">阈值可按你实际目标调整</span>
+  </div>
+
+  <div class="sec-h"><h2>趋势 · 每日总花费 & 新增 Lead</h2><span class="hint">所选日期范围合计</span></div>
+  <div class="card" style="padding:18px"><div id="trend"></div></div>
+
+  <div class="sec-h"><h2>完整历史记录</h2><span class="hint">每场每天累计数据（来自 Meta API）</span></div>
+  <div class="tbl-scroll"><table id="histTbl"><thead><tr>
+    <th>场次 / 日期</th><th>累计花费</th><th>当日花费</th><th>累计Lead</th><th>当日Lead</th>
+    <th>当日CPL</th><th>累计CPL</th><th>有效</th><th>垃圾</th><th>点击</th><th>预算余额</th>
+  </tr></thead><tbody id="histBody"></tbody></table></div>
+
+  <div class="note">
+    <b>数据来源：</b>直接从 <b>Meta Ads Manager（Marketing API）</b>自动拉取——花费 / Lead / 点击 / CPL 每天自动更新，无需手填。
+    顶部可按<b>广告账户</b>筛选，或选「全部账户（合计）」把所有账户加起来一起算。<br>
+    <b>说明：</b>「当日」数值 = 今日累计 − 昨日累计（自动算增量）。CPL = 花费 ÷ Lead。
+    「有效 / 垃圾 Lead」需人工或 CRM 判断，API 拿不到，暂不显示。部分账户尚未设预算，显示「未设预算」，可在对应表里补上。
+  </div>
+</div>
+
+<script>
+const DATA = /*DATA_START*/{
+ "report_date": "2026-09-22",
+ "accounts": [
+  "Recruit Maction",
+  "PINYU品誉",
+  "Pinyu Malaysia (Adrian & Amanda)",
+  "M9品誉",
+  "Maction Franchise (Sandy)"
+ ],
+ "campaigns": [
+  {
+   "line": "Maction",
+   "account": "Recruit Maction",
+   "marketer": null,
+   "variant": null,
+   "preview_date": null,
+   "label": "Maction 招募 (WhatsApp)",
+   "series": [
+    {
+     "date": "2026-08-14",
+     "spend": 86.99,
+     "lead": 14,
+     "cpl": 6.2136,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 21,
+     "d_spend": 86.99,
+     "d_lead": 14,
+     "reset": false,
+     "day_cpl": 6.21
+    },
+    {
+     "date": "2026-08-15",
+     "spend": 159.65,
+     "lead": 14,
+     "cpl": 11.4036,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 36,
+     "d_spend": 72.66,
+     "d_lead": 0,
+     "reset": false,
+     "day_cpl": null
+    },
+    {
+     "date": "2026-08-16",
+     "spend": 279.14,
+     "lead": 27,
+     "cpl": 10.3385,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 61,
+     "d_spend": 119.49,
+     "d_lead": 13,
+     "reset": false,
+     "day_cpl": 9.19
+    },
+    {
+     "date": "2026-08-17",
+     "spend": 387.1,
+     "lead": 46,
+     "cpl": 8.4152,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 95,
+     "d_spend": 107.96,
+     "d_lead": 19,
+     "reset": false,
+     "day_cpl": 5.68
+    },
+    {
+     "date": "2026-08-18",
+     "spend": 491.88,
+     "lead": 53,
+     "cpl": 9.2808,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 122,
+     "d_spend": 104.78,
+     "d_lead": 7,
+     "reset": false,
+     "day_cpl": 14.97
+    },
+    {
+     "date": "2026-08-19",
+     "spend": 598.33,
+     "lead": 66,
+     "cpl": 9.0656,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 139,
+     "d_spend": 106.45,
+     "d_lead": 13,
+     "reset": false,
+     "day_cpl": 8.19
+    },
+    {
+     "date": "2026-08-20",
+     "spend": 686.55,
+     "lead": 75,
+     "cpl": 9.154,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 162,
+     "d_spend": 88.22,
+     "d_lead": 9,
+     "reset": false,
+     "day_cpl": 9.8
+    },
+    {
+     "date": "2026-08-21",
+     "spend": 778.67,
+     "lead": 81,
+     "cpl": 9.6132,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 188,
+     "d_spend": 92.12,
+     "d_lead": 6,
+     "reset": false,
+     "day_cpl": 15.35
+    },
+    {
+     "date": "2026-08-22",
+     "spend": 859.33,
+     "lead": 92,
+     "cpl": 9.3405,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 208,
+     "d_spend": 80.66,
+     "d_lead": 11,
+     "reset": false,
+     "day_cpl": 7.33
+    },
+    {
+     "date": "2026-08-23",
+     "spend": 973.86,
+     "lead": 97,
+     "cpl": 10.0398,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 227,
+     "d_spend": 114.53,
+     "d_lead": 5,
+     "reset": false,
+     "day_cpl": 22.91
+    },
+    {
+     "date": "2026-08-24",
+     "spend": 1088.93,
+     "lead": 114,
+     "cpl": 9.552,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 246,
+     "d_spend": 115.07,
+     "d_lead": 17,
+     "reset": false,
+     "day_cpl": 6.77
+    },
+    {
+     "date": "2026-08-25",
+     "spend": 1196.99,
+     "lead": 122,
+     "cpl": 9.8114,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 270,
+     "d_spend": 108.06,
+     "d_lead": 8,
+     "reset": false,
+     "day_cpl": 13.51
+    },
+    {
+     "date": "2026-08-26",
+     "spend": 1312.31,
+     "lead": 141,
+     "cpl": 9.3072,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 296,
+     "d_spend": 115.32,
+     "d_lead": 19,
+     "reset": false,
+     "day_cpl": 6.07
+    },
+    {
+     "date": "2026-08-27",
+     "spend": 1403.62,
+     "lead": 154,
+     "cpl": 9.1144,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 313,
+     "d_spend": 91.31,
+     "d_lead": 13,
+     "reset": false,
+     "day_cpl": 7.02
+    },
+    {
+     "date": "2026-08-28",
+     "spend": 1486.42,
+     "lead": 177,
+     "cpl": 8.3979,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 338,
+     "d_spend": 82.8,
+     "d_lead": 23,
+     "reset": false,
+     "day_cpl": 3.6
+    },
+    {
+     "date": "2026-08-29",
+     "spend": 1559.03,
+     "lead": 183,
+     "cpl": 8.5193,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 352,
+     "d_spend": 72.61,
+     "d_lead": 6,
+     "reset": false,
+     "day_cpl": 12.1
+    },
+    {
+     "date": "2026-08-30",
+     "spend": 1679.79,
+     "lead": 189,
+     "cpl": 8.8878,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 375,
+     "d_spend": 120.76,
+     "d_lead": 6,
+     "reset": false,
+     "day_cpl": 20.13
+    },
+    {
+     "date": "2026-08-31",
+     "spend": 1798.27,
+     "lead": 201,
+     "cpl": 8.9466,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 399,
+     "d_spend": 118.48,
+     "d_lead": 12,
+     "reset": false,
+     "day_cpl": 9.87
+    },
+    {
+     "date": "2026-09-01",
+     "spend": 1930.96,
+     "lead": 219,
+     "cpl": 8.8172,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 431,
+     "d_spend": 132.69,
+     "d_lead": 18,
+     "reset": false,
+     "day_cpl": 7.37
+    },
+    {
+     "date": "2026-09-02",
+     "spend": 2029.17,
+     "lead": 239,
+     "cpl": 8.4903,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 462,
+     "d_spend": 98.21,
+     "d_lead": 20,
+     "reset": false,
+     "day_cpl": 4.91
+    },
+    {
+     "date": "2026-09-03",
+     "spend": 2116.8,
+     "lead": 253,
+     "cpl": 8.3668,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 485,
+     "d_spend": 87.63,
+     "d_lead": 14,
+     "reset": false,
+     "day_cpl": 6.26
+    },
+    {
+     "date": "2026-09-04",
+     "spend": 2194.24,
+     "lead": 265,
+     "cpl": 8.2802,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 508,
+     "d_spend": 77.44,
+     "d_lead": 12,
+     "reset": false,
+     "day_cpl": 6.45
+    },
+    {
+     "date": "2026-09-05",
+     "spend": 2258.58,
+     "lead": 276,
+     "cpl": 8.1833,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 522,
+     "d_spend": 64.34,
+     "d_lead": 11,
+     "reset": false,
+     "day_cpl": 5.85
+    },
+    {
+     "date": "2026-09-06",
+     "spend": 2381.73,
+     "lead": 293,
+     "cpl": 8.1288,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 547,
+     "d_spend": 123.15,
+     "d_lead": 17,
+     "reset": false,
+     "day_cpl": 7.24
+    },
+    {
+     "date": "2026-09-07",
+     "spend": 2500.01,
+     "lead": 305,
+     "cpl": 8.1968,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 584,
+     "d_spend": 118.28,
+     "d_lead": 12,
+     "reset": false,
+     "day_cpl": 9.86
+    },
+    {
+     "date": "2026-09-08",
+     "spend": 2617.29,
+     "lead": 316,
+     "cpl": 8.2826,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 604,
+     "d_spend": 117.28,
+     "d_lead": 11,
+     "reset": false,
+     "day_cpl": 10.66
+    },
+    {
+     "date": "2026-09-09",
+     "spend": 2706.62,
+     "lead": 330,
+     "cpl": 8.2019,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 628,
+     "d_spend": 89.33,
+     "d_lead": 14,
+     "reset": false,
+     "day_cpl": 6.38
+    },
+    {
+     "date": "2026-09-10",
+     "spend": 2798.79,
+     "lead": 338,
+     "cpl": 8.2804,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 643,
+     "d_spend": 92.17,
+     "d_lead": 8,
+     "reset": false,
+     "day_cpl": 11.52
+    },
+    {
+     "date": "2026-09-11",
+     "spend": 2888.84,
+     "lead": 348,
+     "cpl": 8.3013,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 661,
+     "d_spend": 90.05,
+     "d_lead": 10,
+     "reset": false,
+     "day_cpl": 9.01
+    },
+    {
+     "date": "2026-09-12",
+     "spend": 2958.55,
+     "lead": 362,
+     "cpl": 8.1728,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 678,
+     "d_spend": 69.71,
+     "d_lead": 14,
+     "reset": false,
+     "day_cpl": 4.98
+    },
+    {
+     "date": "2026-09-13",
+     "spend": 3088.09,
+     "lead": 374,
+     "cpl": 8.2569,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 712,
+     "d_spend": 129.54,
+     "d_lead": 12,
+     "reset": false,
+     "day_cpl": 10.79
+    },
+    {
+     "date": "2026-09-14",
+     "spend": 3195.9,
+     "lead": 385,
+     "cpl": 8.301,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 728,
+     "d_spend": 107.81,
+     "d_lead": 11,
+     "reset": false,
+     "day_cpl": 9.8
+    },
+    {
+     "date": "2026-09-15",
+     "spend": 3304.1,
+     "lead": 397,
+     "cpl": 8.3227,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 742,
+     "d_spend": 108.2,
+     "d_lead": 12,
+     "reset": false,
+     "day_cpl": 9.02
+    },
+    {
+     "date": "2026-09-16",
+     "spend": 3411.04,
+     "lead": 414,
+     "cpl": 8.2392,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 763,
+     "d_spend": 106.94,
+     "d_lead": 17,
+     "reset": false,
+     "day_cpl": 6.29
+    },
+    {
+     "date": "2026-09-17",
+     "spend": 3505.41,
+     "lead": 427,
+     "cpl": 8.2094,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 782,
+     "d_spend": 94.37,
+     "d_lead": 13,
+     "reset": false,
+     "day_cpl": 7.26
+    },
+    {
+     "date": "2026-09-18",
+     "spend": 3592.41,
+     "lead": 445,
+     "cpl": 8.0728,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 802,
+     "d_spend": 87.0,
+     "d_lead": 18,
+     "reset": false,
+     "day_cpl": 4.83
+    },
+    {
+     "date": "2026-09-19",
+     "spend": 3658.07,
+     "lead": 445,
+     "cpl": 8.2204,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 808,
+     "d_spend": 65.66,
+     "d_lead": 0,
+     "reset": false,
+     "day_cpl": null
+    },
+    {
+     "date": "2026-09-20",
+     "spend": 3776.3,
+     "lead": 456,
+     "cpl": 8.2814,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 825,
+     "d_spend": 118.23,
+     "d_lead": 11,
+     "reset": false,
+     "day_cpl": 10.75
+    },
+    {
+     "date": "2026-09-21",
+     "spend": 3906.17,
+     "lead": 473,
+     "cpl": 8.2583,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 845,
+     "d_spend": 129.87,
+     "d_lead": 17,
+     "reset": false,
+     "day_cpl": 7.64
+    },
+    {
+     "date": "2026-09-22",
+     "spend": 3939.84,
+     "lead": 476,
+     "cpl": 8.277,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 851,
+     "d_spend": 33.67,
+     "d_lead": 3,
+     "reset": false,
+     "day_cpl": 11.22
+    }
+   ]
+  },
+  {
+   "line": "Pinyu",
+   "account": "PINYU品誉",
+   "marketer": null,
+   "variant": null,
+   "preview_date": null,
+   "label": "品誉绩效系统",
+   "series": [
+    {
+     "date": "2026-09-10",
+     "spend": 18.45,
+     "lead": 0,
+     "cpl": 0,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 1,
+     "d_spend": 18.45,
+     "d_lead": 0,
+     "reset": false,
+     "day_cpl": null
+    },
+    {
+     "date": "2026-09-11",
+     "spend": 142.81,
+     "lead": 3,
+     "cpl": 47.6033,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 10,
+     "d_spend": 124.36,
+     "d_lead": 3,
+     "reset": false,
+     "day_cpl": 41.45
+    },
+    {
+     "date": "2026-09-12",
+     "spend": 206.43,
+     "lead": 3,
+     "cpl": 68.81,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 16,
+     "d_spend": 63.62,
+     "d_lead": 0,
+     "reset": false,
+     "day_cpl": null
+    },
+    {
+     "date": "2026-09-13",
+     "spend": 331.01,
+     "lead": 11,
+     "cpl": 30.0918,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 30,
+     "d_spend": 124.58,
+     "d_lead": 8,
+     "reset": false,
+     "day_cpl": 15.57
+    },
+    {
+     "date": "2026-09-14",
+     "spend": 462.99,
+     "lead": 19,
+     "cpl": 24.3679,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 45,
+     "d_spend": 131.98,
+     "d_lead": 8,
+     "reset": false,
+     "day_cpl": 16.5
+    },
+    {
+     "date": "2026-09-15",
+     "spend": 557.48,
+     "lead": 19,
+     "cpl": 29.3411,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 53,
+     "d_spend": 94.49,
+     "d_lead": 0,
+     "reset": false,
+     "day_cpl": null
+    },
+    {
+     "date": "2026-09-16",
+     "spend": 650.84,
+     "lead": 22,
+     "cpl": 29.5836,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 62,
+     "d_spend": 93.36,
+     "d_lead": 3,
+     "reset": false,
+     "day_cpl": 31.12
+    },
+    {
+     "date": "2026-09-17",
+     "spend": 734.64,
+     "lead": 25,
+     "cpl": 29.3856,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 68,
+     "d_spend": 83.8,
+     "d_lead": 3,
+     "reset": false,
+     "day_cpl": 27.93
+    },
+    {
+     "date": "2026-09-18",
+     "spend": 789.4,
+     "lead": 25,
+     "cpl": 31.576,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 73,
+     "d_spend": 54.76,
+     "d_lead": 0,
+     "reset": false,
+     "day_cpl": null
+    },
+    {
+     "date": "2026-09-19",
+     "spend": 834.77,
+     "lead": 25,
+     "cpl": 33.3908,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 84,
+     "d_spend": 45.37,
+     "d_lead": 0,
+     "reset": false,
+     "day_cpl": null
+    },
+    {
+     "date": "2026-09-20",
+     "spend": 951.14,
+     "lead": 36,
+     "cpl": 26.4206,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 96,
+     "d_spend": 116.37,
+     "d_lead": 11,
+     "reset": false,
+     "day_cpl": 10.58
+    },
+    {
+     "date": "2026-09-21",
+     "spend": 1062.14,
+     "lead": 36,
+     "cpl": 29.5039,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 103,
+     "d_spend": 111.0,
+     "d_lead": 0,
+     "reset": false,
+     "day_cpl": null
+    },
+    {
+     "date": "2026-09-22",
+     "spend": 1075.54,
+     "lead": 42,
+     "cpl": 25.6081,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 106,
+     "d_spend": 13.4,
+     "d_lead": 6,
+     "reset": false,
+     "day_cpl": 2.23
+    }
+   ]
+  },
+  {
+   "line": "Pinyu",
+   "account": "Pinyu Malaysia (Adrian & Amanda)",
+   "marketer": null,
+   "variant": null,
+   "preview_date": null,
+   "label": "Pinyu Online · Aug 图文",
+   "series": [
+    {
+     "date": "2026-08-27",
+     "spend": 348.94,
+     "lead": 8,
+     "cpl": 43.6175,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 60,
+     "d_spend": 348.94,
+     "d_lead": 8,
+     "reset": false,
+     "day_cpl": 43.62
+    },
+    {
+     "date": "2026-08-28",
+     "spend": 701.88,
+     "lead": 12,
+     "cpl": 58.49,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 119,
+     "d_spend": 352.94,
+     "d_lead": 4,
+     "reset": false,
+     "day_cpl": 88.23
+    },
+    {
+     "date": "2026-08-29",
+     "spend": 1054.61,
+     "lead": 14,
+     "cpl": 75.3293,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 195,
+     "d_spend": 352.73,
+     "d_lead": 2,
+     "reset": false,
+     "day_cpl": 176.36
+    },
+    {
+     "date": "2026-08-30",
+     "spend": 1282.77,
+     "lead": 14,
+     "cpl": 91.6264,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 239,
+     "d_spend": 228.16,
+     "d_lead": 0,
+     "reset": false,
+     "day_cpl": null
+    },
+    {
+     "date": "2026-08-31",
+     "spend": 1285.1,
+     "lead": 14,
+     "cpl": 91.7929,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 239,
+     "d_spend": 2.33,
+     "d_lead": 0,
+     "reset": false,
+     "day_cpl": null
+    },
+    {
+     "date": "2026-09-01",
+     "spend": 1783.06,
+     "lead": 20,
+     "cpl": 89.153,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 310,
+     "d_spend": 497.96,
+     "d_lead": 6,
+     "reset": false,
+     "day_cpl": 82.99
+    },
+    {
+     "date": "2026-09-02",
+     "spend": 2259.94,
+     "lead": 26,
+     "cpl": 86.9208,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 427,
+     "d_spend": 476.88,
+     "d_lead": 6,
+     "reset": false,
+     "day_cpl": 79.48
+    },
+    {
+     "date": "2026-09-03",
+     "spend": 2667.92,
+     "lead": 34,
+     "cpl": 78.4682,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 529,
+     "d_spend": 407.98,
+     "d_lead": 8,
+     "reset": false,
+     "day_cpl": 51.0
+    },
+    {
+     "date": "2026-09-04",
+     "spend": 2999.09,
+     "lead": 46,
+     "cpl": 65.1976,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 602,
+     "d_spend": 331.17,
+     "d_lead": 12,
+     "reset": false,
+     "day_cpl": 27.6
+    },
+    {
+     "date": "2026-09-05",
+     "spend": 3368.75,
+     "lead": 50,
+     "cpl": 67.375,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 686,
+     "d_spend": 369.66,
+     "d_lead": 4,
+     "reset": false,
+     "day_cpl": 92.41
+    },
+    {
+     "date": "2026-09-06",
+     "spend": 3871.31,
+     "lead": 58,
+     "cpl": 66.7467,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 841,
+     "d_spend": 502.56,
+     "d_lead": 8,
+     "reset": false,
+     "day_cpl": 62.82
+    },
+    {
+     "date": "2026-09-07",
+     "spend": 4426.43,
+     "lead": 68,
+     "cpl": 65.0946,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 907,
+     "d_spend": 555.12,
+     "d_lead": 10,
+     "reset": false,
+     "day_cpl": 55.51
+    },
+    {
+     "date": "2026-09-08",
+     "spend": 4803.38,
+     "lead": 80,
+     "cpl": 60.0423,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 943,
+     "d_spend": 376.95,
+     "d_lead": 12,
+     "reset": false,
+     "day_cpl": 31.41
+    },
+    {
+     "date": "2026-09-09",
+     "spend": 5147.44,
+     "lead": 84,
+     "cpl": 61.279,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 974,
+     "d_spend": 344.06,
+     "d_lead": 4,
+     "reset": false,
+     "day_cpl": 86.01
+    },
+    {
+     "date": "2026-09-10",
+     "spend": 5424.59,
+     "lead": 86,
+     "cpl": 63.0766,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 993,
+     "d_spend": 277.15,
+     "d_lead": 2,
+     "reset": false,
+     "day_cpl": 138.58
+    },
+    {
+     "date": "2026-09-11",
+     "spend": 5713.57,
+     "lead": 92,
+     "cpl": 62.104,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 1008,
+     "d_spend": 288.98,
+     "d_lead": 6,
+     "reset": false,
+     "day_cpl": 48.16
+    },
+    {
+     "date": "2026-09-12",
+     "spend": 5927.89,
+     "lead": 102,
+     "cpl": 58.1166,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 1025,
+     "d_spend": 214.32,
+     "d_lead": 10,
+     "reset": false,
+     "day_cpl": 21.43
+    },
+    {
+     "date": "2026-09-13",
+     "spend": 6316.66,
+     "lead": 112,
+     "cpl": 56.3987,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 1049,
+     "d_spend": 388.77,
+     "d_lead": 10,
+     "reset": false,
+     "day_cpl": 38.88
+    },
+    {
+     "date": "2026-09-14",
+     "spend": 6338.13,
+     "lead": 114,
+     "cpl": 55.5976,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 1053,
+     "d_spend": 21.47,
+     "d_lead": 2,
+     "reset": false,
+     "day_cpl": 10.74
+    },
+    {
+     "date": "2026-09-15",
+     "spend": 6642.33,
+     "lead": 118,
+     "cpl": 56.2909,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 1086,
+     "d_spend": 304.2,
+     "d_lead": 4,
+     "reset": false,
+     "day_cpl": 76.05
+    },
+    {
+     "date": "2026-09-16",
+     "spend": 6867.81,
+     "lead": 118,
+     "cpl": 58.2018,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 1116,
+     "d_spend": 225.48,
+     "d_lead": 0,
+     "reset": false,
+     "day_cpl": null
+    },
+    {
+     "date": "2026-09-17",
+     "spend": 7102.18,
+     "lead": 119,
+     "cpl": 59.6822,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 1152,
+     "d_spend": 234.37,
+     "d_lead": 1,
+     "reset": false,
+     "day_cpl": 234.37
+    },
+    {
+     "date": "2026-09-18",
+     "spend": 7359.23,
+     "lead": 125,
+     "cpl": 58.8738,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 1189,
+     "d_spend": 257.05,
+     "d_lead": 6,
+     "reset": false,
+     "day_cpl": 42.84
+    },
+    {
+     "date": "2026-09-19",
+     "spend": 7618.42,
+     "lead": 133,
+     "cpl": 57.2814,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 1213,
+     "d_spend": 259.19,
+     "d_lead": 8,
+     "reset": false,
+     "day_cpl": 32.4
+    },
+    {
+     "date": "2026-09-20",
+     "spend": 7870.67,
+     "lead": 139,
+     "cpl": 56.6235,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 1236,
+     "d_spend": 252.25,
+     "d_lead": 6,
+     "reset": false,
+     "day_cpl": 42.04
+    },
+    {
+     "date": "2026-09-21",
+     "spend": 8164.06,
+     "lead": 141,
+     "cpl": 57.9011,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 1272,
+     "d_spend": 293.39,
+     "d_lead": 2,
+     "reset": false,
+     "day_cpl": 146.7
+    },
+    {
+     "date": "2026-09-22",
+     "spend": 8274.29,
+     "lead": 145,
+     "cpl": 57.0641,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 1280,
+     "d_spend": 110.23,
+     "d_lead": 4,
+     "reset": false,
+     "day_cpl": 27.56
+    }
+   ]
+  },
+  {
+   "line": "Pinyu",
+   "account": "Pinyu Malaysia (Adrian & Amanda)",
+   "marketer": null,
+   "variant": null,
+   "preview_date": null,
+   "label": "Pinyu Online · Aug 图文(LF)",
+   "series": [
+    {
+     "date": "2026-09-01",
+     "spend": 6.5,
+     "lead": 0,
+     "cpl": 0,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 0,
+     "d_spend": 6.5,
+     "d_lead": 0,
+     "reset": false,
+     "day_cpl": null
+    },
+    {
+     "date": "2026-09-02",
+     "spend": 192.23,
+     "lead": 5,
+     "cpl": 38.446,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 15,
+     "d_spend": 185.73,
+     "d_lead": 5,
+     "reset": false,
+     "day_cpl": 37.15
+    },
+    {
+     "date": "2026-09-03",
+     "spend": 342.46,
+     "lead": 11,
+     "cpl": 31.1327,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 25,
+     "d_spend": 150.23,
+     "d_lead": 6,
+     "reset": false,
+     "day_cpl": 25.04
+    },
+    {
+     "date": "2026-09-04",
+     "spend": 466.56,
+     "lead": 11,
+     "cpl": 42.4145,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 35,
+     "d_spend": 124.1,
+     "d_lead": 0,
+     "reset": false,
+     "day_cpl": null
+    },
+    {
+     "date": "2026-09-05",
+     "spend": 613.05,
+     "lead": 11,
+     "cpl": 55.7318,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 48,
+     "d_spend": 146.49,
+     "d_lead": 0,
+     "reset": false,
+     "day_cpl": null
+    },
+    {
+     "date": "2026-09-06",
+     "spend": 798.59,
+     "lead": 13,
+     "cpl": 61.43,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 67,
+     "d_spend": 185.54,
+     "d_lead": 2,
+     "reset": false,
+     "day_cpl": 92.77
+    },
+    {
+     "date": "2026-09-07",
+     "spend": 996.93,
+     "lead": 23,
+     "cpl": 43.3448,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 101,
+     "d_spend": 198.34,
+     "d_lead": 10,
+     "reset": false,
+     "day_cpl": 19.83
+    },
+    {
+     "date": "2026-09-08",
+     "spend": 1220.88,
+     "lead": 40,
+     "cpl": 30.522,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 136,
+     "d_spend": 223.95,
+     "d_lead": 17,
+     "reset": false,
+     "day_cpl": 13.17
+    },
+    {
+     "date": "2026-09-09",
+     "spend": 1395.78,
+     "lead": 42,
+     "cpl": 33.2329,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 161,
+     "d_spend": 174.9,
+     "d_lead": 2,
+     "reset": false,
+     "day_cpl": 87.45
+    },
+    {
+     "date": "2026-09-10",
+     "spend": 1536.83,
+     "lead": 44,
+     "cpl": 34.928,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 185,
+     "d_spend": 141.05,
+     "d_lead": 2,
+     "reset": false,
+     "day_cpl": 70.52
+    },
+    {
+     "date": "2026-09-11",
+     "spend": 1688.95,
+     "lead": 46,
+     "cpl": 36.7163,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 194,
+     "d_spend": 152.12,
+     "d_lead": 2,
+     "reset": false,
+     "day_cpl": 76.06
+    },
+    {
+     "date": "2026-09-12",
+     "spend": 1880.61,
+     "lead": 54,
+     "cpl": 34.8261,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 212,
+     "d_spend": 191.66,
+     "d_lead": 8,
+     "reset": false,
+     "day_cpl": 23.96
+    },
+    {
+     "date": "2026-09-13",
+     "spend": 2097.15,
+     "lead": 59,
+     "cpl": 35.5449,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 230,
+     "d_spend": 216.54,
+     "d_lead": 5,
+     "reset": false,
+     "day_cpl": 43.31
+    },
+    {
+     "date": "2026-09-14",
+     "spend": 2277.26,
+     "lead": 59,
+     "cpl": 38.5976,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 245,
+     "d_spend": 180.11,
+     "d_lead": 0,
+     "reset": false,
+     "day_cpl": null
+    },
+    {
+     "date": "2026-09-15",
+     "spend": 2431.93,
+     "lead": 60,
+     "cpl": 40.5322,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 252,
+     "d_spend": 154.67,
+     "d_lead": 1,
+     "reset": false,
+     "day_cpl": 154.67
+    }
+   ]
+  },
+  {
+   "line": "Pinyu",
+   "account": "Pinyu Malaysia (Adrian & Amanda)",
+   "marketer": null,
+   "variant": null,
+   "preview_date": null,
+   "label": "Pinyu Online · Aug 视频",
+   "series": [
+    {
+     "date": "2026-09-03",
+     "spend": 172.38,
+     "lead": 3,
+     "cpl": 57.46,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 31,
+     "d_spend": 172.38,
+     "d_lead": 3,
+     "reset": false,
+     "day_cpl": 57.46
+    },
+    {
+     "date": "2026-09-04",
+     "spend": 359.59,
+     "lead": 6,
+     "cpl": 59.9317,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 77,
+     "d_spend": 187.21,
+     "d_lead": 3,
+     "reset": false,
+     "day_cpl": 62.4
+    },
+    {
+     "date": "2026-09-05",
+     "spend": 525.85,
+     "lead": 6,
+     "cpl": 87.6417,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 95,
+     "d_spend": 166.26,
+     "d_lead": 0,
+     "reset": false,
+     "day_cpl": null
+    },
+    {
+     "date": "2026-09-06",
+     "spend": 806.93,
+     "lead": 23,
+     "cpl": 35.0839,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 142,
+     "d_spend": 281.08,
+     "d_lead": 17,
+     "reset": false,
+     "day_cpl": 16.53
+    },
+    {
+     "date": "2026-09-07",
+     "spend": 1043.52,
+     "lead": 30,
+     "cpl": 34.784,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 186,
+     "d_spend": 236.59,
+     "d_lead": 7,
+     "reset": false,
+     "day_cpl": 33.8
+    },
+    {
+     "date": "2026-09-08",
+     "spend": 1336.81,
+     "lead": 36,
+     "cpl": 37.1336,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 235,
+     "d_spend": 293.29,
+     "d_lead": 6,
+     "reset": false,
+     "day_cpl": 48.88
+    },
+    {
+     "date": "2026-09-09",
+     "spend": 1586.23,
+     "lead": 46,
+     "cpl": 34.4833,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 287,
+     "d_spend": 249.42,
+     "d_lead": 10,
+     "reset": false,
+     "day_cpl": 24.94
+    },
+    {
+     "date": "2026-09-10",
+     "spend": 1867.7,
+     "lead": 52,
+     "cpl": 35.9173,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 333,
+     "d_spend": 281.47,
+     "d_lead": 6,
+     "reset": false,
+     "day_cpl": 46.91
+    },
+    {
+     "date": "2026-09-11",
+     "spend": 2157.13,
+     "lead": 61,
+     "cpl": 35.3628,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 381,
+     "d_spend": 289.43,
+     "d_lead": 9,
+     "reset": false,
+     "day_cpl": 32.16
+    },
+    {
+     "date": "2026-09-12",
+     "spend": 2432.43,
+     "lead": 66,
+     "cpl": 36.855,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 421,
+     "d_spend": 275.3,
+     "d_lead": 5,
+     "reset": false,
+     "day_cpl": 55.06
+    },
+    {
+     "date": "2026-09-13",
+     "spend": 2735.86,
+     "lead": 77,
+     "cpl": 35.5306,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 467,
+     "d_spend": 303.43,
+     "d_lead": 11,
+     "reset": false,
+     "day_cpl": 27.58
+    },
+    {
+     "date": "2026-09-14",
+     "spend": 3025.49,
+     "lead": 82,
+     "cpl": 36.8962,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 521,
+     "d_spend": 289.63,
+     "d_lead": 5,
+     "reset": false,
+     "day_cpl": 57.93
+    },
+    {
+     "date": "2026-09-15",
+     "spend": 3317.98,
+     "lead": 90,
+     "cpl": 36.8664,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 573,
+     "d_spend": 292.49,
+     "d_lead": 8,
+     "reset": false,
+     "day_cpl": 36.56
+    },
+    {
+     "date": "2026-09-16",
+     "spend": 3483.23,
+     "lead": 98,
+     "cpl": 35.5432,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 617,
+     "d_spend": 165.25,
+     "d_lead": 8,
+     "reset": false,
+     "day_cpl": 20.66
+    },
+    {
+     "date": "2026-09-17",
+     "spend": 3610.83,
+     "lead": 105,
+     "cpl": 34.3889,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 636,
+     "d_spend": 127.6,
+     "d_lead": 7,
+     "reset": false,
+     "day_cpl": 18.23
+    },
+    {
+     "date": "2026-09-18",
+     "spend": 3714.78,
+     "lead": 105,
+     "cpl": 35.3789,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 659,
+     "d_spend": 103.95,
+     "d_lead": 0,
+     "reset": false,
+     "day_cpl": null
+    },
+    {
+     "date": "2026-09-19",
+     "spend": 3837.15,
+     "lead": 105,
+     "cpl": 36.5443,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 668,
+     "d_spend": 122.37,
+     "d_lead": 0,
+     "reset": false,
+     "day_cpl": null
+    },
+    {
+     "date": "2026-09-20",
+     "spend": 3990.76,
+     "lead": 111,
+     "cpl": 35.9528,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 684,
+     "d_spend": 153.61,
+     "d_lead": 6,
+     "reset": false,
+     "day_cpl": 25.6
+    },
+    {
+     "date": "2026-09-21",
+     "spend": 4098.24,
+     "lead": 111,
+     "cpl": 36.9211,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 700,
+     "d_spend": 107.48,
+     "d_lead": 0,
+     "reset": false,
+     "day_cpl": null
+    },
+    {
+     "date": "2026-09-22",
+     "spend": 4150.55,
+     "lead": 113,
+     "cpl": 36.7305,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 702,
+     "d_spend": 52.31,
+     "d_lead": 2,
+     "reset": false,
+     "day_cpl": 26.16
+    }
+   ]
+  },
+  {
+   "line": "Pinyu",
+   "account": "Pinyu Malaysia (Adrian & Amanda)",
+   "marketer": null,
+   "variant": null,
+   "preview_date": null,
+   "label": "Pinyu Online · Industries",
+   "series": [
+    {
+     "date": "2026-09-13",
+     "spend": 119.67,
+     "lead": 6,
+     "cpl": 19.945,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 37,
+     "d_spend": 119.67,
+     "d_lead": 6,
+     "reset": false,
+     "day_cpl": 19.95
+    },
+    {
+     "date": "2026-09-14",
+     "spend": 439.18,
+     "lead": 12,
+     "cpl": 36.5983,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 111,
+     "d_spend": 319.51,
+     "d_lead": 6,
+     "reset": false,
+     "day_cpl": 53.25
+    },
+    {
+     "date": "2026-09-15",
+     "spend": 797.72,
+     "lead": 21,
+     "cpl": 37.9867,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 206,
+     "d_spend": 358.54,
+     "d_lead": 9,
+     "reset": false,
+     "day_cpl": 39.84
+    },
+    {
+     "date": "2026-09-16",
+     "spend": 1068.14,
+     "lead": 21,
+     "cpl": 50.8638,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 276,
+     "d_spend": 270.42,
+     "d_lead": 0,
+     "reset": false,
+     "day_cpl": null
+    },
+    {
+     "date": "2026-09-17",
+     "spend": 1261.97,
+     "lead": 21,
+     "cpl": 60.0938,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 321,
+     "d_spend": 193.83,
+     "d_lead": 0,
+     "reset": false,
+     "day_cpl": null
+    },
+    {
+     "date": "2026-09-18",
+     "spend": 1540.21,
+     "lead": 21,
+     "cpl": 73.3433,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 378,
+     "d_spend": 278.24,
+     "d_lead": 0,
+     "reset": false,
+     "day_cpl": null
+    },
+    {
+     "date": "2026-09-19",
+     "spend": 1907.86,
+     "lead": 23,
+     "cpl": 82.9504,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 427,
+     "d_spend": 367.65,
+     "d_lead": 2,
+     "reset": false,
+     "day_cpl": 183.82
+    },
+    {
+     "date": "2026-09-20",
+     "spend": 2230.11,
+     "lead": 25,
+     "cpl": 89.2044,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 461,
+     "d_spend": 322.25,
+     "d_lead": 2,
+     "reset": false,
+     "day_cpl": 161.13
+    },
+    {
+     "date": "2026-09-21",
+     "spend": 2573.51,
+     "lead": 25,
+     "cpl": 102.9404,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 494,
+     "d_spend": 343.4,
+     "d_lead": 0,
+     "reset": false,
+     "day_cpl": null
+    },
+    {
+     "date": "2026-09-22",
+     "spend": 2657.61,
+     "lead": 25,
+     "cpl": 106.3044,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 508,
+     "d_spend": 84.1,
+     "d_lead": 0,
+     "reset": false,
+     "day_cpl": null
+    }
+   ]
+  },
+  {
+   "line": "Pinyu",
+   "account": "M9品誉",
+   "marketer": null,
+   "variant": null,
+   "preview_date": null,
+   "label": "品誉 · Wilson",
+   "series": [
+    {
+     "date": "2026-09-04",
+     "spend": 107.72,
+     "lead": 4,
+     "cpl": 26.93,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 13,
+     "d_spend": 107.72,
+     "d_lead": 4,
+     "reset": false,
+     "day_cpl": 26.93
+    },
+    {
+     "date": "2026-09-05",
+     "spend": 268.89,
+     "lead": 8,
+     "cpl": 33.6112,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 30,
+     "d_spend": 161.17,
+     "d_lead": 4,
+     "reset": false,
+     "day_cpl": 40.29
+    },
+    {
+     "date": "2026-09-06",
+     "spend": 508.87,
+     "lead": 18,
+     "cpl": 28.2706,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 51,
+     "d_spend": 239.98,
+     "d_lead": 10,
+     "reset": false,
+     "day_cpl": 24.0
+    },
+    {
+     "date": "2026-09-07",
+     "spend": 679.55,
+     "lead": 20,
+     "cpl": 33.9775,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 79,
+     "d_spend": 170.68,
+     "d_lead": 2,
+     "reset": false,
+     "day_cpl": 85.34
+    },
+    {
+     "date": "2026-09-08",
+     "spend": 890.14,
+     "lead": 26,
+     "cpl": 34.2362,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 100,
+     "d_spend": 210.59,
+     "d_lead": 6,
+     "reset": false,
+     "day_cpl": 35.1
+    },
+    {
+     "date": "2026-09-09",
+     "spend": 1376.12,
+     "lead": 36,
+     "cpl": 38.2256,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 134,
+     "d_spend": 485.98,
+     "d_lead": 10,
+     "reset": false,
+     "day_cpl": 48.6
+    },
+    {
+     "date": "2026-09-10",
+     "spend": 1790.88,
+     "lead": 46,
+     "cpl": 38.9322,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 181,
+     "d_spend": 414.76,
+     "d_lead": 10,
+     "reset": false,
+     "day_cpl": 41.48
+    },
+    {
+     "date": "2026-09-11",
+     "spend": 2149.99,
+     "lead": 56,
+     "cpl": 38.3927,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 231,
+     "d_spend": 359.11,
+     "d_lead": 10,
+     "reset": false,
+     "day_cpl": 35.91
+    },
+    {
+     "date": "2026-09-12",
+     "spend": 2484.92,
+     "lead": 64,
+     "cpl": 38.8269,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 277,
+     "d_spend": 334.93,
+     "d_lead": 8,
+     "reset": false,
+     "day_cpl": 41.87
+    },
+    {
+     "date": "2026-09-13",
+     "spend": 2929.58,
+     "lead": 68,
+     "cpl": 43.0821,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 323,
+     "d_spend": 444.66,
+     "d_lead": 4,
+     "reset": false,
+     "day_cpl": 111.16
+    },
+    {
+     "date": "2026-09-14",
+     "spend": 3393.93,
+     "lead": 80,
+     "cpl": 42.4241,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 373,
+     "d_spend": 464.35,
+     "d_lead": 12,
+     "reset": false,
+     "day_cpl": 38.7
+    },
+    {
+     "date": "2026-09-15",
+     "spend": 3700.49,
+     "lead": 90,
+     "cpl": 41.1166,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 428,
+     "d_spend": 306.56,
+     "d_lead": 10,
+     "reset": false,
+     "day_cpl": 30.66
+    },
+    {
+     "date": "2026-09-16",
+     "spend": 4190.98,
+     "lead": 100,
+     "cpl": 41.9098,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 496,
+     "d_spend": 490.49,
+     "d_lead": 10,
+     "reset": false,
+     "day_cpl": 49.05
+    },
+    {
+     "date": "2026-09-17",
+     "spend": 4512.2,
+     "lead": 104,
+     "cpl": 43.3865,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 530,
+     "d_spend": 321.22,
+     "d_lead": 4,
+     "reset": false,
+     "day_cpl": 80.31
+    },
+    {
+     "date": "2026-09-18",
+     "spend": 4882.14,
+     "lead": 112,
+     "cpl": 43.5905,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 567,
+     "d_spend": 369.94,
+     "d_lead": 8,
+     "reset": false,
+     "day_cpl": 46.24
+    },
+    {
+     "date": "2026-09-19",
+     "spend": 5284.86,
+     "lead": 120,
+     "cpl": 44.0405,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 633,
+     "d_spend": 402.72,
+     "d_lead": 8,
+     "reset": false,
+     "day_cpl": 50.34
+    },
+    {
+     "date": "2026-09-20",
+     "spend": 5802.21,
+     "lead": 126,
+     "cpl": 46.0493,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 711,
+     "d_spend": 517.35,
+     "d_lead": 6,
+     "reset": false,
+     "day_cpl": 86.23
+    },
+    {
+     "date": "2026-09-21",
+     "spend": 6172.8,
+     "lead": 128,
+     "cpl": 48.225,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 753,
+     "d_spend": 370.59,
+     "d_lead": 2,
+     "reset": false,
+     "day_cpl": 185.3
+    },
+    {
+     "date": "2026-09-22",
+     "spend": 6268.14,
+     "lead": 128,
+     "cpl": 48.9698,
+     "budget": null,
+     "bal": null,
+     "used": null,
+     "junk": null,
+     "clicks": 761,
+     "d_spend": 95.34,
+     "d_lead": 0,
+     "reset": false,
+     "day_cpl": null
+    }
+   ]
+  },
+  {
+   "line": "Maction",
+   "account": "Maction Franchise (Sandy)",
+   "marketer": null,
+   "variant": null,
+   "preview_date": "2026-09-11",
+   "label": "连锁申请 · 11 Sep 场",
+   "series": [
+    {
+     "date": "2026-09-03",
+     "spend": 107.1,
+     "lead": 2,
+     "cpl": 53.55,
+     "budget": 3000.0,
+     "bal": 2892.9,
+     "used": null,
+     "junk": null,
+     "clicks": 18,
+     "d_spend": 107.1,
+     "d_lead": 2,
+     "reset": false,
+     "day_cpl": 53.55
+    },
+    {
+     "date": "2026-09-04",
+     "spend": 185.51,
+     "lead": 5,
+     "cpl": 37.102,
+     "budget": 3000.0,
+     "bal": 2814.49,
+     "used": null,
+     "junk": null,
+     "clicks": 26,
+     "d_spend": 78.41,
+     "d_lead": 3,
+     "reset": false,
+     "day_cpl": 26.14
+    },
+    {
+     "date": "2026-09-05",
+     "spend": 281.15,
+     "lead": 13,
+     "cpl": 21.6269,
+     "budget": 3000.0,
+     "bal": 2718.85,
+     "used": null,
+     "junk": null,
+     "clicks": 35,
+     "d_spend": 95.64,
+     "d_lead": 8,
+     "reset": false,
+     "day_cpl": 11.95
+    },
+    {
+     "date": "2026-09-06",
+     "spend": 420.34,
+     "lead": 26,
+     "cpl": 16.1669,
+     "budget": 3000.0,
+     "bal": 2579.66,
+     "used": null,
+     "junk": null,
+     "clicks": 56,
+     "d_spend": 139.19,
+     "d_lead": 13,
+     "reset": false,
+     "day_cpl": 10.71
+    },
+    {
+     "date": "2026-09-07",
+     "spend": 525.26,
+     "lead": 29,
+     "cpl": 18.1124,
+     "budget": 3000.0,
+     "bal": 2474.74,
+     "used": null,
+     "junk": null,
+     "clicks": 65,
+     "d_spend": 104.92,
+     "d_lead": 3,
+     "reset": false,
+     "day_cpl": 34.97
+    },
+    {
+     "date": "2026-09-08",
+     "spend": 603.08,
+     "lead": 29,
+     "cpl": 20.7959,
+     "budget": 3000.0,
+     "bal": 2396.92,
+     "used": null,
+     "junk": null,
+     "clicks": 69,
+     "d_spend": 77.82,
+     "d_lead": 0,
+     "reset": false,
+     "day_cpl": null
+    },
+    {
+     "date": "2026-09-09",
+     "spend": 690.69,
+     "lead": 29,
+     "cpl": 23.8169,
+     "budget": 3000.0,
+     "bal": 2309.31,
+     "used": null,
+     "junk": null,
+     "clicks": 82,
+     "d_spend": 87.61,
+     "d_lead": 0,
+     "reset": false,
+     "day_cpl": null
+    },
+    {
+     "date": "2026-09-10",
+     "spend": 779.9,
+     "lead": 38,
+     "cpl": 20.5237,
+     "budget": 3000.0,
+     "bal": 2220.1,
+     "used": null,
+     "junk": null,
+     "clicks": 96,
+     "d_spend": 89.21,
+     "d_lead": 9,
+     "reset": false,
+     "day_cpl": 9.91
+    },
+    {
+     "date": "2026-09-11",
+     "spend": 823.03,
+     "lead": 45,
+     "cpl": 18.2896,
+     "budget": 3000.0,
+     "bal": 2176.97,
+     "used": null,
+     "junk": null,
+     "clicks": 108,
+     "d_spend": 43.13,
+     "d_lead": 7,
+     "reset": false,
+     "day_cpl": 6.16
+    }
+   ]
+  },
+  {
+   "line": "Maction",
+   "account": "Maction Franchise (Sandy)",
+   "marketer": null,
+   "variant": null,
+   "preview_date": "2026-09-25",
+   "label": "连锁申请 · 25 Sep 场",
+   "series": [
+    {
+     "date": "2026-09-11",
+     "spend": 46.38,
+     "lead": 2,
+     "cpl": 23.19,
+     "budget": 3000.0,
+     "bal": 2953.62,
+     "used": null,
+     "junk": null,
+     "clicks": 6,
+     "d_spend": 46.38,
+     "d_lead": 2,
+     "reset": false,
+     "day_cpl": 23.19
+    },
+    {
+     "date": "2026-09-12",
+     "spend": 119.71,
+     "lead": 2,
+     "cpl": 59.855,
+     "budget": 3000.0,
+     "bal": 2880.29,
+     "used": null,
+     "junk": null,
+     "clicks": 11,
+     "d_spend": 73.33,
+     "d_lead": 0,
+     "reset": false,
+     "day_cpl": null
+    },
+    {
+     "date": "2026-09-13",
+     "spend": 245.62,
+     "lead": 2,
+     "cpl": 122.81,
+     "budget": 3000.0,
+     "bal": 2754.38,
+     "used": null,
+     "junk": null,
+     "clicks": 19,
+     "d_spend": 125.91,
+     "d_lead": 0,
+     "reset": false,
+     "day_cpl": null
+    },
+    {
+     "date": "2026-09-14",
+     "spend": 518.67,
+     "lead": 7,
+     "cpl": 74.0957,
+     "budget": 3000.0,
+     "bal": 2481.33,
+     "used": null,
+     "junk": null,
+     "clicks": 34,
+     "d_spend": 273.05,
+     "d_lead": 5,
+     "reset": false,
+     "day_cpl": 54.61
+    },
+    {
+     "date": "2026-09-15",
+     "spend": 827.05,
+     "lead": 10,
+     "cpl": 82.705,
+     "budget": 3000.0,
+     "bal": 2172.95,
+     "used": null,
+     "junk": null,
+     "clicks": 54,
+     "d_spend": 308.38,
+     "d_lead": 3,
+     "reset": false,
+     "day_cpl": 102.79
+    },
+    {
+     "date": "2026-09-16",
+     "spend": 1043.65,
+     "lead": 13,
+     "cpl": 80.2808,
+     "budget": 3000.0,
+     "bal": 1956.35,
+     "used": null,
+     "junk": null,
+     "clicks": 67,
+     "d_spend": 216.6,
+     "d_lead": 3,
+     "reset": false,
+     "day_cpl": 72.2
+    },
+    {
+     "date": "2026-09-17",
+     "spend": 1207.0,
+     "lead": 22,
+     "cpl": 54.8636,
+     "budget": 3000.0,
+     "bal": 1793.0,
+     "used": null,
+     "junk": null,
+     "clicks": 77,
+     "d_spend": 163.35,
+     "d_lead": 9,
+     "reset": false,
+     "day_cpl": 18.15
+    },
+    {
+     "date": "2026-09-18",
+     "spend": 1377.35,
+     "lead": 29,
+     "cpl": 47.4948,
+     "budget": 3000.0,
+     "bal": 1622.65,
+     "used": null,
+     "junk": null,
+     "clicks": 87,
+     "d_spend": 170.35,
+     "d_lead": 7,
+     "reset": false,
+     "day_cpl": 24.34
+    },
+    {
+     "date": "2026-09-19",
+     "spend": 1488.93,
+     "lead": 29,
+     "cpl": 51.3424,
+     "budget": 3000.0,
+     "bal": 1511.07,
+     "used": null,
+     "junk": null,
+     "clicks": 97,
+     "d_spend": 111.58,
+     "d_lead": 0,
+     "reset": false,
+     "day_cpl": null
+    },
+    {
+     "date": "2026-09-20",
+     "spend": 1657.64,
+     "lead": 31,
+     "cpl": 53.4723,
+     "budget": 3000.0,
+     "bal": 1342.36,
+     "used": null,
+     "junk": null,
+     "clicks": 110,
+     "d_spend": 168.71,
+     "d_lead": 2,
+     "reset": false,
+     "day_cpl": 84.36
+    },
+    {
+     "date": "2026-09-21",
+     "spend": 1738.53,
+     "lead": 31,
+     "cpl": 56.0816,
+     "budget": 3000.0,
+     "bal": 1261.47,
+     "used": null,
+     "junk": null,
+     "clicks": 114,
+     "d_spend": 80.89,
+     "d_lead": 0,
+     "reset": false,
+     "day_cpl": null
+    }
+   ]
+  },
+  {
+   "line": "Maction",
+   "account": "Maction Franchise (Sandy)",
+   "marketer": null,
+   "variant": "A",
+   "preview_date": "2026-09-25",
+   "label": "连锁申请 · 25 Sep 场 (A)",
+   "series": [
+    {
+     "date": "2026-09-17",
+     "spend": 78.17,
+     "lead": 5,
+     "cpl": 15.634,
+     "budget": 3000.0,
+     "bal": 2921.83,
+     "used": null,
+     "junk": null,
+     "clicks": 8,
+     "d_spend": 78.17,
+     "d_lead": 5,
+     "reset": false,
+     "day_cpl": 15.63
+    },
+    {
+     "date": "2026-09-18",
+     "spend": 254.91,
+     "lead": 12,
+     "cpl": 21.2425,
+     "budget": 3000.0,
+     "bal": 2745.09,
+     "used": null,
+     "junk": null,
+     "clicks": 32,
+     "d_spend": 176.74,
+     "d_lead": 7,
+     "reset": false,
+     "day_cpl": 25.25
+    },
+    {
+     "date": "2026-09-19",
+     "spend": 349.92,
+     "lead": 17,
+     "cpl": 20.5835,
+     "budget": 3000.0,
+     "bal": 2650.08,
+     "used": null,
+     "junk": null,
+     "clicks": 48,
+     "d_spend": 95.01,
+     "d_lead": 5,
+     "reset": false,
+     "day_cpl": 19.0
+    },
+    {
+     "date": "2026-09-20",
+     "spend": 538.33,
+     "lead": 20,
+     "cpl": 26.9165,
+     "budget": 3000.0,
+     "bal": 2461.67,
+     "used": null,
+     "junk": null,
+     "clicks": 79,
+     "d_spend": 188.41,
+     "d_lead": 3,
+     "reset": false,
+     "day_cpl": 62.8
+    },
+    {
+     "date": "2026-09-21",
+     "spend": 609.3,
+     "lead": 20,
+     "cpl": 30.465,
+     "budget": 3000.0,
+     "bal": 2390.7,
+     "used": null,
+     "junk": null,
+     "clicks": 89,
+     "d_spend": 70.97,
+     "d_lead": 0,
+     "reset": false,
+     "day_cpl": null
+    }
+   ]
+  },
+  {
+   "line": "Maction",
+   "account": "Maction Franchise (Sandy)",
+   "marketer": null,
+   "variant": "B",
+   "preview_date": "2026-09-25",
+   "label": "连锁申请 · 25 Sep 场 (B)",
+   "series": [
+    {
+     "date": "2026-09-17",
+     "spend": 62.42,
+     "lead": 2,
+     "cpl": 31.21,
+     "budget": 3000.0,
+     "bal": 2937.58,
+     "used": null,
+     "junk": null,
+     "clicks": 7,
+     "d_spend": 62.42,
+     "d_lead": 2,
+     "reset": false,
+     "day_cpl": 31.21
+    },
+    {
+     "date": "2026-09-18",
+     "spend": 248.93,
+     "lead": 17,
+     "cpl": 14.6429,
+     "budget": 3000.0,
+     "bal": 2751.07,
+     "used": null,
+     "junk": null,
+     "clicks": 33,
+     "d_spend": 186.51,
+     "d_lead": 15,
+     "reset": false,
+     "day_cpl": 12.43
+    },
+    {
+     "date": "2026-09-19",
+     "spend": 347.19,
+     "lead": 19,
+     "cpl": 18.2732,
+     "budget": 3000.0,
+     "bal": 2652.81,
+     "used": null,
+     "junk": null,
+     "clicks": 46,
+     "d_spend": 98.26,
+     "d_lead": 2,
+     "reset": false,
+     "day_cpl": 49.13
+    },
+    {
+     "date": "2026-09-20",
+     "spend": 499.05,
+     "lead": 24,
+     "cpl": 20.7937,
+     "budget": 3000.0,
+     "bal": 2500.95,
+     "used": null,
+     "junk": null,
+     "clicks": 64,
+     "d_spend": 151.86,
+     "d_lead": 5,
+     "reset": false,
+     "day_cpl": 30.37
+    },
+    {
+     "date": "2026-09-21",
+     "spend": 576.97,
+     "lead": 31,
+     "cpl": 18.6119,
+     "budget": 3000.0,
+     "bal": 2423.03,
+     "used": null,
+     "junk": null,
+     "clicks": 74,
+     "d_spend": 77.92,
+     "d_lead": 7,
+     "reset": false,
+     "day_cpl": 11.13
+    }
+   ]
+  }
+ ],
+ "generated_from": "Meta Marketing API"
+}/*DATA_END*/;
+
+const CPL_GOOD=60, CPL_WARN=120;
+const fmtRM = n => 'RM ' + (n==null?'—':Number(n).toLocaleString('en-MY',{minimumFractionDigits:2,maximumFractionDigits:2}));
+const fmt0 = n => n==null?'—':Number(n).toLocaleString('en-MY',{maximumFractionDigits:0});
+const cplClass = c => c==null?'':(c<=CPL_GOOD?'good':c<=CPL_WARN?'warn':'bad');
+const cplBg = c => c==null?'':(c<=CPL_GOOD?'bg-good':c<=CPL_WARN?'bg-warn':'bg-bad');
+let FILTER='all';       // 业务线
+let ACCOUNT='all';      // 广告账户
+
+// 场标题（卡片标题）
+function courseName(c){ return c.label || (c.line==='Maction'?'Maction 连锁课程':'品誉绩效课程'); }
+// 副标题：有讲座日期就显示课程日期，否则留空（账户名由下方标签显示）
+function courseMeta(c){
+  return c.preview_date ? `📅 <span class="c-date">课程日期 ${c.preview_date}</span>` : '';
+}
+// 组合筛选：业务线 + 账户
+function matchFilter(c){ return (FILTER==='all'||c.line===FILTER) && (ACCOUNT==='all'||c.account===ACCOUNT); }
+
+// ---- 广告户口日期范围 ----
+const ALL_DATES = [...new Set(DATA.campaigns.flatMap(c=>c.series.map(s=>s.date)))].sort();
+const DMIN = ALL_DATES[0], DMAX = ALL_DATES[ALL_DATES.length-1];
+let SINCE = DMIN, UNTIL = DMAX;
+const inRange = d => d>=SINCE && d<=UNTIL;
+// 选定窗口内"最新有数据的一天"= 报告日
+function reportDay(){
+  const ds = ALL_DATES.filter(inRange);
+  return ds.length ? ds[ds.length-1] : null;
+}
+
+function last(c){return c.series[c.series.length-1];}
+// 该场在报告日当天的快照（没有则返回 null）
+function snapOn(c, d){ return c.series.find(s=>s.date===d) || null; }
+function activeCampaigns(){
+  const rd = reportDay();
+  return DATA.campaigns.filter(c=>matchFilter(c) && snapOn(c,rd));
+}
+
+function sparkline(series, key, color, w=232, h=34){
+  const vals=series.map(s=>s[key]==null?0:s[key]);
+  if(vals.length<2){ // single point -> a dot
+    return `<svg class="spark" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><circle cx="${w-6}" cy="${h/2}" r="3.5" fill="${color}"/></svg>`;
+  }
+  const max=Math.max(...vals,1), min=Math.min(...vals,0);
+  const rng=(max-min)||1;
+  const step=(w-8)/(vals.length-1);
+  const pts=vals.map((v,i)=>[4+i*step, h-4-((v-min)/rng)*(h-8)]);
+  const d=pts.map((p,i)=>(i?'L':'M')+p[0].toFixed(1)+' '+p[1].toFixed(1)).join(' ');
+  const area=d+` L ${pts[pts.length-1][0].toFixed(1)} ${h} L ${pts[0][0].toFixed(1)} ${h} Z`;
+  const e=pts[pts.length-1];
+  return `<svg class="spark" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
+    <path d="${area}" fill="${color}" opacity="0.09"/>
+    <path d="${d}" fill="none" stroke="${color}" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/>
+    <circle cx="${e[0].toFixed(1)}" cy="${e[1].toFixed(1)}" r="3" fill="${color}"/></svg>`;
+}
+
+function renderKPIs(){
+  const rd=reportDay();
+  document.getElementById('datePill').textContent = rd ? ('报告日 ' + rd) : '所选范围无数据';
+  const act=activeCampaigns();
+  let sp=0, ld=0;
+  act.forEach(c=>{const l=snapOn(c,rd); sp+=l.d_spend||0; ld+=Math.max(0,l.d_lead||0);});
+  const blended = ld>0? sp/ld : null;
+  let attn=0; act.forEach(c=>{const l=snapOn(c,rd); if(l.budget!=null && (l.bal<0||l.bal<0.15*l.budget)) attn++;});
+  const k=[
+    {lab:'当日总花费', big:fmtRM(sp), foot:`${act.length} 个活跃场次合计`},
+    {lab:'当日新增 Lead', big:fmt0(ld)+' <small>个</small>', foot:'较前一天累计的增量'},
+    {lab:'当日综合 CPL', big: blended==null?'—':('RM '+blended.toFixed(1)), foot:'总花费 ÷ 总新增Lead', cls:cplClass(blended)},
+    {lab:'预算预警', big: attn+' <small>场</small>', foot: attn?'余额见底或已超支':'预算健康', cls: attn?'bad':'good'},
+  ];
+  document.getElementById('kpis').innerHTML = k.map(x=>`
+    <div class="kpi"><div class="lab">${x.lab}</div>
+    <div class="big ${x.cls||''}">${x.big}</div><div class="foot">${x.foot}</div></div>`).join('');
+  document.getElementById('activeHint').textContent = rd ? `${act.length} 场在 ${rd} 有投放` : '';
+}
+
+function renderCards(){
+  const rd=reportDay();
+  const act=activeCampaigns().slice().sort((a,b)=>{
+    const ca=snapOn(a,rd).day_cpl, cb=snapOn(b,rd).day_cpl;
+    if(ca==null)return 1; if(cb==null)return -1; return ca-cb;
+  });
+  document.getElementById('cards').innerHTML = act.map(c=>{
+    const l=snapOn(c,rd);
+    const used=l.spend, bud=l.budget, hasBud=bud!=null&&bud>0;
+    const pct=hasBud?Math.min(100,Math.max(0,used/bud*100)):0;
+    const over=hasBud&&l.bal<0, low=hasBud&&!over&&l.bal<0.15*bud;
+    const barColor = over?'var(--bad)':low?'var(--warn)':'var(--accent)';
+    const attn = over||low;
+    const dcpl=l.day_cpl;
+    const validRate = (l.lead>0 && l.used!=null)? Math.round(l.used/l.lead*100):null;
+    const vtag = c.variant ? `<span class="c-mk">广告组 ${c.variant}</span>` : '';
+    const acctTag = c.account ? `<span class="c-mk">${c.account}</span>` : '';
+    return `<div class="card ${attn?'attn':''}">
+      <div class="c-top">
+        <div><div class="c-course">${courseName(c)}</div>
+          <div class="c-meta">${courseMeta(c)} ${vtag} ${acctTag}</div></div>
+        <span class="chip ${c.line==='Maction'?'line-m':'line-p'}">${c.line==='Maction'?'连锁':'品誉'}</span>
+      </div>
+      <div class="today-grid">
+        <div class="tg"><div class="l">今日花费</div><div class="v num">${l.d_spend==null?'—':l.d_spend.toFixed(0)}<small> RM</small></div></div>
+        <div class="tg"><div class="l">今日Lead</div><div class="v num">${l.d_lead<0?0:l.d_lead}</div></div>
+        <div class="tg"><div class="l">今日CPL</div><div class="v num ${cplClass(dcpl)}">${dcpl==null?'—':dcpl.toFixed(0)}</div>
+          ${dcpl==null?'':`<span class="cpl-tag ${cplBg(dcpl)}">${dcpl<=CPL_GOOD?'便宜':dcpl<=CPL_WARN?'一般':'偏贵'}</span>`}</div>
+      </div>
+      <div>
+        <div class="budget-row"><span>累计花费 ${fmtRM(used)}${hasBud?' / '+fmt0(bud):''}</span>
+          ${hasBud?`<span class="${over?'bad':low?'warn':''}">${over?'超支 '+fmtRM(-l.bal):'余 '+fmtRM(l.bal)}</span>`:'<span style="opacity:.6">未设预算</span>'}</div>
+        ${hasBud?`<div class="bar"><i style="width:${pct}%;background:${barColor}"></i></div>`:''}
+      </div>
+      <div class="mini-tbl">累计 <b>${fmt0(l.lead)}</b> Lead${l.used==null?'':` · 有效 <b>${fmt0(l.used)}</b>${validRate==null?'':` (${validRate}%)`}`}${l.junk==null?'':` · 垃圾 <b>${fmt0(l.junk)}</b>`} · 点击 <b>${fmt0(l.clicks)}</b> · 累计CPL <b>RM ${l.cpl.toFixed(0)}</b></div>
+      <div>${sparkline(c.series.filter(s=>inRange(s.date)),'d_spend','var(--chart-spend)')}</div>
+    </div>`;
+  }).join('') || `<div class="mini-tbl" style="padding:20px">所选日期范围内该分类无活跃场次。</div>`;
+}
+
+function renderRank(){
+  const rd=reportDay();
+  const act=activeCampaigns().map(c=>({c,l:snapOn(c,rd)})).filter(x=>x.l.day_cpl!=null)
+    .sort((a,b)=>a.l.day_cpl-b.l.day_cpl);
+  document.getElementById('rank').innerHTML = act.map((x,i)=>`
+    <div class="rrow">
+      <div class="rk">${i+1}</div>
+      <div><div class="rn">${courseName(x.c)}<span>${x.c.account?x.c.account+(x.c.preview_date?' · ':''):''}${x.c.preview_date?'课程日期 '+x.c.preview_date:''}</span></div></div>
+      <div class="rc num ${cplClass(x.l.day_cpl)}">RM ${x.l.day_cpl.toFixed(0)}</div>
+      <div class="rs">当日 ${x.l.d_lead<0?0:x.l.d_lead} Lead<br>花 ${fmtRM(x.l.d_spend)}</div>
+    </div>`).join('') || `<div class="rrow"><div class="rs" style="text-align:left">当日暂无可计算 CPL 的场次（当天无新增 Lead）。</div></div>`;
+}
+
+function renderTrend(){
+  // aggregate d_spend & d_lead by date across ALL campaigns (respect filter)
+  const map={};
+  DATA.campaigns.forEach(c=>{ if(!matchFilter(c))return;
+    c.series.forEach(s=>{ if(!inRange(s.date))return; if(!map[s.date])map[s.date]={sp:0,ld:0};
+      map[s.date].sp+=s.d_spend||0; map[s.date].ld+=Math.max(0,s.d_lead||0); }); });
+  const dates=Object.keys(map).sort();
+  if(!dates.length){document.getElementById('trend').innerHTML='<div class="mini-tbl">所选日期范围内无数据。</div>';return;}
+  const W=Math.max(560,dates.length*70), H=210, padL=48,padR=44,padT=14,padB=42;
+  const iw=W-padL-padR, ih=H-padT-padB;
+  const maxSp=Math.max(...dates.map(d=>map[d].sp),1);
+  const maxLd=Math.max(...dates.map(d=>map[d].ld),1);
+  const x=i=>padL+ (dates.length>1? i*iw/(dates.length-1):iw/2);
+  const ySp=v=>padT+ih-(v/maxSp)*ih;
+  const yLd=v=>padT+ih-(v/maxLd)*ih;
+  const bw=Math.min(30, iw/dates.length*0.5);
+  let bars=dates.map((d,i)=>{const h=(map[d].sp/maxSp)*ih; return `<rect x="${x(i)-bw/2}" y="${padT+ih-h}" width="${bw}" height="${h}" rx="3" fill="var(--chart-spend)" opacity="0.85"><title>${d} 花费 ${fmtRM(map[d].sp)}</title></rect>`;}).join('');
+  let line='M'+dates.map((d,i)=>`${x(i)} ${yLd(map[d].ld)}`).join(' L ');
+  let dots=dates.map((d,i)=>`<circle cx="${x(i)}" cy="${yLd(map[d].ld)}" r="3.5" fill="var(--chart-lead)"><title>${d} 新增 ${map[d].ld} Lead</title></circle>`).join('');
+  let xlab=dates.map((d,i)=> (dates.length<=12||i%2===0)?`<text x="${x(i)}" y="${H-16}" text-anchor="middle" font-size="10" fill="var(--muted)">${d.slice(5)}</text>`:'').join('');
+  const gl=[0,.5,1].map(t=>`<line x1="${padL}" x2="${W-padR}" y1="${padT+ih-t*ih}" y2="${padT+ih-t*ih}" stroke="var(--line)" stroke-width="1"/>
+     <text x="${padL-8}" y="${padT+ih-t*ih+3}" text-anchor="end" font-size="9" fill="var(--muted)">${fmt0(maxSp*t)}</text>`).join('');
+  document.getElementById('trend').innerHTML=`
+   <div style="display:flex;gap:18px;font-size:12px;color:var(--muted);margin-bottom:8px">
+     <span><i class="dot" style="background:var(--chart-spend)"></i>每日花费 (RM)</span>
+     <span><i class="dot" style="background:var(--chart-lead)"></i>每日新增 Lead</span></div>
+   <div style="overflow-x:auto"><svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" style="max-width:100%;min-width:${Math.min(W,560)}px">
+     ${gl}${bars}<path d="${line}" fill="none" stroke="var(--chart-lead)" stroke-width="2"/>${dots}${xlab}</svg></div>`;
+}
+
+function renderHist(){
+  const rows=[];
+  const camps=DATA.campaigns.filter(matchFilter);
+  camps.forEach(c=>{
+    const ser=c.series.filter(s=>inRange(s.date));
+    if(!ser.length)return;
+    rows.push(`<tr><td class="grp-td" colspan="11">${courseName(c)}${c.account?' · '+c.account:''}${c.preview_date?' · 课程日期 '+c.preview_date:''}</td></tr>`);
+    ser.forEach(s=>{
+      rows.push(`<tr>
+        <td>${s.date}</td>
+        <td class="num">${s.spend.toFixed(2)}</td>
+        <td class="num">${s.d_spend==null?'—':s.d_spend.toFixed(2)}</td>
+        <td class="num">${fmt0(s.lead)}</td>
+        <td class="num">${s.d_lead<0?0:s.d_lead}</td>
+        <td class="num ${cplClass(s.day_cpl)}">${s.day_cpl==null?'—':s.day_cpl.toFixed(1)}</td>
+        <td class="num">${s.cpl.toFixed(1)}</td>
+        <td class="num">${fmt0(s.used)}</td>
+        <td class="num">${fmt0(s.junk)}</td>
+        <td class="num">${fmt0(s.clicks)}</td>
+        <td class="num ${s.bal!=null&&s.bal<0?'bad':''}">${s.bal==null?'—':s.bal.toFixed(0)}</td>
+      </tr>`);
+    });
+  });
+  document.getElementById('histBody').innerHTML=rows.join('');
+}
+
+function renderAll(){renderKPIs();renderCards();renderRank();renderTrend();renderHist();}
+
+// ---- 日期筛选控件 ----
+const fSince=document.getElementById('fSince'), fUntil=document.getElementById('fUntil');
+[fSince,fUntil].forEach(el=>{el.min=DMIN; el.max=DMAX;});
+function syncInputs(){fSince.value=SINCE; fUntil.value=UNTIL;}
+syncInputs();
+function applyDates(){
+  SINCE=fSince.value||DMIN; UNTIL=fUntil.value||DMAX;
+  if(SINCE>UNTIL){const t=SINCE;SINCE=UNTIL;UNTIL=t; syncInputs();}
+  renderAll();
+}
+fSince.addEventListener('change',applyDates);
+fUntil.addEventListener('change',applyDates);
+document.querySelectorAll('.qbtn').forEach(b=>b.addEventListener('click',()=>{
+  const q=b.dataset.q;
+  if(q==='all'){SINCE=DMIN; UNTIL=DMAX;}
+  else{ UNTIL=DMAX;
+    const d=new Date(DMAX+'T00:00:00'); d.setDate(d.getDate()-(parseInt(q)-1));
+    const iso=d.toISOString().slice(0,10); SINCE=iso<DMIN?DMIN:iso;
+  }
+  syncInputs(); renderAll();
+}));
+
+// ---- 广告账户下拉 ----
+const fAccount=document.getElementById('fAccount');
+function accountsForLine(){
+  const set=[];
+  DATA.campaigns.forEach(c=>{ if((FILTER==='all'||c.line===FILTER)&&c.account&&!set.includes(c.account)) set.push(c.account); });
+  return set;
+}
+function buildAccountOptions(){
+  const accts=accountsForLine();
+  fAccount.innerHTML = `<option value="all">全部账户（合计）</option>` +
+    accts.map(a=>`<option value="${a.replace(/"/g,'&quot;')}">${a}</option>`).join('');
+  if(ACCOUNT!=='all' && !accts.includes(ACCOUNT)) ACCOUNT='all';
+  fAccount.value=ACCOUNT;
+}
+fAccount.addEventListener('change',()=>{ ACCOUNT=fAccount.value; renderAll(); });
+
+document.getElementById('tabs').addEventListener('click',e=>{
+  const b=e.target.closest('.tab'); if(!b)return;
+  FILTER=b.dataset.f; ACCOUNT='all';
+  [...document.querySelectorAll('.tab')].forEach(t=>t.setAttribute('aria-selected', t===b));
+  buildAccountOptions();
+  renderAll();
+});
+
+buildAccountOptions();
+renderAll();
+</script>
