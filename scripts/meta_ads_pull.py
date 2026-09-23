@@ -21,11 +21,23 @@ SINCE = UNTIL - datetime.timedelta(days=DAYS - 1)
 LEAD_ACTION = "lead"             # 统一 Lead 口径，避免同一批 lead 被多类型重复计算
 MIN_SPEND = 1.0                  # 整段窗口总花费低于此的 campaign 跳过
 
-def api_get(path, params):
+import time, urllib.error
+def api_get(path, params, retries=2):
     params = dict(params); params["access_token"] = TOKEN
     url = f"https://graph.facebook.com/{API_VERSION}/{path}?" + urllib.parse.urlencode(params)
-    with urllib.request.urlopen(url, timeout=90) as resp:
-        return json.loads(resp.read().decode())
+    last = None
+    for i in range(retries + 1):
+        try:
+            with urllib.request.urlopen(url, timeout=60) as resp:
+                return json.loads(resp.read().decode())
+        except urllib.error.HTTPError as e:
+            last = e
+            if e.code < 500:      # 400 等永久错误：不重试，直接抛
+                raise
+            time.sleep(2 * (i + 1))
+        except Exception as e:
+            last = e; time.sleep(2 * (i + 1))
+    raise last
 
 def lead_value(actions):
     for a in (actions or []):
