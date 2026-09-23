@@ -94,7 +94,7 @@ def main():
         ov = overrides.get(cid, {})
         if ov.get("exclude"): continue
         records.append({
-            "account": aname, "account_id": aid,
+            "account": aname, "account_id": aid, "campaign_id": cid,
             "label": ov.get("label") or cname, "variant": ov.get("variant"),
             "date": d, "spend": sp, "lead": ld, "clicks": ck,
         })

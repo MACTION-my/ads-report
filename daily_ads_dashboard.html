@@ -1,4 +1,5 @@
 <title>广告报告</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='13' fill='%23e60023'/><rect x='13' y='33' width='9' height='17' rx='2' fill='%23ffffff'/><rect x='27' y='23' width='9' height='27' rx='2' fill='%23ffd400'/><rect x='41' y='15' width='9' height='35' rx='2' fill='%23ffffff'/></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap">
@@ -181,29 +182,28 @@ thead th{background:var(--panel-2);font-family:"Sora";font-weight:600;font-size:
   <div class="sec" style="margin-top:40px"><h2><span class="mk">课程花费列表</span></h2>
     <span class="hint">广告「花费/Lead」选户口+日期自动算，其余手填</span></div>
   <div class="row" style="gap:8px;margin-bottom:10px">
-    <button class="mini" id="addCourse" style="border-color:var(--accent);color:var(--accent)">+ 添加课程</button>
-    <button class="mini" id="expCourse">导出备份</button>
-    <button class="mini" id="impCourse">导入</button>
-    <span style="font-size:11.5px;color:var(--muted);margin-left:auto">保存在本浏览器</span>
+    <a class="mini" id="editSheet" target="_blank" rel="noopener"
+       style="border-color:var(--accent);color:var(--accent);text-decoration:none;font-weight:700">✏️ 在 Google Sheet 编辑（跨电脑同步）</a>
+    <button class="mini" id="reloadCourse">↻ 刷新</button>
+    <span id="courseStatus" style="font-size:12px;color:var(--muted);margin-left:auto"></span>
   </div>
   <div class="scroll"><table class="course-tbl" id="courseTbl"><thead><tr>
     <th>课程日期</th><th>时间</th><th>地点</th><th>老师</th>
     <th>广告从</th><th>广告到</th><th>户口/项目</th>
     <th>花费(自动)</th><th>Lead(自动)</th>
-    <th>PTA</th><th>出席</th><th>成交</th><th>成交额(RM)</th><th></th>
+    <th>PTA</th><th>出席</th><th>成交</th><th>成交额(RM)</th>
   </tr></thead><tbody id="courseBody"></tbody></table></div>
-  <textarea id="ioBox" style="display:none;width:100%;height:120px;margin-top:10px;border-radius:10px;border:1px solid var(--line-strong);padding:10px;font-family:monospace;font-size:12px"></textarea>
 
   <div class="note">
-    <b>数据来源：</b>直接从 <b>Meta Ads Manager</b> 拉取全部广告户口（花费/Lead/点击/CPL 自动，Lead 用统一口径不重复计）。
-    上方选项目→勾户口（记住你的分组）；改日期区间，整个报告即显示该区间数据（默认今天）。
-    <b>课程花费列表</b>的花费与 Lead 按你选的户口+广告日期自动计算，其余手填，保存在本浏览器。
+    <b>数据来源：</b>直接从 <b>Meta Ads Manager</b> 拉取全部广告户口（花费/Lead/点击/CPL 自动，Lead 统一口径不重复计），每天自动更新。<br>
+    <b>课程花费列表</b>存在 <b>Google Sheet</b>（跨电脑、多人共享）：课程信息在 Sheet 里编辑，网页自动显示；「花费/Lead」按你填的户口+广告日期<b>实时自动算</b>。
+    「户口/项目」栏可填 <b>连锁 / 品誉 / 招聘</b>（该项目全部户口）或某个户口名字。
   </div>
 </div>
 
 <script>
 const DATA = /*DATA_START*/{
- "report_date": "2026-09-23",
+ "report_date": "2026-09-24",
  "accounts": [
   {
    "id": "act_837976407618020",
@@ -240,6 +240,7 @@ const DATA = /*DATA_START*/{
   {
    "account": "Maction Franchise - Sandy",
    "account_id": "act_1670543204163828",
+   "campaign_id": "52585224645678",
    "label": "7/8 连锁申请 A-Z Franchise Preview",
    "variant": null,
    "project": "连锁",
@@ -255,6 +256,7 @@ const DATA = /*DATA_START*/{
   {
    "account": "Maction Franchise - Sandy",
    "account_id": "act_1670543204163828",
+   "campaign_id": "52590201080278",
    "label": "CBO(LP) 12/8 - YK Kuching 连锁申请(24/8) RM100",
    "variant": null,
    "project": "连锁",
@@ -360,6 +362,7 @@ const DATA = /*DATA_START*/{
   {
    "account": "Maction Franchise - Sandy",
    "account_id": "act_1670543204163828",
+   "campaign_id": "52590225753278",
    "label": "12/8- Awareness Kuching RM30",
    "variant": null,
    "project": "连锁",
@@ -393,6 +396,7 @@ const DATA = /*DATA_START*/{
   {
    "account": "Maction Franchise - Sandy",
    "account_id": "act_1670543204163828",
+   "campaign_id": "52590298827278",
    "label": "CBO(Lead) 12/8 - YK Kuching 连锁申请(24/8) RM70",
    "variant": null,
    "project": "连锁",
@@ -420,6 +424,7 @@ const DATA = /*DATA_START*/{
   {
    "account": "Maction Franchise - Sandy",
    "account_id": "act_1670543204163828",
+   "campaign_id": "52591111208878",
    "label": "CBO(Lead) 15/8 - YK KL连锁申请(28/8) RM100",
    "variant": null,
    "project": "连锁",
@@ -507,6 +512,7 @@ const DATA = /*DATA_START*/{
   {
    "account": "Maction Franchise - Sandy",
    "account_id": "act_1670543204163828",
+   "campaign_id": "52595376103878",
    "label": "2/9 (LP) - AZ 连锁申请 11 Sep",
    "variant": null,
    "project": "连锁",
@@ -564,6 +570,7 @@ const DATA = /*DATA_START*/{
   {
    "account": "Maction Franchise - Sandy",
    "account_id": "act_1670543204163828",
+   "campaign_id": "52595397030878",
    "label": "连锁申请 · 11 Sep 场",
    "variant": null,
    "project": "连锁",
@@ -627,6 +634,7 @@ const DATA = /*DATA_START*/{
   {
    "account": "Maction Franchise - Sandy",
    "account_id": "act_1670543204163828",
+   "campaign_id": "52597947782478",
    "label": "连锁申请 · 25 Sep 场",
    "variant": null,
    "project": "连锁",
@@ -705,7 +713,7 @@ const DATA = /*DATA_START*/{
     },
     {
      "date": "2026-09-23",
-     "spend": 118.07,
+     "spend": 127.38,
      "lead": 1,
      "clicks": 10
     }
@@ -714,6 +722,7 @@ const DATA = /*DATA_START*/{
   {
    "account": "Maction Franchise - Sandy",
    "account_id": "act_1670543204163828",
+   "campaign_id": "52599315435678",
    "label": "连锁申请 · 25 Sep 场 (A)",
    "variant": "A",
    "project": "连锁",
@@ -756,15 +765,16 @@ const DATA = /*DATA_START*/{
     },
     {
      "date": "2026-09-23",
-     "spend": 149.97,
+     "spend": 177.19,
      "lead": 2,
-     "clicks": 28
+     "clicks": 32
     }
    ]
   },
   {
    "account": "Maction Franchise - Sandy",
    "account_id": "act_1670543204163828",
+   "campaign_id": "52599339760078",
    "label": "连锁申请 · 25 Sep 场 (B)",
    "variant": "B",
    "project": "连锁",
@@ -807,25 +817,20 @@ const DATA = /*DATA_START*/{
     },
     {
      "date": "2026-09-23",
-     "spend": 142.31,
+     "spend": 174.96,
      "lead": 2,
-     "clicks": 19
+     "clicks": 24
     }
    ]
   },
   {
    "account": "Maction x Coff Guys",
    "account_id": "act_318742060145289",
+   "campaign_id": "120248352026070604",
    "label": "OFF(14/8) - 11/6 Awareness",
    "variant": null,
    "project": "连锁",
    "series": [
-    {
-     "date": "2026-07-26",
-     "spend": 21.37,
-     "lead": 0,
-     "clicks": 1
-    },
     {
      "date": "2026-07-27",
      "spend": 20.75,
@@ -945,16 +950,11 @@ const DATA = /*DATA_START*/{
   {
    "account": "Maction x Coff Guys",
    "account_id": "act_318742060145289",
+   "campaign_id": "120248355057270604",
    "label": "OFF(14/8) - 11/6 Engagement/ Education",
    "variant": null,
    "project": "连锁",
    "series": [
-    {
-     "date": "2026-07-26",
-     "spend": 34.7,
-     "lead": 0,
-     "clicks": 21
-    },
     {
      "date": "2026-07-27",
      "spend": 27.88,
@@ -1074,6 +1074,7 @@ const DATA = /*DATA_START*/{
   {
    "account": "Maction x Coff Guys",
    "account_id": "act_318742060145289",
+   "campaign_id": "120250645414190604",
    "label": "31/7 先停 Amend LP - CBO LP - Justin连锁申请(7/8) - 30/7 | RM100",
    "variant": null,
    "project": "连锁",
@@ -1095,6 +1096,7 @@ const DATA = /*DATA_START*/{
   {
    "account": "Maction x Coff Guys",
    "account_id": "act_318742060145289",
+   "campaign_id": "120250761197230604",
    "label": "Event end(OFF 14/8) - CBO(LP) 4/8 - Justin连锁申请(7/8) RM100",
    "variant": null,
    "project": "连锁",
@@ -1170,6 +1172,7 @@ const DATA = /*DATA_START*/{
   {
    "account": "Maction x Coff Guys",
    "account_id": "act_318742060145289",
+   "campaign_id": "120250764883930604",
    "label": "Event end(OFF 14/8) - CBO(Lead Form) 4/8 - Justin连锁申请(7 Aug Webinar) RM100",
    "variant": null,
    "project": "连锁",
@@ -1245,6 +1248,7 @@ const DATA = /*DATA_START*/{
   {
    "account": "Maction x Coff Guys",
    "account_id": "act_318742060145289",
+   "campaign_id": "120250803447580604",
    "label": "OFF贵(10/8) - 2. CBO(LP) 5/8 - Justin连锁申请(7 Aug Webinar) RM100 (7pm)",
    "variant": null,
    "project": "连锁",
@@ -1290,16 +1294,11 @@ const DATA = /*DATA_START*/{
   {
    "account": "Recruit Maction",
    "account_id": "act_637010841817597",
+   "campaign_id": "120243867936270139",
    "label": "Maction 招募 (WhatsApp)",
    "variant": null,
    "project": "招聘",
    "series": [
-    {
-     "date": "2026-07-26",
-     "spend": 124.5,
-     "lead": 3,
-     "clicks": 30
-    },
     {
      "date": "2026-07-27",
      "spend": 78.55,
@@ -1650,25 +1649,20 @@ const DATA = /*DATA_START*/{
     },
     {
      "date": "2026-09-23",
-     "spend": 70.54,
-     "lead": 4,
-     "clicks": 17
+     "spend": 84.6,
+     "lead": 5,
+     "clicks": 20
     }
    ]
   },
   {
    "account": "Recruit Maction",
    "account_id": "act_637010841817597",
+   "campaign_id": "120244363173620139",
    "label": "STOP by Jacky(OFF 5 Aug) - CBO - 3/7 - Maction Jacky(WA) - (LEAD to WS) - RM100 (7pm)",
    "variant": null,
    "project": "招聘",
    "series": [
-    {
-     "date": "2026-07-26",
-     "spend": 127.64,
-     "lead": 3,
-     "clicks": 19
-    },
     {
      "date": "2026-07-27",
      "spend": 90.2,
@@ -1716,16 +1710,11 @@ const DATA = /*DATA_START*/{
   {
    "account": "Recruit Maction",
    "account_id": "act_637010841817597",
+   "campaign_id": "120244847266760139",
    "label": "Jacky ask STOP(4 Aug) - CBO - 15/7 - Melvin Recruit(LEAD WA) - RM100 (7pm) - Copy",
    "variant": null,
    "project": "招聘",
    "series": [
-    {
-     "date": "2026-07-26",
-     "spend": 109.93,
-     "lead": 1,
-     "clicks": 11
-    },
     {
      "date": "2026-07-27",
      "spend": 123.12,
@@ -1797,6 +1786,7 @@ const DATA = /*DATA_START*/{
   {
    "account": "Recruit Maction",
    "account_id": "act_637010841817597",
+   "campaign_id": "120245304492960139",
    "label": "OFF - CBO - 31/7 - Melvin Recruit(LEAD WA) - RM100 (4pm)",
    "variant": null,
    "project": "招聘",
@@ -1812,6 +1802,7 @@ const DATA = /*DATA_START*/{
   {
    "account": "Recruit Maction",
    "account_id": "act_637010841817597",
+   "campaign_id": "120245461089110139",
    "label": "CBO - 6/8 - Maction Jacky(WA) - RM50 (Digital MKT Exe & Manager)",
    "variant": null,
    "project": "招聘",
@@ -1935,6 +1926,7 @@ const DATA = /*DATA_START*/{
   {
    "account": "M9品誉",
    "account_id": "act_837976407618020",
+   "campaign_id": "120252074150600720",
    "label": "04.09.2026 Pinyu 王一锐reels",
    "variant": null,
    "project": "品誉",
@@ -1968,6 +1960,7 @@ const DATA = /*DATA_START*/{
   {
    "account": "M9品誉",
    "account_id": "act_837976407618020",
+   "campaign_id": "120252074823520720",
    "label": "品誉 · Wilson",
    "variant": null,
    "project": "品誉",
@@ -2088,30 +2081,38 @@ const DATA = /*DATA_START*/{
     },
     {
      "date": "2026-09-23",
-     "spend": 316.44,
+     "spend": 355.95,
+     "lead": 1,
+     "clicks": 44
+    },
+    {
+     "date": "2026-09-24",
+     "spend": 1.0,
      "lead": 0,
-     "clicks": 32
+     "clicks": 0
     }
    ]
   },
   {
    "account": "M9品誉",
    "account_id": "act_837976407618020",
+   "campaign_id": "120252393206590720",
    "label": "2309 品誉Online/Lead",
    "variant": null,
    "project": "品誉",
    "series": [
     {
      "date": "2026-09-23",
-     "spend": 180.7,
+     "spend": 231.35,
      "lead": 1,
-     "clicks": 20
+     "clicks": 31
     }
    ]
   },
   {
    "account": "PINYU品誉",
    "account_id": "act_2070031456723180",
+   "campaign_id": "120249347750970239",
    "label": "CBO Justin - 28/7 (品誉LP) Steph Lead | RM100 (7pm) PIC & Video",
    "variant": null,
    "project": "品誉",
@@ -2133,6 +2134,7 @@ const DATA = /*DATA_START*/{
   {
    "account": "PINYU品誉",
    "account_id": "act_2070031456723180",
+   "campaign_id": "120250456133160239",
    "label": "品誉绩效系统",
    "variant": null,
    "project": "品誉",
@@ -2217,25 +2219,20 @@ const DATA = /*DATA_START*/{
     },
     {
      "date": "2026-09-23",
-     "spend": 84.04,
+     "spend": 95.66,
      "lead": 1,
-     "clicks": 3
+     "clicks": 5
     }
    ]
   },
   {
    "account": "Pinyu Malaysia [Adrian & Amanda] - May 26",
    "account_id": "act_3967944443497832",
+   "campaign_id": "120249288766220185",
    "label": "PINYU Awareness (TTIM)",
    "variant": null,
    "project": "品誉",
    "series": [
-    {
-     "date": "2026-07-26",
-     "spend": 22.16,
-     "lead": 0,
-     "clicks": 2
-    },
     {
      "date": "2026-07-27",
      "spend": 20.34,
@@ -2586,7 +2583,7 @@ const DATA = /*DATA_START*/{
     },
     {
      "date": "2026-09-23",
-     "spend": 16.93,
+     "spend": 18.46,
      "lead": 0,
      "clicks": 0
     }
@@ -2595,16 +2592,11 @@ const DATA = /*DATA_START*/{
   {
    "account": "Pinyu Malaysia [Adrian & Amanda] - May 26",
    "account_id": "act_3967944443497832",
+   "campaign_id": "120249367333560185",
    "label": "PINYU Engagement/ Education (TTIM) - v1",
    "variant": null,
    "project": "品誉",
    "series": [
-    {
-     "date": "2026-07-26",
-     "spend": 32.7,
-     "lead": 0,
-     "clicks": 0
-    },
     {
      "date": "2026-07-27",
      "spend": 31.79,
@@ -2955,7 +2947,7 @@ const DATA = /*DATA_START*/{
     },
     {
      "date": "2026-09-23",
-     "spend": 26.58,
+     "spend": 29.88,
      "lead": 0,
      "clicks": 0
     }
@@ -2964,31 +2956,11 @@ const DATA = /*DATA_START*/{
   {
    "account": "Pinyu Malaysia [Adrian & Amanda] - May 26",
    "account_id": "act_3967944443497832",
-   "label": "PINYU Leads（TTIM） - July Online Preview",
-   "variant": null,
-   "project": "品誉",
-   "series": [
-    {
-     "date": "2026-07-26",
-     "spend": 57.08,
-     "lead": 1,
-     "clicks": 30
-    }
-   ]
-  },
-  {
-   "account": "Pinyu Malaysia [Adrian & Amanda] - May 26",
-   "account_id": "act_3967944443497832",
+   "campaign_id": "120249600792880185",
    "label": "OFF - CBO Justin - 15/7 (品誉) Steph Lead | RM100 (7pm) Video x5 | 24/7 scalp 80>100",
    "variant": null,
    "project": "品誉",
    "series": [
-    {
-     "date": "2026-07-26",
-     "spend": 126.81,
-     "lead": 3,
-     "clicks": 16
-    },
     {
      "date": "2026-07-27",
      "spend": 110.08,
@@ -3018,16 +2990,11 @@ const DATA = /*DATA_START*/{
   {
    "account": "Pinyu Malaysia [Adrian & Amanda] - May 26",
    "account_id": "act_3967944443497832",
+   "campaign_id": "120249658019400185",
    "label": "OFF - CBO Justin - 17/7 (品誉) Steph Lead | RM150 (7pm) Creative x6",
    "variant": null,
    "project": "品誉",
    "series": [
-    {
-     "date": "2026-07-26",
-     "spend": 159.28,
-     "lead": 1,
-     "clicks": 18
-    },
     {
      "date": "2026-07-27",
      "spend": 172.59,
@@ -3045,16 +3012,11 @@ const DATA = /*DATA_START*/{
   {
    "account": "Pinyu Malaysia [Adrian & Amanda] - May 26",
    "account_id": "act_3967944443497832",
+   "campaign_id": "120249714344930185",
    "label": "PINYU Leads LP（TTIM） - 24 July Online Preview v2",
    "variant": null,
    "project": "品誉",
    "series": [
-    {
-     "date": "2026-07-26",
-     "spend": 323.72,
-     "lead": 0,
-     "clicks": 73
-    },
     {
      "date": "2026-07-27",
      "spend": 397.56,
@@ -3096,36 +3058,7 @@ const DATA = /*DATA_START*/{
   {
    "account": "Pinyu Malaysia [Adrian & Amanda] - May 26",
    "account_id": "act_3967944443497832",
-   "label": "贵 - OFF(26/7) - CBO Justin - 23/7 (品誉LP) Steph Lead | RM100 (7pm) Creative x6 / monitor 26/7 fullday if still no enq can OFF",
-   "variant": null,
-   "project": "品誉",
-   "series": [
-    {
-     "date": "2026-07-26",
-     "spend": 46.88,
-     "lead": 0,
-     "clicks": 7
-    }
-   ]
-  },
-  {
-   "account": "Pinyu Malaysia [Adrian & Amanda] - May 26",
-   "account_id": "act_3967944443497832",
-   "label": "贵 - OFF(26/7) - Video CBO Justin - 24/7 (品誉LP) Steph Lead | RM100 (7pm) New Video x5",
-   "variant": null,
-   "project": "品誉",
-   "series": [
-    {
-     "date": "2026-07-26",
-     "spend": 62.9,
-     "lead": 0,
-     "clicks": 23
-    }
-   ]
-  },
-  {
-   "account": "Pinyu Malaysia [Adrian & Amanda] - May 26",
-   "account_id": "act_3967944443497832",
+   "campaign_id": "120249896235610185",
    "label": "CBO LP Justin - 28/7 (品誉) | RM100 (7pm) Video x7",
    "variant": null,
    "project": "品誉",
@@ -3147,6 +3080,7 @@ const DATA = /*DATA_START*/{
   {
    "account": "Pinyu Malaysia [Adrian & Amanda] - May 26",
    "account_id": "act_3967944443497832",
+   "campaign_id": "120249917546250185",
    "label": "CBO LP (Videox7) Justin - 29/7 (品誉) | RM100 (4pm)",
    "variant": null,
    "project": "品誉",
@@ -3186,6 +3120,7 @@ const DATA = /*DATA_START*/{
   {
    "account": "Pinyu Malaysia [Adrian & Amanda] - May 26",
    "account_id": "act_3967944443497832",
+   "campaign_id": "120249924885180185",
    "label": "CBO LP (图x5) Justin - 30/7 (品誉) | RM100 (8am)",
    "variant": null,
    "project": "品誉",
@@ -3219,6 +3154,7 @@ const DATA = /*DATA_START*/{
   {
    "account": "Pinyu Malaysia [Adrian & Amanda] - May 26",
    "account_id": "act_3967944443497832",
+   "campaign_id": "120250007334900185",
    "label": "2/8 Pinyu Online August - Image",
    "variant": null,
    "project": "品誉",
@@ -3378,6 +3314,7 @@ const DATA = /*DATA_START*/{
   {
    "account": "Pinyu Malaysia [Adrian & Amanda] - May 26",
    "account_id": "act_3967944443497832",
+   "campaign_id": "120250010091430185",
    "label": "OFF 14/8(Handover to Windfred) - CBO LP (图x5) Justin - 3/8 (品誉) | RM100 (11am)",
    "variant": null,
    "project": "品誉",
@@ -3459,6 +3396,7 @@ const DATA = /*DATA_START*/{
   {
    "account": "Pinyu Malaysia [Adrian & Amanda] - May 26",
    "account_id": "act_3967944443497832",
+   "campaign_id": "120250032823330185",
    "label": "6/8 OFF(wrong event) - CBO LP (Videox7) Justin - 4/8 (品誉) | RM100 (7am)",
    "variant": null,
    "project": "品誉",
@@ -3486,6 +3424,7 @@ const DATA = /*DATA_START*/{
   {
    "account": "Pinyu Malaysia [Adrian & Amanda] - May 26",
    "account_id": "act_3967944443497832",
+   "campaign_id": "120250260335520185",
    "label": "2. CBO LP (图x6) Justin - 12/8 (品誉) | RM100",
    "variant": null,
    "project": "品誉",
@@ -3501,6 +3440,7 @@ const DATA = /*DATA_START*/{
   {
    "account": "Pinyu Malaysia [Adrian & Amanda] - May 26",
    "account_id": "act_3967944443497832",
+   "campaign_id": "120250344534870185",
    "label": "14/8 Pinyu Online August - Video",
    "variant": null,
    "project": "品誉",
@@ -3522,6 +3462,7 @@ const DATA = /*DATA_START*/{
   {
    "account": "Pinyu Malaysia [Adrian & Amanda] - May 26",
    "account_id": "act_3967944443497832",
+   "campaign_id": "120250381460370185",
    "label": "16/8 Pinyu Online August - Video (Lead form)",
    "variant": null,
    "project": "品誉",
@@ -3633,6 +3574,7 @@ const DATA = /*DATA_START*/{
   {
    "account": "Pinyu Malaysia [Adrian & Amanda] - May 26",
    "account_id": "act_3967944443497832",
+   "campaign_id": "120250500393730185",
    "label": "16/8 Pinyu Online August - Image (Lead form)",
    "variant": null,
    "project": "品誉",
@@ -3678,6 +3620,7 @@ const DATA = /*DATA_START*/{
   {
    "account": "Pinyu Malaysia [Adrian & Amanda] - May 26",
    "account_id": "act_3967944443497832",
+   "campaign_id": "120250551427580185",
    "label": "Pinyu Online · Aug 图文",
    "variant": null,
    "project": "品誉",
@@ -3846,7 +3789,7 @@ const DATA = /*DATA_START*/{
     },
     {
      "date": "2026-09-23",
-     "spend": 214.62,
+     "spend": 241.0,
      "lead": 4,
      "clicks": 25
     }
@@ -3855,6 +3798,7 @@ const DATA = /*DATA_START*/{
   {
    "account": "Pinyu Malaysia [Adrian & Amanda] - May 26",
    "account_id": "act_3967944443497832",
+   "campaign_id": "120250646358030185",
    "label": "Pinyu Online · Aug 图文(LF)",
    "variant": null,
    "project": "品誉",
@@ -3954,6 +3898,7 @@ const DATA = /*DATA_START*/{
   {
    "account": "Pinyu Malaysia [Adrian & Amanda] - May 26",
    "account_id": "act_3967944443497832",
+   "campaign_id": "120250672453730185",
    "label": "Pinyu Online · Aug 视频",
    "variant": null,
    "project": "品誉",
@@ -4074,21 +4019,22 @@ const DATA = /*DATA_START*/{
     },
     {
      "date": "2026-09-22",
-     "spend": 133.32,
+     "spend": 133.35,
      "lead": 2,
      "clicks": 28
     },
     {
      "date": "2026-09-23",
-     "spend": 110.59,
+     "spend": 129.17,
      "lead": 2,
-     "clicks": 25
+     "clicks": 31
     }
    ]
   },
   {
    "account": "Pinyu Malaysia [Adrian & Amanda] - May 26",
    "account_id": "act_3967944443497832",
+   "campaign_id": "120250836161930185",
    "label": "Pinyu Online · Industries",
    "variant": null,
    "project": "品誉",
@@ -4155,9 +4101,15 @@ const DATA = /*DATA_START*/{
     },
     {
      "date": "2026-09-23",
-     "spend": 290.33,
+     "spend": 309.6,
      "lead": 2,
-     "clicks": 40
+     "clicks": 43
+    },
+    {
+     "date": "2026-09-24",
+     "spend": 0.19,
+     "lead": 0,
+     "clicks": 0
     }
    ]
   }
@@ -4301,74 +4253,62 @@ document.querySelectorAll('.mini[data-q]').forEach(b=>b.addEventListener('click'
 }));
 
 /* ================= 课程花费列表 ================= */
-const CK='ads_courseRows_v1';
-let courses=LS(CK,[]);
-// 户口/项目 下拉选项
-function acctOptions(sel){
-  let o='<option value="">— 选户口/项目 —</option>';
-  ['连锁','品誉','招聘'].forEach(p=>o+=`<option value="proj:${p}" ${sel==='proj:'+p?'selected':''}>${p}（项目全部户口）</option>`);
-  DATA.accounts.forEach(a=>o+=`<option value="acct:${a.id}" ${sel==='acct:'+a.id?'selected':''}>${a.name}</option>`);
-  return o;
+// 你的 Google Sheet：网页读取(GET)用 WEBAPP，编辑用 SHEET_EDIT
+const SHEET_WEBAPP='https://script.google.com/macros/s/AKfycbzboSjVTriMyE75ZYTnF8ivYjD8avog6Bgek5kDSh1Mo4CIt1x0VMko-p5c2jf-U48L/exec';
+const SHEET_EDIT='https://docs.google.com/spreadsheets/d/1danoFeS5qKMDGFbEZU8Y2HHD9vQChCECaXI39WrLhOk/edit';
+document.getElementById('editSheet').href=SHEET_EDIT;
+function cStatus(t){document.getElementById('courseStatus').textContent=t;}
+
+// 「户口/项目」文字 -> 户口 id 集合
+function resolveAcctText(val){
+  const s=new Set(); val=(val||'').toString().trim(); if(!val) return s;
+  if(['连锁','品誉','招聘'].includes(val)){DATA.accounts.forEach(a=>{if(a.project===val)s.add(a.id);});return s;}
+  val.replace(/，/g,',').split(',').forEach(p=>{p=p.trim();DATA.accounts.forEach(a=>{if(p&&(p===a.name||a.name.includes(p)))s.add(a.id);});});
+  return s;
 }
-function resolveAccts(val){
-  if(!val) return [];
-  if(val.startsWith('proj:')) return projAccts[val.slice(5)]||[];
-  if(val.startsWith('acct:')) return [val.slice(5)];
-  return [];
-}
-function adCalc(row){
-  const set=new Set(resolveAccts(row.acct)); let sp=0,ld=0;
-  if(!row.adFrom||!row.adTo||!set.size) return {spend:null,lead:null};
-  DATA.campaigns.forEach(c=>{ if(!set.has(c.account_id))return;
-    c.series.forEach(s=>{ if(s.date>=row.adFrom&&s.date<=row.adTo){sp+=s.spend||0;ld+=s.lead||0;} }); });
+function courseCalc(acctVal,d1,d2){
+  const ids=resolveAcctText(acctVal); if(!ids.size||!d1||!d2) return {spend:null,lead:null};
+  let sp=0,ld=0;
+  DATA.campaigns.forEach(c=>{ if(!ids.has(c.account_id))return;
+    c.series.forEach(s=>{ if(s.date>=d1&&s.date<=d2){sp+=s.spend||0;ld+=s.lead||0;} }); });
   return {spend:sp,lead:ld};
 }
-function renderCourses(){
+const esc=v=>String(v==null?'':v).replace(/[<>&]/g,m=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[m]));
+function renderCourseRows(rows){
   const tb=document.getElementById('courseBody');
-  tb.innerHTML=courses.map((r,i)=>{
-    const a=adCalc(r);
-    return `<tr data-i="${i}">
-      <td><input type="date" data-f="date" value="${r.date||''}"></td>
-      <td><input type="time" data-f="time" value="${r.time||''}"></td>
-      <td><input type="text" data-f="place" value="${r.place||''}" placeholder="地点" style="min-width:90px"></td>
-      <td><input type="text" data-f="teacher" value="${r.teacher||''}" placeholder="老师" style="min-width:80px"></td>
-      <td><input type="date" data-f="adFrom" value="${r.adFrom||''}"></td>
-      <td><input type="date" data-f="adTo" value="${r.adTo||''}"></td>
-      <td><select data-f="acct" style="min-width:150px">${acctOptions(r.acct)}</select></td>
+  const body=(rows||[]).slice(1).filter(r=>r&&r.some(x=>String(x||'').trim()!==''));
+  tb.innerHTML=body.map(r=>{
+    r=(r||[]).concat(Array(13).fill(''));
+    const d1=String(r[4]).slice(0,10), d2=String(r[5]).slice(0,10), acct=r[6];
+    const a=courseCalc(acct,d1,d2);
+    const cell=v=>`<td>${esc(v)}</td>`;
+    return `<tr>${cell(String(r[0]).slice(0,10))}${cell(r[1])}${cell(r[2])}${cell(r[3])}${cell(d1)}${cell(d2)}${cell(acct)}
       <td><div class="auto">${a.spend==null?'—':'RM '+a.spend.toFixed(0)}</div></td>
       <td><div class="auto">${a.lead==null?'—':a.lead}</div></td>
-      <td><input type="number" data-f="pta" value="${r.pta??''}" style="min-width:56px"></td>
-      <td><input type="number" data-f="attend" value="${r.attend??''}" style="min-width:56px"></td>
-      <td><input type="number" data-f="deal" value="${r.deal??''}" style="min-width:56px"></td>
-      <td><input type="number" data-f="amount" value="${r.amount??''}" style="min-width:80px"></td>
-      <td><button class="del" title="删除">✕</button></td>
-    </tr>`;
-  }).join('')||`<tr><td colspan="14" style="color:var(--muted);text-align:center;padding:14px">还没有课程，点「+ 添加课程」</td></tr>`;
-  tb.querySelectorAll('input,select').forEach(el=>{
-    el.addEventListener('change',e=>{
-      const i=+e.target.closest('tr').dataset.i, f=e.target.dataset.f;
-      courses[i][f]=e.target.value; LSset(CK,courses); renderCourses();
-    });
-  });
-  tb.querySelectorAll('.del').forEach(b=>b.addEventListener('click',e=>{
-    const i=+e.target.closest('tr').dataset.i; courses.splice(i,1); LSset(CK,courses); renderCourses();
-  }));
+      ${cell(r[9])}${cell(r[10])}${cell(r[11])}${cell(r[12])}</tr>`;
+  }).join('')||`<tr><td colspan="13" style="color:var(--muted);text-align:center;padding:16px">Sheet 里还没有课程，点「✏️ 在 Google Sheet 编辑」添加一行</td></tr>`;
+  cStatus(`已从 Google Sheet 加载 ${body.length} 门课 · 花费/Lead 实时计算`);
 }
-document.getElementById('addCourse').addEventListener('click',()=>{
-  courses.push({date:'',time:'',place:'',teacher:'',adFrom:'',adTo:'',acct:'',pta:'',attend:'',deal:'',amount:''});
-  LSset(CK,courses); renderCourses();
-});
-document.getElementById('expCourse').addEventListener('click',()=>{
-  const t=document.getElementById('ioBox'); t.style.display='block';
-  t.value=JSON.stringify(courses); t.select();
-});
-document.getElementById('impCourse').addEventListener('click',()=>{
-  const t=document.getElementById('ioBox');
-  if(t.style.display==='none'){t.style.display='block';t.value='把之前导出的内容粘到这里，再点一次「导入」';t.focus();return;}
-  try{const arr=JSON.parse(t.value);if(Array.isArray(arr)){courses=arr;LSset(CK,courses);renderCourses();t.style.display='none';}}
-  catch(e){alert('格式不对，请粘贴之前导出的内容');}
-});
+function jsonp(url,cb){
+  const name='__cc'+Math.random().toString(36).slice(2);
+  const s=document.createElement('script');
+  const done=(d)=>{try{delete window[name];}catch(e){} s.remove();};
+  window[name]=d=>{cb(d);done();};
+  s.onerror=()=>{cb(null);done();};
+  s.src=url+(url.includes('?')?'&':'?')+'callback='+name;
+  document.body.appendChild(s);
+  setTimeout(()=>{if(window[name]){cb(null);done();}},12000);
+}
+function loadCourses(){
+  cStatus('从 Google Sheet 加载中…');
+  jsonp(SHEET_WEBAPP+'?tab=courses',d=>{
+    if(d&&d.ok&&d.rows) renderCourseRows(d.rows);
+    else{ document.getElementById('courseBody').innerHTML=`<tr><td colspan="13" style="color:var(--muted);text-align:center;padding:16px">点「✏️ 在 Google Sheet 编辑」查看/编辑课程（在正式网址上会自动显示在这里）</td></tr>`;
+      cStatus('（此预览环境无法直接读取 Sheet；正式网址可自动加载）'); }
+  });
+}
+document.getElementById('reloadCourse').addEventListener('click',loadCourses);
 
 /* ---- 启动 ---- */
-syncD(); renderAcctChips(); renderAll(); renderCourses();
+syncD(); renderAcctChips(); renderAll(); loadCourses();
 </script>

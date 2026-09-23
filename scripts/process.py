@@ -36,6 +36,7 @@ def build_dashboard_data(records, source="Meta Ads"):
                            "lead": round(num(r["lead"])), "clicks": round(num(r["clicks"]))})
         disp = label + (f" ({var})" if var else "")
         campaigns.append({"account": rows[0].get("account"), "account_id": aid,
+                          "campaign_id": rows[0].get("campaign_id"),
                           "label": disp, "variant": var,
                           "project": guess_project(rows[0].get("account")), "series": series})
 

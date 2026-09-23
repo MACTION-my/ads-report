@@ -39,6 +39,12 @@ jobs:
           mkdir -p _site
           cp index.html _site/index.html
 
+      - name: 写入 Google Sheet（每日广告数据 + 课程花费/Lead）
+        env:
+          SHEET_WEBAPP_URL: ${{ secrets.SHEET_WEBAPP_URL }}
+          SHEET_TOKEN: ${{ secrets.SHEET_TOKEN }}
+        run: python scripts/push_to_sheet.py --days 7
+
       - uses: actions/upload-pages-artifact@v3
         with:
           path: _site
