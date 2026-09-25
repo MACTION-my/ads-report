@@ -180,7 +180,7 @@ thead th{background:var(--panel-2);font-family:"Sora";font-weight:600;font-size:
 
   <!-- 课程花费列表 -->
   <div class="sec" style="margin-top:40px"><h2><span class="mk">课程花费列表</span></h2>
-    <span class="hint">广告「花费/Lead」选户口+日期自动算，其余手填</span></div>
+    <span class="hint">在 Google Sheet 填写，网页跟着显示</span></div>
   <div class="row" style="gap:8px;margin-bottom:10px">
     <a class="mini" id="editSheet" target="_blank" rel="noopener"
        style="border-color:var(--accent);color:var(--accent);text-decoration:none;font-weight:700">✏️ 在 Google Sheet 编辑（跨电脑同步）</a>
@@ -190,14 +190,13 @@ thead th{background:var(--panel-2);font-family:"Sora";font-weight:600;font-size:
   <div class="scroll"><table class="course-tbl" id="courseTbl"><thead><tr>
     <th>课程日期</th><th>时间</th><th>地点</th><th>老师</th>
     <th>广告从</th><th>广告到</th><th>户口/项目</th>
-    <th>花费(自动)</th><th>Lead(自动)</th>
+    <th>花费(RM)</th><th>Lead</th>
     <th>PTA</th><th>出席</th><th>成交</th><th>成交额(RM)</th>
   </tr></thead><tbody id="courseBody"></tbody></table></div>
 
   <div class="note">
     <b>数据来源：</b>直接从 <b>Meta Ads Manager</b> 拉取全部广告户口（花费/Lead/点击/CPL 自动，Lead 统一口径不重复计），每天自动更新。<br>
-    <b>课程花费列表</b>存在 <b>Google Sheet</b>（跨电脑、多人共享）：课程信息在 Sheet 里编辑，网页自动显示；「花费/Lead」按你填的户口+广告日期<b>实时自动算</b>。
-    「户口/项目」栏可填 <b>连锁 / 品誉 / 招聘</b>（该项目全部户口）或某个户口名字。
+    <b>课程花费列表</b>存在 <b>Google Sheet</b>（跨电脑、多人共享）：所有内容都在 Sheet 里填，网页<b>跟着 Sheet 显示</b>。改完点「↻ 刷新」即可看到最新。
   </div>
 </div>
 
@@ -4288,12 +4287,12 @@ function renderCourseRows(rows){
   const body=(rows||[]).slice(1).filter(r=>r&&r.some(x=>String(x||'').trim()!==''));
   tb.innerHTML=body.map(r=>{
     r=(r||[]).concat(Array(13).fill(''));
-    const d1=String(r[4]).slice(0,10), d2=String(r[5]).slice(0,10), acct=r[6];
-    const a=courseCalc(acct,d1,d2);
+    const d1=fmtDate(r[4]), d2=fmtDate(r[5]), acct=r[6];
     const cell=v=>`<td>${esc(v)}</td>`;
+    const has=v=>!(v===''||v==null);
     return `<tr>${cell(fmtDate(r[0]))}${cell(fmtTime(r[1]))}${cell(r[2])}${cell(r[3])}${cell(d1)}${cell(d2)}${cell(acct)}
-      <td><div class="auto">${a.spend==null?'—':'RM '+a.spend.toFixed(0)}</div></td>
-      <td><div class="auto">${a.lead==null?'—':a.lead}</div></td>
+      <td><div class="auto">${has(r[7])?esc(r[7]):'—'}</div></td>
+      <td><div class="auto">${has(r[8])?esc(r[8]):'—'}</div></td>
       ${cell(r[9])}${cell(r[10])}${cell(r[11])}${cell(r[12])}</tr>`;
   }).join('')||`<tr><td colspan="13" style="color:var(--muted);text-align:center;padding:16px">Sheet 里还没有课程，点「✏️ 在 Google Sheet 编辑」添加一行</td></tr>`;
   cStatus(`已从 Google Sheet 加载 ${body.length} 门课 · 花费/Lead 实时计算`);
