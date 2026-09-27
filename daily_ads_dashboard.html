@@ -191,7 +191,7 @@ thead th{background:var(--panel-2);font-family:"Sora";font-weight:600;font-size:
     <th>课程日期</th><th>时间</th><th>地点</th><th>老师</th>
     <th>广告从</th><th>广告到</th><th>户口/项目</th>
     <th>花费(RM)</th><th>Lead</th>
-    <th>PTA</th><th>出席</th><th>成交</th><th>成交额(RM)</th>
+    <th>PTA</th><th>出席</th><th>成交</th><th>成交额(RM)</th><th>报单</th>
   </tr></thead><tbody id="courseBody"></tbody></table></div>
 
   <div class="note">
@@ -4282,10 +4282,29 @@ function fmtTime(v){
   return v;
 }
 function fmtDate(v){ return typeof v==='string' ? v.replace(/T.*$/,'').slice(0,10) : v; }
+let COURSE_ROWS=[];
+function buildReport(r){
+  r=(r||[]).concat(Array(13).fill(''));
+  const L=(k,v)=>k+'：'+String(v==null?'':v).trim();
+  return [
+    L('课程日期',fmtDate(r[0])), L('时间',fmtTime(r[1])), L('地点',r[2]), L('老师',r[3]),
+    L('广告从',fmtDate(r[4])), L('广告到',fmtDate(r[5])), L('项目',r[6]),
+    L('花费',r[7]), L('Lead',r[8]), L('PTA',r[9]), L('出席',r[10]), L('成交',r[11]), L('成交额',r[12]),
+  ].join('\n');
+}
+function copyText(t,btn){
+  const ok=()=>{ if(btn){const o=btn.textContent;btn.textContent='✅ 已复制';setTimeout(()=>btn.textContent=o,1500);} };
+  const fb=()=>{ const ta=document.createElement('textarea');ta.value=t;ta.style.position='fixed';ta.style.opacity='0';
+    document.body.appendChild(ta);ta.focus();ta.select();
+    try{document.execCommand('copy');ok();}catch(e){alert('请手动复制：\n\n'+t);} ta.remove(); };
+  if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(ok,fb);
+  else fb();
+}
 function renderCourseRows(rows){
   const tb=document.getElementById('courseBody');
   const body=(rows||[]).slice(1).filter(r=>r&&r.some(x=>String(x||'').trim()!==''));
-  tb.innerHTML=body.map(r=>{
+  COURSE_ROWS=body;
+  tb.innerHTML=body.map((r,idx)=>{
     r=(r||[]).concat(Array(13).fill(''));
     const d1=fmtDate(r[4]), d2=fmtDate(r[5]), acct=r[6];
     const cell=v=>`<td>${esc(v)}</td>`;
@@ -4293,10 +4312,15 @@ function renderCourseRows(rows){
     return `<tr>${cell(fmtDate(r[0]))}${cell(fmtTime(r[1]))}${cell(r[2])}${cell(r[3])}${cell(d1)}${cell(d2)}${cell(acct)}
       <td><div class="auto">${has(r[7])?esc(r[7]):'—'}</div></td>
       <td><div class="auto">${has(r[8])?esc(r[8]):'—'}</div></td>
-      ${cell(r[9])}${cell(r[10])}${cell(r[11])}${cell(r[12])}</tr>`;
-  }).join('')||`<tr><td colspan="13" style="color:var(--muted);text-align:center;padding:16px">Sheet 里还没有课程，点「✏️ 在 Google Sheet 编辑」添加一行</td></tr>`;
-  cStatus(`已从 Google Sheet 加载 ${body.length} 门课 · 花费/Lead 实时计算`);
+      ${cell(r[9])}${cell(r[10])}${cell(r[11])}${cell(r[12])}
+      <td><button class="mini copybtn" data-i="${idx}" style="border-color:var(--accent);color:var(--accent);white-space:nowrap">📋 复制</button></td></tr>`;
+  }).join('')||`<tr><td colspan="14" style="color:var(--muted);text-align:center;padding:16px">Sheet 里还没有课程，点「✏️ 在 Google Sheet 编辑」添加一行</td></tr>`;
+  cStatus(`已从 Google Sheet 加载 ${body.length} 门课`);
 }
+document.getElementById('courseBody').addEventListener('click',e=>{
+  const b=e.target.closest('.copybtn'); if(!b)return;
+  copyText(buildReport(COURSE_ROWS[+b.dataset.i]),b);
+});
 function jsonp(url,cb){
   const name='__cc'+Math.random().toString(36).slice(2);
   const s=document.createElement('script');
