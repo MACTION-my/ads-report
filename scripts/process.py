@@ -19,7 +19,7 @@ def guess_project(name):
     if "品誉" in (name or "") or "pinyu" in n: return "品誉"
     return "连锁"
 
-def build_dashboard_data(records, source="Meta Ads"):
+def build_dashboard_data(records, source="Meta Ads", all_accounts=None):
     camps = defaultdict(list)
     for r in records:
         camps[(r.get("account_id"), r.get("label"), r.get("variant"))].append(r)
@@ -40,8 +40,11 @@ def build_dashboard_data(records, source="Meta Ads"):
                           "label": disp, "variant": var,
                           "project": guess_project(rows[0].get("account")), "series": series})
 
-    accounts = [{"id": aid, "name": nm, "project": guess_project(nm)}
-                for aid, nm in acct_name.items()]
+    # 账户列表：优先用"全部发现的户口"（不管有没有花费都列出），否则退回有数据的
+    if all_accounts:
+        accounts = [{"id": aid, "name": nm, "project": guess_project(nm)} for aid, nm in all_accounts]
+    else:
+        accounts = [{"id": aid, "name": nm, "project": guess_project(nm)} for aid, nm in acct_name.items()]
     accounts.sort(key=lambda a: (a["project"], a["name"]))
 
     return {"report_date": (max(all_dates) if all_dates else None),

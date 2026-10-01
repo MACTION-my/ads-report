@@ -22,21 +22,18 @@ LEAD_ACTION = "lead"             # 统一 Lead 口径，避免同一批 lead 被
 MIN_SPEND = 1.0                  # 整段窗口总花费低于此的 campaign 跳过
 
 import time, urllib.error
-def api_get(path, params, retries=2):
+def api_get(path, params, retries=3):
+    # 大户口的 insights 偶发 400/403/500（Meta 临时错误），一律重试几次
     params = dict(params); params["access_token"] = TOKEN
     url = f"https://graph.facebook.com/{API_VERSION}/{path}?" + urllib.parse.urlencode(params)
     last = None
     for i in range(retries + 1):
         try:
-            with urllib.request.urlopen(url, timeout=60) as resp:
+            with urllib.request.urlopen(url, timeout=45) as resp:
                 return json.loads(resp.read().decode())
-        except urllib.error.HTTPError as e:
-            last = e
-            if e.code < 500:      # 400 等永久错误：不重试，直接抛
-                raise
-            time.sleep(2 * (i + 1))
         except Exception as e:
-            last = e; time.sleep(2 * (i + 1))
+            last = e
+            if i < retries: time.sleep(1.5 * (i + 1))
     raise last
 
 def lead_value(actions):
@@ -49,10 +46,12 @@ def list_accounts():
     data = api_get("me/adaccounts", {"fields": "id,name", "limit": 500}).get("data", [])
     return [(a["id"], a.get("name", a["id"])) for a in data]
 
-def fetch_daily(account_id):
+CHUNK_DAYS = 15   # 大户口按 15 天一段分批拉，避免单次数据量超限(400)
+
+def fetch_window(account_id, since, until):
     params = {"level": "campaign", "time_increment": 1,
               "fields": "campaign_id,campaign_name,spend,inline_link_clicks,actions,date_start",
-              "time_range": json.dumps({"since": str(SINCE), "until": str(UNTIL)}),
+              "time_range": json.dumps({"since": str(since), "until": str(until)}),
               "limit": 500}
     rows, path = [], f"{account_id}/insights"
     while True:
@@ -63,6 +62,14 @@ def fetch_daily(account_id):
         after = urllib.parse.parse_qs(urllib.parse.urlparse(nxt).query).get("after", [None])[0]
         if not after: break
         params["after"] = after
+    return rows
+
+def fetch_daily(account_id):
+    rows, cur = [], SINCE
+    while cur <= UNTIL:
+        end = min(UNTIL, cur + datetime.timedelta(days=CHUNK_DAYS - 1))
+        rows += fetch_window(account_id, cur, end)
+        cur = end + datetime.timedelta(days=1)
     return rows
 
 def main():
@@ -79,8 +86,9 @@ def main():
     for aid, aname in accounts:
         try:
             rows = fetch_daily(aid)
+            print(f"  ✓ {aname}: {len(rows)} 行", flush=True)
         except Exception as e:
-            print(f"  [跳过] {aname} ({aid}) 读取失败: {e}"); continue
+            print(f"  [跳过] {aname} ({aid}) 读取失败: {e}", flush=True); continue
         for r in rows:
             cid = r.get("campaign_id")
             sp = float(r.get("spend", 0) or 0)
@@ -99,7 +107,7 @@ def main():
             "date": d, "spend": sp, "lead": ld, "clicks": ck,
         })
 
-    out = build_dashboard_data(records, source="Meta Marketing API")
+    out = build_dashboard_data(records, source="Meta Marketing API", all_accounts=accounts)
     open(os.path.join(ROOT, "dashboard_data.json"), "w", encoding="utf-8").write(
         json.dumps(out, ensure_ascii=False, indent=1))
     print(f"[OK] {len(out['accounts'])} 户口 / {len(out['campaigns'])} 场 "
