@@ -29,6 +29,16 @@
   --shadow:0 1px 2px rgba(0,0,0,.3),0 10px 26px rgba(0,0,0,.45);
 }
 .mark{background:var(--hl);padding:2px 9px;border-radius:5px;font-weight:700;color:#141414}
+#gate{position:fixed;inset:0;z-index:9999;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:20px}
+.gate-card{background:var(--panel);border:1px solid var(--line);border-top:4px solid var(--accent);border-radius:16px;
+  box-shadow:var(--shadow);padding:32px 26px;max-width:340px;width:100%;text-align:center}
+.gate-icon{font-size:34px}
+.gate-card h2{font-family:"Sora";margin:10px 0 4px;color:var(--ink);font-size:22px}
+.gate-card p{color:var(--muted);font-size:14px;margin:0 0 18px}
+.gate-card input{width:100%;font-size:16px;padding:12px;border:1px solid var(--line-strong);border-radius:10px;margin-bottom:10px;color-scheme:light dark}
+.gate-card button{width:100%;font-family:"Sora";font-weight:700;font-size:15px;background:var(--accent);color:#fff;border:none;border-radius:10px;padding:12px;cursor:pointer}
+.gate-card button:hover{background:var(--accent-2)}
+.gate-err{color:var(--bad);font-size:13px;margin-top:10px}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font-size:15.5px;
   font-family:"IBM Plex Sans",-apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif;line-height:1.55}
@@ -126,6 +136,17 @@ thead th{background:var(--panel-2);font-family:"Sora";font-weight:600;font-size:
 .note b{color:var(--ink)}
 @media(max-width:760px){.kpis{grid-template-columns:1fr 1fr}}
 </style>
+
+<div id="gate">
+  <div class="gate-card">
+    <div class="gate-icon">🔒</div>
+    <h2><span class="hl">广告报告</span></h2>
+    <p>请输入密码查看</p>
+    <input type="password" id="gatePw" placeholder="密码" autocomplete="current-password">
+    <button id="gateBtn">进入</button>
+    <div id="gateErr" class="gate-err" hidden>密码不对，再试一次</div>
+  </div>
+</div>
 
 <div class="top"><div class="wrap">
   <h1><span class="hl">广告报告</span> Ads Report</h1>
@@ -4141,6 +4162,23 @@ const DATA = /*DATA_START*/{
  ],
  "generated_from": "Meta Marketing API"
 }/*DATA_END*/;
+/* ---- 密码锁（轻量）---- */
+const PW_HASH='147db71871594725f9d5763427d6afd654af94d8affbfec4e4c5855b71326171';
+const PW_B64='b64:bWFjdGlvbjkxMzM=';
+async function _hash(s){
+  try{ const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));
+    return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join(''); }
+  catch(e){ return 'b64:'+btoa(unescape(encodeURIComponent(s))); }
+}
+(function(){try{if(sessionStorage.getItem('ads_unlock')==='1'){const g=document.getElementById('gate');if(g)g.hidden=true;}}catch(e){}})();
+async function _tryUnlock(){
+  const el=document.getElementById('gatePw'); const h=await _hash((el.value||'').trim());
+  if(h===PW_HASH||h===PW_B64){ try{sessionStorage.setItem('ads_unlock','1')}catch(e){} document.getElementById('gate').hidden=true; }
+  else{ document.getElementById('gateErr').hidden=false; el.value=''; el.focus(); }
+}
+document.getElementById('gateBtn').addEventListener('click',_tryUnlock);
+document.getElementById('gatePw').addEventListener('keydown',e=>{if(e.key==='Enter')_tryUnlock();});
+
 const CPL_GOOD=60, CPL_WARN=120;
 const LS=(k,d)=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):d;}catch(e){return d;}};
 const LSset=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}};
