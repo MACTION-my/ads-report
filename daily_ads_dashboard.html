@@ -30,6 +30,7 @@
 }
 .mark{background:var(--hl);padding:2px 9px;border-radius:5px;font-weight:700;color:#141414}
 #gate{position:fixed;inset:0;z-index:9999;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:20px}
+#gate[hidden]{display:none!important}
 .gate-card{background:var(--panel);border:1px solid var(--line);border-top:4px solid var(--accent);border-radius:16px;
   box-shadow:var(--shadow);padding:32px 26px;max-width:340px;width:100%;text-align:center}
 .gate-icon{font-size:34px}
@@ -4165,16 +4166,17 @@ const DATA = /*DATA_START*/{
 /* ---- 密码锁（轻量）---- */
 // 轻量密码锁（明文比对，不分大小写，任何环境都能用）
 var PW_PLAIN='maction9133';
+function _hideGate(){ var g=document.getElementById('gate'); if(g){ g.hidden=true; g.style.display='none'; } }
 function _tryUnlock(){
   var el=document.getElementById('gatePw');
   if((el.value||'').trim().toLowerCase()===PW_PLAIN){
     try{sessionStorage.setItem('ads_unlock','1');}catch(e){}
-    document.getElementById('gate').hidden=true;
+    _hideGate();
   } else {
     document.getElementById('gateErr').hidden=false; el.value=''; el.focus();
   }
 }
-try{ if(sessionStorage.getItem('ads_unlock')==='1'){ document.getElementById('gate').hidden=true; } }catch(e){}
+try{ if(sessionStorage.getItem('ads_unlock')==='1'){ _hideGate(); } }catch(e){}
 
 const CPL_GOOD=60, CPL_WARN=120;
 const LS=(k,d)=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):d;}catch(e){return d;}};
