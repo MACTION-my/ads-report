@@ -137,6 +137,17 @@ thead th{background:var(--panel-2);font-family:"Sora";font-weight:600;font-size:
 @media(max-width:760px){.kpis{grid-template-columns:1fr 1fr}}
 </style>
 
+<div id="gate">
+  <div class="gate-card">
+    <div class="gate-icon">🔒</div>
+    <h2><span class="hl">广告报告</span></h2>
+    <p>请输入密码查看</p>
+    <input type="password" id="gatePw" placeholder="密码" autocapitalize="none" autocorrect="off" spellcheck="false" onkeydown="if(event.key==='Enter')_tryUnlock()">
+    <button id="gateBtn" onclick="_tryUnlock()">进入</button>
+    <div id="gateErr" class="gate-err" hidden>密码不对，再试一次</div>
+  </div>
+</div>
+
 <div class="top"><div class="wrap">
   <h1><span class="hl">广告报告</span> Ads Report</h1>
   <div class="sub">连锁 / 品誉 / 招聘 · 自选广告户口 · 花费 / Lead / CPL</div>
@@ -4152,6 +4163,19 @@ const DATA = /*DATA_START*/{
  "generated_from": "Meta Marketing API"
 }/*DATA_END*/;
 /* ---- 密码锁（轻量）---- */
+// 轻量密码锁（明文比对，不分大小写，任何环境都能用）
+var PW_PLAIN='maction9133';
+function _tryUnlock(){
+  var el=document.getElementById('gatePw');
+  if((el.value||'').trim().toLowerCase()===PW_PLAIN){
+    try{sessionStorage.setItem('ads_unlock','1');}catch(e){}
+    document.getElementById('gate').hidden=true;
+  } else {
+    document.getElementById('gateErr').hidden=false; el.value=''; el.focus();
+  }
+}
+try{ if(sessionStorage.getItem('ads_unlock')==='1'){ document.getElementById('gate').hidden=true; } }catch(e){}
+
 const CPL_GOOD=60, CPL_WARN=120;
 const LS=(k,d)=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):d;}catch(e){return d;}};
 const LSset=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}};
