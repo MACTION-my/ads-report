@@ -142,7 +142,7 @@ thead th{background:var(--panel-2);font-family:"Sora";font-weight:600;font-size:
     <div class="gate-icon">🔒</div>
     <h2><span class="hl">广告报告</span></h2>
     <p>请输入密码查看</p>
-    <input type="password" id="gatePw" placeholder="密码" autocomplete="current-password">
+    <input type="password" id="gatePw" placeholder="密码" autocomplete="current-password" autocapitalize="none" autocorrect="off" spellcheck="false">
     <button id="gateBtn">进入</button>
     <div id="gateErr" class="gate-err" hidden>密码不对，再试一次</div>
   </div>
@@ -4163,17 +4163,14 @@ const DATA = /*DATA_START*/{
  "generated_from": "Meta Marketing API"
 }/*DATA_END*/;
 /* ---- 密码锁（轻量）---- */
-const PW_HASH='147db71871594725f9d5763427d6afd654af94d8affbfec4e4c5855b71326171';
+// 不分大小写、不依赖浏览器加密环境，手机电脑都能进（轻量锁）
 const PW_B64='b64:bWFjdGlvbjkxMzM=';
-async function _hash(s){
-  try{ const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));
-    return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join(''); }
-  catch(e){ return 'b64:'+btoa(unescape(encodeURIComponent(s))); }
-}
+function _hash(s){ return 'b64:'+btoa(unescape(encodeURIComponent(s))); }
 (function(){try{if(sessionStorage.getItem('ads_unlock')==='1'){const g=document.getElementById('gate');if(g)g.hidden=true;}}catch(e){}})();
-async function _tryUnlock(){
-  const el=document.getElementById('gatePw'); const h=await _hash((el.value||'').trim());
-  if(h===PW_HASH||h===PW_B64){ try{sessionStorage.setItem('ads_unlock','1')}catch(e){} document.getElementById('gate').hidden=true; }
+function _tryUnlock(){
+  const el=document.getElementById('gatePw');
+  const h=_hash((el.value||'').trim().toLowerCase());
+  if(h===PW_B64){ try{sessionStorage.setItem('ads_unlock','1')}catch(e){} document.getElementById('gate').hidden=true; }
   else{ document.getElementById('gateErr').hidden=false; el.value=''; el.focus(); }
 }
 document.getElementById('gateBtn').addEventListener('click',_tryUnlock);
