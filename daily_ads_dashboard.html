@@ -142,8 +142,8 @@ thead th{background:var(--panel-2);font-family:"Sora";font-weight:600;font-size:
     <div class="gate-icon">🔒</div>
     <h2><span class="hl">广告报告</span></h2>
     <p>请输入密码查看</p>
-    <input type="password" id="gatePw" placeholder="密码" autocomplete="current-password" autocapitalize="none" autocorrect="off" spellcheck="false">
-    <button id="gateBtn">进入</button>
+    <input type="password" id="gatePw" placeholder="密码" autocapitalize="none" autocorrect="off" spellcheck="false" onkeydown="if(event.key==='Enter')_tryUnlock()">
+    <button id="gateBtn" onclick="_tryUnlock()">进入</button>
     <div id="gateErr" class="gate-err" hidden>密码不对，再试一次</div>
   </div>
 </div>
@@ -4163,18 +4163,18 @@ const DATA = /*DATA_START*/{
  "generated_from": "Meta Marketing API"
 }/*DATA_END*/;
 /* ---- 密码锁（轻量）---- */
-// 不分大小写、不依赖浏览器加密环境，手机电脑都能进（轻量锁）
-const PW_B64='b64:bWFjdGlvbjkxMzM=';
-function _hash(s){ return 'b64:'+btoa(unescape(encodeURIComponent(s))); }
-(function(){try{if(sessionStorage.getItem('ads_unlock')==='1'){const g=document.getElementById('gate');if(g)g.hidden=true;}}catch(e){}})();
+// 轻量密码锁（明文比对，不分大小写，任何环境都能用）
+var PW_PLAIN='maction9133';
 function _tryUnlock(){
-  const el=document.getElementById('gatePw');
-  const h=_hash((el.value||'').trim().toLowerCase());
-  if(h===PW_B64){ try{sessionStorage.setItem('ads_unlock','1')}catch(e){} document.getElementById('gate').hidden=true; }
-  else{ document.getElementById('gateErr').hidden=false; el.value=''; el.focus(); }
+  var el=document.getElementById('gatePw');
+  if((el.value||'').trim().toLowerCase()===PW_PLAIN){
+    try{sessionStorage.setItem('ads_unlock','1');}catch(e){}
+    document.getElementById('gate').hidden=true;
+  } else {
+    document.getElementById('gateErr').hidden=false; el.value=''; el.focus();
+  }
 }
-document.getElementById('gateBtn').addEventListener('click',_tryUnlock);
-document.getElementById('gatePw').addEventListener('keydown',e=>{if(e.key==='Enter')_tryUnlock();});
+try{ if(sessionStorage.getItem('ads_unlock')==='1'){ document.getElementById('gate').hidden=true; } }catch(e){}
 
 const CPL_GOOD=60, CPL_WARN=120;
 const LS=(k,d)=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):d;}catch(e){return d;}};
