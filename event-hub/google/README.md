@@ -6,6 +6,8 @@ Google 版本已实现并可独立构建，Node/SQLite 版保留作本地参考�
 
 ## 构建与文件
 
+登录性能：新版前端以 hubStart 一次取得会话、成员列表、活动和提醒；已有会话通过 hubCall 的 bootstrap 路径一次恢复。Runtime 以 Sheets Values.batchGet 批量读取启动所需六张表，不读取历史行快照、导入日志、审计和来源目录；普通业务请求仍可读取完整表集。成员与启用状态每次重新读取，未缓存角色或业务报表。hubLogin 保留供旧前端兼容，仅读取 Members。写入仍受 ScriptLock 和原子 batchUpdate 保护。
+
 本目录 sheet-service.mjs 是纯业务服务，复用 core.mjs 的校验及 KPI；sheet-state.mjs 处理分位金额和表结构；phone-sessions.mjs 处理手机号进入、六小时会话、退出及停用；Runtime.gs 处理 Google 读写与公开 RPC；build.mjs 生成 build/Code.gs、Index.html 和 appsscript.json（不包含手机号或真实账号）。主目录 npm run build 同时构建两种运行方式。Apps Script 的解析器不支持某些新语法，构建会转为 ES2019。
 
 所有会话存在 Script Cache，仅保存 token 摘要、成员 ID、到期时间；Cache 可能提前淘汰，会要求重新登录。每次 RPC 重新读取活跃成员/角色，不接受客户端指定角色。资料编辑、提交、退回、佣金核准、名单权限与版本仍服务端执行。
