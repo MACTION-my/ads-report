@@ -2,7 +2,7 @@
 export const sheetSchema={
   Events:['eventId','brand','name','eventDate','picUserId','assignedUserIdsJson','submissionDeadline','status','revision','reportVersion','notes','updatedAt'],
   Stats:['eventId','userId','newLeads','junk','pta','newLeadPta','attended','closedDeals','salesAmountCents','commissionCents','dealIncentiveCents','notes','submittedAt','updatedBy','updatedAt'],
-  Members:['userId','displayName','email','googleSubject','role','active','updatedAt'],
+  Members:['userId','displayName','phone','loginStatus','role','active','updatedAt'],
   Attendance:['eventId','externalId','name','email','attended','userId','updatedBy','updatedAt'],
   Versions:['eventId','version','status','actorUserId','createdAt','eventSnapshotJson'],
   VersionStats:['eventId','version','userId','statsSnapshotJson'],

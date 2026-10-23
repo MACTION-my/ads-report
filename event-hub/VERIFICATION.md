@@ -1,5 +1,7 @@
 # 验证记录 — 2026-10-23（马来西亚）
 
+手机号成员登记增量：用户改为手机号登录。私有总表登记 5 位填报成员，规范化手机号，active=false / pending_setup，未推断管理员、未设置密码、未创建会话。真实电话号码未提交 GitHub。17 项测试、TypeScript strict、JS 语法及 Build 全通过。Google OAuth 不再作为该登录方案前提；实际手机号认证、密码方式和管理员权限仍待配置。
+
 Google 迁移准备增量：16 项自动测试全部通过（新增历史日期解析、重复候选、多区块溯源、缺值/身份映射测试）；TypeScript strict、JS 检查和 Build 通过。已通过连接器建立原生 Google Sheets 后台结构并读回确认：11 个页签、Sources 18 条来源记录、Events/Stats/Members 无正式记录；权限元数据为 shared=false，只有拥有者。已将时区设为 Asia/Kuala_Lumpur。实际 Pinyu 和 Chain Conversion 样本分别识别 3 / 1 个区块，未提交写入。历史原表未改动；未把私有来源快照或业务数字提交 GitHub。表格工具导出后进程返回非零，但生成的 XLSX 经独立读取、原生转换及云端读回验证；未以退出码声称生成完全无误。Google 混合账号身份验证、Apps Script 服务与触发器仍未实现或部署。
 
 域名路径增量：页面、API、导出、导航、测试及文档统一使用 /report/；/report 的 GET / HEAD 以 308 跳转 /report/ 并保留 query。真实 GitHub Pages API 确认自定义域名为 ads.aikpi.my；线上首页 HTTP 200、/report HTTP 404。修改仅在 PR 分支，不表示路径已经上线。
