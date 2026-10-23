@@ -1,5 +1,11 @@
 # 验证记录 — 2026-10-23（马来西亚）
 
+公司域名原生页面更新（20:19 MYT）：已部署 Google Web App v4 的受限 doPost JSON 接口，GitHub Pages 直接提供 /report/ HTML、CSS、JS，不再重定向或使用 iframe。Chrome 实测在 https://ads.aikpi.my/report/?v=4 登录 Wilson、读取活动及成员总览、导出本月 CSV 成功，导出文件实际下载到 Downloads（当前无正式活动，CSV 只有表头）；全过程顶层地址保持 ads.aikpi.my。本机原生页面也验证了真实 API 登录、读取和退出。24 项自动测试、2 项 Python 生成测试、TypeScript strict、语法检查及 Build 通过。未重新创建正式业务数据，既有归档测试仍不参与总览。
+
+发布记录：首轮 iframe 版本加载空白，未作为完成交付；已恢复 Google 默认禁止外站嵌入，改用无 Cookie 的 POST 会话传输。原 Daily 工作流 39951112198 因既有广告写 Google Sheet 步骤失败，未部署新页面。新增手动 Publish Event Report UI 流程，逐字节保留当时线上 Ads 首页后仅生成活动中心资源；首次校验误要求 html 外层标签而失败，检查真实首页为 title 起始片段后修正。最终独立部署 39952051514 成功，原广告抓取与写表脚本未改。该既有广告写表失败的根因尚未排查。原 /report 的跳转可能仍存在浏览器缓存，发布验证使用版本 query 避开缓存。
+
+以下为历史部署记录，以本节公司域名原生页面更新为准。
+
 正式部署更新（19:30 MYT）：用户完成首次 Google 授权后，独立 Web App 已发布版本 2，Anyone 入口已按用户明确选择启用。PR #1 已合并，GitHub Pages 工作流 39945762395 成功；实际浏览器从 https://ads.aikpi.my/report 跳转并显示手机号登录页。管理员真实登录、活动创建、绩效保存及刷新读回成功；修复 Google RPC 省略 null 时的前端 N/A 和汇总显示，23 项测试、TypeScript、语法和 Build 再次通过，CI 成功。验证活动已归档，正式总览为 0 场，测试记录保留审计。
 
 每小时 runScheduledReminders_ 触发器已创建并在 Google Triggers 列表读回确认；尚未等待首次定时执行，不能声称实际到期催交已经验证。仅生成站内待办，没有邮件或 WhatsApp 通知。一次性拥有者安装函数仅存在未发布的编辑器 Head，执行后已移除并保存；没有进入公开部署。首次误运行默认 assert 的记录已核查，安装函数实际执行成功后输出 installed=true。历史表仅登记来源，未自动迁移正式数据。
