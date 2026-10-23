@@ -11,7 +11,7 @@
 <section><h2>活动进度</h2><div class="scroll"><table><thead><tr><th>活动</th><th>日期 / PIC</th><th>截止日期</th><th>状态</th><th>出席</th><th>成交</th><th>销售额 RM</th><th>报告</th></tr></thead><tbody id="events"></tbody></table></div></section>
 <section><h2>团队排名 <small>当前筛选 · 按销售额</small></h2><div id="ranking"></div></section>
 <section id="detail" hidden></section>
-<section class="notice"><h2>自动化连接状态</h2><p>当前版本：绩效 / 出席名单 CSV 导入、团队自行填报、站内催交待办。Google Sheets 自动同步、GHL / Zoom、邮件 / WhatsApp 尚未接通。站内催交需要服务器部署定时任务后才会自动生成；不能自动取得的数据仍需 PIC 确认。</p></section>
+<section class="notice"><h2>填报与提醒</h2><p>团队自行填写本场绩效，可导入绩效及出席名单 CSV。缺报提醒显示在系统内；邮件、WhatsApp、GHL 和 Zoom 尚未接通。出席归属与最终数据由 PIC 核对确认。</p></section>
 </div>
 <dialog id="eventDialog"><form id="eventForm"><h2 id="formTitle">新建活动</h2><label>活动名称<input name="name" required maxlength="200"></label><label>品牌<select name="brand"><option>Pinyu</option><option>Chain</option></select></label><label>活动日期<input name="eventDate" type="date" required></label><label>截止日期（马来西亚时间）<input name="deadline" type="datetime-local" required></label><label>PIC<select name="picUserId" required></select></label><label>团队成员（每人需一行数据）<span id="members"></span></label><label>地点<input name="venue"></label><label>备注<textarea name="notes"></textarea></label><div class="toolbar"><button type="submit">保存活动</button><button id="closeDialog" type="button" class="secondary">取消</button></div></form></dialog>
 </main></body></html>

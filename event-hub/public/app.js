@@ -59,7 +59,7 @@ function filtered() {
     return reports.filter(r => !r.event.archived && r.event.eventDate.startsWith(month) && (!brand || r.event.brand === brand) && (!pic || r.event.picUserId === pic) && r.event.name.toLowerCase().includes(query) && (!state || (state === 'pending' ? ['draft', 'scheduled', 'awaiting_data', 'needs_correction', 'overdue'].includes(r.event.displayStatus) : r.event.displayStatus === state)));
 }
 function aggregate(rows) {
-    const total = Object.fromEntries(fields.map(key => [key, rows.some(r => r[key] === null) ? null : rows.reduce((sum, r) => sum + (r[key] || 0), 0)]));
+    const total = Object.fromEntries(fields.map(key => [key, rows.some(r => r[key] == null) ? null : rows.reduce((sum, r) => sum + (r[key] || 0), 0)]));
     const ratio = (a, b) => a === null || !b ? null : a / b * 100;
     return { total, rates: { leadToJunk: ratio(total.junk, total.newLeads), leadToWon: ratio(total.closedDeals, total.newLeads), ptaToWon: ratio(total.closedDeals, total.pta), leadsToPta: ratio(total.newLeadPta, total.newLeads), ptaToAttended: ratio(total.attended, total.pta), attendedToWon: ratio(total.closedDeals, total.attended) } };
 }
@@ -106,7 +106,7 @@ function table(rows, total, rates) {
         const tr = el('tr');
         tr.append(el('td', row.displayName || name(row.userId)));
         for (const key of fields)
-            tr.append(el('td', row[key] === null ? 'N/A' : key === 'salesAmount' || key === 'commission' || key === 'dealIncentive' ? money(row[key]) : String(row[key])));
+            tr.append(el('td', row[key] == null ? 'N/A' : key === 'salesAmount' || key === 'commission' || key === 'dealIncentive' ? money(row[key]) : String(row[key])));
         const rowRates = row.rates || aggregate([row]).rates;
         for (const key of Object.keys(rateLabels))
             tr.append(el('td', rate(rowRates[key])));

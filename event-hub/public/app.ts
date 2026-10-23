@@ -37,7 +37,7 @@ function filtered(){
   return reports.filter(r=>!r.event.archived&&r.event.eventDate.startsWith(month)&&(!brand||r.event.brand===brand)&&(!pic||r.event.picUserId===pic)&&r.event.name.toLowerCase().includes(query)&&(!state||(state==='pending'?['draft','scheduled','awaiting_data','needs_correction','overdue'].includes(r.event.displayStatus):r.event.displayStatus===state)));
 }
 function aggregate(rows:Stats[]):{total:Stats;rates:Record<string,number|null>} {
-  const total=Object.fromEntries(fields.map(key=>[key,rows.some(r=>r[key]===null)?null:rows.reduce((sum,r)=>sum+(r[key]||0),0)])) as unknown as Stats;
+  const total=Object.fromEntries(fields.map(key=>[key,rows.some(r=>r[key]==null)?null:rows.reduce((sum,r)=>sum+(r[key]||0),0)])) as unknown as Stats;
   const ratio=(a:number|null,b:number)=>a===null||!b?null:a/b*100;
   return {total,rates:{leadToJunk:ratio(total.junk,total.newLeads),leadToWon:ratio(total.closedDeals,total.newLeads),ptaToWon:ratio(total.closedDeals,total.pta),leadsToPta:ratio(total.newLeadPta,total.newLeads),ptaToAttended:ratio(total.attended,total.pta),attendedToWon:ratio(total.closedDeals,total.attended)}};
 }
@@ -62,7 +62,7 @@ async function openReport(id:string){selected=await api<Report>('events/'+id);im
 function table(rows:Stats[],total:Report['total'],rates:Record<string,number|null>){
   const wrap=el('div','','scroll'),tbl=el('table'),head=el('tr');
   for(const label of ['Telesales',...fields.map(k=>labels[k]),...Object.values(rateLabels)])head.append(el('th',label));const thead=el('thead');thead.append(head);tbl.append(thead);const body=el('tbody');
-  for(const row of [...rows,{...total,userId:'',displayName:'合计',rates}]){const tr=el('tr');tr.append(el('td',row.displayName||name(row.userId)));for(const key of fields)tr.append(el('td',row[key]===null?'N/A':key==='salesAmount'||key==='commission'||key==='dealIncentive'?money(row[key]):String(row[key])));const rowRates=row.rates||aggregate([row]).rates;for(const key of Object.keys(rateLabels))tr.append(el('td',rate(rowRates[key])));body.append(tr);}tbl.append(body);wrap.append(tbl);return wrap;
+  for(const row of [...rows,{...total,userId:'',displayName:'合计',rates}]){const tr=el('tr');tr.append(el('td',row.displayName||name(row.userId)));for(const key of fields)tr.append(el('td',row[key]==null?'N/A':key==='salesAmount'||key==='commission'||key==='dealIncentive'?money(row[key]):String(row[key])));const rowRates=row.rates||aggregate([row]).rates;for(const key of Object.keys(rateLabels))tr.append(el('td',rate(rowRates[key])));body.append(tr);}tbl.append(body);wrap.append(tbl);return wrap;
 }
 function renderDetail(){
   if(!selected)return;const r=selected,e=r.event,section=$('detail');section.hidden=false;section.replaceChildren();
@@ -154,3 +154,4 @@ $<HTMLFormElement>('phoneLogin').onsubmit=event=>{event.preventDefault();void ru
 $('logout').onclick=run(async()=>{try{await googleCall('hubLogout',[sessionToken]);}finally{showLogin();message('已退出登录。');}});
 if(gasMode){try{sessionToken=sessionStorage.getItem('eventHubSession')||'';}catch{}if(sessionToken)void run(initialize)();else{showLogin();message('请输入已登记的手机号。');}}
 else void run(initialize)();
+
