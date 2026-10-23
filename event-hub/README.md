@@ -1,5 +1,7 @@
 # Event Performance Hub
 
+Google Sheets 方案的迁移准备见 [google/README.md](google/README.md)：已提供独立表结构及历史多区块只读解析器，当前尚未替换 Node/SQLite 服务端或上线 Google 填报服务。后台总表可建立不代表登录、填报及催交已经接通。
+
 指定线上地址：`https://ads.aikpi.my/report`，由后端以 308 跳转 `/report/`（保留 query）。GitHub Pages API 已确认 ads.aikpi.my 是当前仓库的自定义域名；2026-10-23 现场检查首页为 200，/report 为 404。路径代码尚未部署。GitHub Pages 不能执行本模块的 Node API，也不能单独按路径转发到后端；需要在当前域名前增加反向代理/边缘路由，或迁移至支持后端的同站托管平台。不要只开启导航变量就声称已经绑定成功。
 
 更新后的主流程：Admin 建活动并分配 telesales → 每位 telesales 登录后填写并提交本人数据 → 系统实时核算、显示缺报及催交 → PIC 汇总提交 → Admin 核准最终版。数据由团队直接填报，Google Sheets / GHL / Zoom 同步不是上线前提。PIC/Admin 保留补录及代填，记录操作人；代填也视为该成员已有数据。出席名单仍由 PIC/Admin 上传。
