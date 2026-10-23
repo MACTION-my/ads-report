@@ -1,0 +1,18 @@
+{
+  "name": "event-performance-hub",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "check": "node --check server.mjs && node --check core.mjs && node --check service.mjs && node --check attendance.mjs && node --check reminders.mjs && node --check google/sheet-service.mjs && node --check google/sheet-state.mjs && node --check google/phone-sessions.mjs && node --check public/app.js",
+    "build": "node build.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "start": "node server.mjs"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3"
+  }
+}

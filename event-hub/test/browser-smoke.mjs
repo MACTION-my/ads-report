@@ -1,0 +1,54 @@
+// Optional local integration QA. Uses an in-memory database and a test-only trusted proxy.
+// No real company identity, production data, notification delivery or network service is used.
+import {createRequire} from 'node:module';
+import {once} from 'node:events';
+import {fileURLToPath} from 'node:url';
+import {mkdirSync} from 'node:fs';
+import {Hub} from '../service.mjs';
+import {createServer} from '../server.mjs';
+const require=createRequire(import.meta.url);
+const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
+const hub=new Hub();
+for(const [id,displayName,role]of[['admin','测试管理员','admin'],['pic','测试负责人','pic'],['tele','测试销售','telesales']])hub.db.prepare('INSERT INTO users(id,displayName,role) VALUES(?,?,?)').run(id,displayName,role);
+const report=hub.saveEvent('admin',{name:'浏览器验收 · 测试数据',brand:'Pinyu',eventDate:new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Kuala_Lumpur'}),submissionDeadline:'2030-10-24T18:00:00+08:00',picUserId:'pic',assignedUserIds:['pic','tele']});
+const row={userId:'pic',newLeads:96,junk:15,pta:30,newLeadPta:null,attended:20,closedDeals:1,salesAmount:1058.4,commission:0,dealIncentive:50};
+hub.saveRows('admin',report.event.id,{revision:1,rows:[row]});
+const secret='test-only-not-a-real-secret'.repeat(2),server=createServer(hub,secret);
+server.listen(0,'127.0.0.1');await once(server,'listening');
+let browser;
+try{
+  browser=await chromium.launch({channel:process.env.BROWSER_CHANNEL||'msedge',headless:true});
+  const selfContext=await browser.newContext({viewport:{width:390,height:844},extraHTTPHeaders:{'X-Hub-User':'tele','X-Hub-Secret':secret}});
+  const selfPage=await selfContext.newPage();selfPage.on('dialog',dialog=>dialog.accept());
+  await selfPage.goto('http://127.0.0.1:'+server.address().port+'/report/');
+  await selfPage.getByRole('button',{name:'打开',exact:true}).click();
+  await selfPage.getByRole('button',{name:'提交我的数据',exact:true}).click();
+  await selfPage.getByRole('status').filter({hasText:'本人数据已提交'}).waitFor();
+  if(hub.rows(report.event.id).length!==2)throw new Error('Self submission lost a teammate');
+  await selfContext.close();
+  const context=await browser.newContext({extraHTTPHeaders:{'X-Hub-User':'admin','X-Hub-Secret':secret}});
+  const page=await context.newPage(),errors=[];page.on('pageerror',error=>errors.push(error.message));
+  await page.goto('http://127.0.0.1:'+server.address().port+'/report/');
+  await page.getByRole('button',{name:'打开',exact:true}).click();
+  await page.getByRole('heading',{name:'Pinyu · 浏览器验收 · 测试数据'}).waitFor();
+  for(const label of ['核准佣金 RM','核准奖励 RM'])for(const input of await page.locator('label').filter({hasText:label}).locator('input').all())if(!await input.inputValue())await input.fill('0');
+  mkdirSync(new URL('../qa/',import.meta.url),{recursive:true});
+  await page.setViewportSize({width:390,height:844});
+  await page.screenshot({path:fileURLToPath(new URL('../qa/mobile-submission.png',import.meta.url)),fullPage:true});
+  const fieldsOverflow=await page.evaluate(()=>document.documentElement.scrollWidth>window.innerWidth);
+  if(fieldsOverflow)throw new Error('Mobile submission has page overflow');
+  await page.setViewportSize({width:1366,height:1000});
+  await page.getByText('RM', {exact:true}).count();
+  await page.getByRole('button',{name:'保存草稿',exact:true}).click();
+  await page.getByRole('status').filter({hasText:'草稿已保存到数据库'}).waitFor();
+  page.on('dialog',dialog=>dialog.accept());
+  await page.getByRole('button',{name:'提交并锁定',exact:true}).click();
+  await page.getByRole('button',{name:'确认最终版',exact:true}).waitFor();
+  await page.getByRole('button',{name:'确认最终版',exact:true}).click();
+  await page.getByText('最终版 · v1',{exact:false}).waitFor();
+  await page.setViewportSize({width:1366,height:1000});await page.screenshot({path:fileURLToPath(new URL('../qa/desktop.png',import.meta.url)),fullPage:true});
+  await page.setViewportSize({width:390,height:844});await page.screenshot({path:fileURLToPath(new URL('../qa/mobile.png',import.meta.url)),fullPage:true});
+  const overflow=await page.evaluate(()=>document.documentElement.scrollWidth>window.innerWidth);
+  if(errors.length||overflow)throw new Error(JSON.stringify({errors,overflow}));
+  console.log('Desktop + mobile browser flow passed: load, report, save draft, submit, finalize, no JS errors or page overflow.');
+}finally{await browser?.close();await new Promise(resolve=>server.close(resolve));hub.close();}

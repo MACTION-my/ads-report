@@ -1,0 +1,10 @@
+PRAGMA foreign_keys=ON;
+CREATE TABLE IF NOT EXISTS users(id TEXT PRIMARY KEY, displayName TEXT NOT NULL, role TEXT NOT NULL CHECK(role IN ('admin','pic','telesales','viewer')), active INTEGER NOT NULL DEFAULT 1 CHECK(active IN (0,1)));
+CREATE TABLE IF NOT EXISTS events(id TEXT PRIMARY KEY, data TEXT NOT NULL, revision INTEGER NOT NULL DEFAULT 1);
+CREATE TABLE IF NOT EXISTS stats(eventId TEXT NOT NULL REFERENCES events(id), userId TEXT NOT NULL REFERENCES users(id), data TEXT NOT NULL, PRIMARY KEY(eventId,userId));
+CREATE TABLE IF NOT EXISTS submissions(eventId TEXT NOT NULL REFERENCES events(id), version INTEGER NOT NULL, snapshot TEXT NOT NULL, actor TEXT NOT NULL REFERENCES users(id), createdAt TEXT NOT NULL, PRIMARY KEY(eventId,version));
+CREATE TABLE IF NOT EXISTS auditLogs(id INTEGER PRIMARY KEY, actor TEXT NOT NULL REFERENCES users(id), action TEXT NOT NULL, entityId TEXT NOT NULL, data TEXT NOT NULL, createdAt TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS importJobs(id INTEGER PRIMARY KEY, actor TEXT NOT NULL REFERENCES users(id), eventId TEXT NOT NULL REFERENCES events(id), rowCount INTEGER NOT NULL, outcome TEXT NOT NULL, createdAt TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS commissionRules(id TEXT PRIMARY KEY, brand TEXT NOT NULL, configuration TEXT NOT NULL, effectiveFrom TEXT NOT NULL, effectiveTo TEXT, createdBy TEXT NOT NULL REFERENCES users(id));
+CREATE TABLE IF NOT EXISTS reminderLogs(id INTEGER PRIMARY KEY, eventId TEXT NOT NULL REFERENCES events(id), recipient TEXT NOT NULL REFERENCES users(id), type TEXT NOT NULL, window TEXT NOT NULL, deliveryStatus TEXT NOT NULL, sentAt TEXT, error TEXT, UNIQUE(eventId,recipient,type,window));
+CREATE TABLE IF NOT EXISTS attendance(eventId TEXT NOT NULL REFERENCES events(id), externalId TEXT NOT NULL, data TEXT NOT NULL, PRIMARY KEY(eventId,externalId));
