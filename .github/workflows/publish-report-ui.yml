@@ -33,7 +33,7 @@ jobs:
               assert response.status == 200
               assert urlparse(response.url).hostname == 'ads.aikpi.my'
               page = response.read()
-          assert b'<html' in page.lower() and len(page) > 1000
+          assert b'<title' in page.lower() and len(page) > 1000
           Path('_site').mkdir()
           Path('_site/index.html').write_bytes(page)
           PY
