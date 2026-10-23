@@ -22,7 +22,7 @@ class BuildReportTest(unittest.TestCase):
                 self.assertEqual(result.returncode, 0, result.stderr)
                 built = html.read_text(encoding='utf-8')
                 self.assertIn('2026-10-23', built)
-                self.assertEqual('/events/' in built, enabled == 'true')
+                self.assertEqual('/report/' in built, enabled == 'true')
 
 
 if __name__ == '__main__':

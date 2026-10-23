@@ -1,5 +1,7 @@
 # 验证记录 — 2026-10-23（马来西亚）
 
+域名路径增量：页面、API、导出、导航、测试及文档统一使用 /report/；/report 的 GET / HEAD 以 308 跳转 /report/ 并保留 query。真实 GitHub Pages API 确认自定义域名为 ads.aikpi.my；线上首页 HTTP 200、/report HTTP 404。修改仅在 PR 分支，不表示路径已经上线。
+
 用户澄清后的增量：新增 telesales 本人填报及缺报人员催交，13 项测试全部通过，TypeScript strict、语法检查和 Build 通过。新增测试覆盖伪造他人 ID、未分配人员、只读成员、擅改佣金、版本冲突、保存不覆盖同事、个人填报后待办消失及全场锁定。
 
 阶段 0：完整读取 brief，检查模板、Python 生成脚本、GitHub Pages workflow、Apps Script、git 状态及 Excel 的结构/公式。原仓库没有测试或 TypeScript / Build 工具，故没有可声称通过的原系统检查。

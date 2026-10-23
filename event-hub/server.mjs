@@ -14,10 +14,13 @@ export function createServer(hub,secret) {
     const send=(code,data,type='application/json; charset=utf-8')=>{res.writeHead(code,{'Content-Type':type});res.end(type.startsWith('application/json')?JSON.stringify(data):data);};
     try {
       const url=new URL(req.url,'http://localhost'),path=url.pathname;
+      if(path==='/report'&&['GET','HEAD'].includes(req.method)){
+        res.writeHead(308,{Location:'/report/'+url.search});return res.end();
+      }
       // Explicit allowlist: never expose DB, source files, configuration or directory listings.
-      const files={'/events/':['index.html','text/html; charset=utf-8'],'/events/app.js':['app.js','text/javascript; charset=utf-8'],'/events/styles.css':['styles.css','text/css; charset=utf-8']};
+      const files={'/report/':['index.html','text/html; charset=utf-8'],'/report/app.js':['app.js','text/javascript; charset=utf-8'],'/report/styles.css':['styles.css','text/css; charset=utf-8']};
       if(files[path] && req.method==='GET') {const [file,type]=files[path];return send(200,readFileSync(new URL('./public/'+file,import.meta.url)),type);}
-      assert(path.startsWith('/events/api/'),'页面不存在',404);
+      assert(path.startsWith('/report/api/'),'页面不存在',404);
       assert(typeof secret==='string'&&secret.length>=32,'身份网关尚未配置，模块未开放',503);
       const supplied=String(req.headers['x-hub-secret']||'');
       assert(Buffer.byteLength(supplied)===Buffer.byteLength(secret)&&timingSafeEqual(Buffer.from(supplied),Buffer.from(secret)),'身份网关验证失败',401);
@@ -34,19 +37,19 @@ export function createServer(hub,secret) {
         try {body=JSON.parse(Buffer.concat(chunks).toString('utf8'));}catch{throw new HubError('JSON 无效');}
         assert(body && typeof body==='object'&&!Array.isArray(body),'JSON 必须是对象');
       }
-      if(path==='/events/api/me' && req.method==='GET')return send(200,{user:hub.user(actor),users:hub.users(actor),integrations:{identity:'trusted_proxy',googleSheets:false,notifications:'in_app_job_requires_scheduler',attendance:'csv_only'}});
-      if(path==='/events/api/inbox' && req.method==='GET')return send(200,hub.inbox(actor));
-      if(path==='/events/api/events' && req.method==='GET')return send(200,hub.list(actor));
-      if(path==='/events/api/events' && req.method==='POST')return send(201,hub.saveEvent(actor,body));
-      if(path==='/events/api/audit' && req.method==='GET')return send(200,hub.logs(actor));
-      if(path==='/events/api/template' && req.method==='GET')return send(200,'\uFEFF'+csvHeaders.join(',')+'\r\n','text/csv; charset=utf-8');
-      if(path==='/events/api/attendance-template' && req.method==='GET')return send(200,'\uFEFF'+attendanceHeaders.join(',')+'\r\n','text/csv; charset=utf-8');
-      if(path==='/events/api/export' && req.method==='GET') {
+      if(path==='/report/api/me' && req.method==='GET')return send(200,{user:hub.user(actor),users:hub.users(actor),integrations:{identity:'trusted_proxy',googleSheets:false,notifications:'in_app_job_requires_scheduler',attendance:'csv_only'}});
+      if(path==='/report/api/inbox' && req.method==='GET')return send(200,hub.inbox(actor));
+      if(path==='/report/api/events' && req.method==='GET')return send(200,hub.list(actor));
+      if(path==='/report/api/events' && req.method==='POST')return send(201,hub.saveEvent(actor,body));
+      if(path==='/report/api/audit' && req.method==='GET')return send(200,hub.logs(actor));
+      if(path==='/report/api/template' && req.method==='GET')return send(200,'\uFEFF'+csvHeaders.join(',')+'\r\n','text/csv; charset=utf-8');
+      if(path==='/report/api/attendance-template' && req.method==='GET')return send(200,'\uFEFF'+attendanceHeaders.join(',')+'\r\n','text/csv; charset=utf-8');
+      if(path==='/report/api/export' && req.method==='GET') {
         const month=url.searchParams.get('month');assert(/^\d{4}-\d{2}$/.test(month||''),'月份格式无效');
         const records=hub.list(actor).filter(report=>report.event.eventDate.startsWith(month)&&report.event.status==='finalized');
         return send(200,csvExport(records.flatMap(report=>report.rows.map(row=>({...row,eventId:report.event.id})))),'text/csv; charset=utf-8');
       }
-      const match=path.match(/^\/events\/api\/events\/([^/]+)(?:\/(rows|own-row|transition|preview|import|export|history|attendance|attendance-preview|attendance-import))?$/);
+      const match=path.match(/^\/report\/api\/events\/([^/]+)(?:\/(rows|own-row|transition|preview|import|export|history|attendance|attendance-preview|attendance-import))?$/);
       if(match) {
         const [,id,action]=match;
         if(req.method==='GET') {
@@ -69,5 +72,5 @@ if(process.argv[1] && resolve(process.argv[1])===fileURLToPath(import.meta.url))
   const dbPath=resolve(process.env.EVENT_HUB_DB||fileURLToPath(new URL('./data/hub.sqlite',import.meta.url)));
   mkdirSync(dirname(dbPath),{recursive:true});
   const hub=new Hub(dbPath),server=createServer(hub,process.env.EVENT_HUB_PROXY_SECRET);
-  server.listen(Number(process.env.PORT||8787),'127.0.0.1',()=>console.log('Event Hub listening on localhost:'+server.address().port+'/events/; identity gateway required'));
+  server.listen(Number(process.env.PORT||8787),'127.0.0.1',()=>console.log('Event Hub listening on localhost:'+server.address().port+'/report/; identity gateway required'));
 }

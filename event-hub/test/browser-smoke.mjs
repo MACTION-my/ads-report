@@ -20,7 +20,7 @@ try{
   browser=await chromium.launch({channel:process.env.BROWSER_CHANNEL||'msedge',headless:true});
   const selfContext=await browser.newContext({viewport:{width:390,height:844},extraHTTPHeaders:{'X-Hub-User':'tele','X-Hub-Secret':secret}});
   const selfPage=await selfContext.newPage();selfPage.on('dialog',dialog=>dialog.accept());
-  await selfPage.goto('http://127.0.0.1:'+server.address().port+'/events/');
+  await selfPage.goto('http://127.0.0.1:'+server.address().port+'/report/');
   await selfPage.getByRole('button',{name:'打开',exact:true}).click();
   await selfPage.getByRole('button',{name:'提交我的数据',exact:true}).click();
   await selfPage.getByRole('status').filter({hasText:'本人数据已提交'}).waitFor();
@@ -28,7 +28,7 @@ try{
   await selfContext.close();
   const context=await browser.newContext({extraHTTPHeaders:{'X-Hub-User':'admin','X-Hub-Secret':secret}});
   const page=await context.newPage(),errors=[];page.on('pageerror',error=>errors.push(error.message));
-  await page.goto('http://127.0.0.1:'+server.address().port+'/events/');
+  await page.goto('http://127.0.0.1:'+server.address().port+'/report/');
   await page.getByRole('button',{name:'打开',exact:true}).click();
   await page.getByRole('heading',{name:'Pinyu · 浏览器验收 · 测试数据'}).waitFor();
   for(const label of ['核准佣金 RM','核准奖励 RM'])for(const input of await page.locator('label').filter({hasText:label}).locator('input').all())if(!await input.inputValue())await input.fill('0');

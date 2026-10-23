@@ -20,7 +20,7 @@ Excel 检查：四张工作表 Sales Comm Scheme、TS Comm Scheme、Conversion�
 
 ## 架构与部署边界
 
-新增 Node.js 22.13+（node:sqlite）后端与同站 /events 页面、/events/api API。SQLite 放在持久化磁盘、站点目录之外，备份包含 WAL 一致性；不适用于多实例写入。原静态广告报告继续原发布流程。GitHub Pages 不能运行此 API；需要公司反向代理 /events/* 到后端，同时继续转发 / 到现有静态站点。
+新增 Node.js 22.13+（node:sqlite）后端与同站 /report 页面、/report/api API。SQLite 放在持久化磁盘、站点目录之外，备份包含 WAL 一致性；不适用于多实例写入。原静态广告报告继续原发布流程。GitHub Pages 不能运行此 API；需要公司反向代理 /report/* 到后端，同时继续转发 / 到现有静态站点。
 
 不新增密码登录。受信身份网关须在验证公司身份后剥除用户传来的 X-Hub-* 头，注入 X-Hub-User 及高熵 X-Hub-Secret。后端仅监听 localhost；密钥环境变量 EVENT_HUB_PROXY_SECRET 至少 32 字符；角色来自服务端 users 表，不信任头内角色。必须由公司网关部署验证后才可开放，不可直接从浏览器传共享密钥。未配置时 API 返回 503。不能声称已接入公司 SSO。
 

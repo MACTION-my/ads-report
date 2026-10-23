@@ -12,7 +12,7 @@ function el(tag, text = '', className = '') { const node = document.createElemen
     node.className = className; return node; }
 function message(text) { $('message').textContent = text; }
 async function api(path, body) {
-    const response = await fetch('/events/api/' + path, { method: body === undefined ? 'GET' : 'POST', credentials: 'same-origin', headers: body === undefined ? {} : { 'Content-Type': 'application/json', 'X-Event-Hub-Request': '1' }, body: body === undefined ? undefined : JSON.stringify(body) });
+    const response = await fetch('/report/api/' + path, { method: body === undefined ? 'GET' : 'POST', credentials: 'same-origin', headers: body === undefined ? {} : { 'Content-Type': 'application/json', 'X-Event-Hub-Request': '1' }, body: body === undefined ? undefined : JSON.stringify(body) });
     const result = await response.json();
     if (!response.ok)
         throw new Error(result.error || '请求失败');
@@ -255,7 +255,7 @@ function renderImport(section, r) {
 }
 async function transition(action, extra = {}) { if (!selected)
     return; selected = await api(`events/${selected.event.id}/transition`, { revision: selected.event.revision, action, ...extra }); await refresh(); renderDetail(); message('状态已更新。'); }
-async function download(path, fileName) { const response = await fetch('/events/api/' + path, { credentials: 'same-origin' }); if (!response.ok) {
+async function download(path, fileName) { const response = await fetch('/report/api/' + path, { credentials: 'same-origin' }); if (!response.ok) {
     const error = await response.json();
     throw new Error(error.error);
 } const url = URL.createObjectURL(await response.blob()), link = el('a'); link.href = url; link.download = fileName; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000); }

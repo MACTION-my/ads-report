@@ -10,5 +10,5 @@ mkdirSync(new URL('./dist/public',import.meta.url),{recursive:true});
 for(const file of ['index.html','styles.css','app.js'])copyFileSync(new URL('./public/'+file,import.meta.url),new URL('./dist/public/'+file,import.meta.url));
 for(const file of ['server.mjs','service.mjs','core.mjs','schema.sql','admin.mjs','attendance.mjs','reminders.mjs'])copyFileSync(new URL('./'+file,import.meta.url),new URL('./dist/'+file,import.meta.url));
 const html=readFileSync(new URL('./dist/public/index.html',import.meta.url),'utf8');
-if(!html.includes('/events/app.js')||!html.includes('viewport'))throw new Error('Missing application entry or mobile viewport');
+if(!html.includes('/report/app.js')||!html.includes('viewport'))throw new Error('Missing application entry or mobile viewport');
 console.log('Build complete: dist/ (no identities, database or secrets bundled).');

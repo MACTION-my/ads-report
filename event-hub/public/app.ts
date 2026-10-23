@@ -18,7 +18,7 @@ const date=(iso:string)=>new Date(iso).toLocaleString('zh-CN',{timeZone:'Asia/Ku
 function el(tag:string,text='',className='') {const node=document.createElement(tag);node.textContent=text;if(className)node.className=className;return node;}
 function message(text:string){$('message').textContent=text;}
 async function api<T>(path:string,body?:unknown):Promise<T> {
-  const response=await fetch('/events/api/'+path,{method:body===undefined?'GET':'POST',credentials:'same-origin',headers:body===undefined?{}:{'Content-Type':'application/json','X-Event-Hub-Request':'1'},body:body===undefined?undefined:JSON.stringify(body)});
+  const response=await fetch('/report/api/'+path,{method:body===undefined?'GET':'POST',credentials:'same-origin',headers:body===undefined?{}:{'Content-Type':'application/json','X-Event-Hub-Request':'1'},body:body===undefined?undefined:JSON.stringify(body)});
   const result=await response.json();if(!response.ok)throw new Error(result.error||'请求失败');return result;
 }
 function run(action:()=>Promise<void>){return async()=>{try{await action();}catch(error){message(error instanceof Error?error.message:String(error));}};}
@@ -117,7 +117,7 @@ function renderImport(section:HTMLElement,r:Report){
   box.append(button('下载标准模板',()=>download('template','event-performance-template.csv')),input,button('预览与校验',async()=>{const file=input.files?.[0];if(!file)throw new Error('请先选择文件');if(file.size>2_000_000)throw new Error('CSV 不能超过 2MB');const csv=await file.text();const preview=await api<Preview>(`events/${r.event.id}/preview`,{revision:r.event.revision,csv});result.textContent=JSON.stringify(preview,null,2);importPreview=preview.errors.length?null:{csv,revision:r.event.revision};commit.disabled=!importPreview||!mode.value;}),result,mode,commit);section.append(box);
 }
 async function transition(action:string,extra:object={}){if(!selected)return;selected=await api<Report>(`events/${selected.event.id}/transition`,{revision:selected.event.revision,action,...extra});await refresh();renderDetail();message('状态已更新。');}
-async function download(path:string,fileName:string){const response=await fetch('/events/api/'+path,{credentials:'same-origin'});if(!response.ok){const error=await response.json();throw new Error(error.error);}const url=URL.createObjectURL(await response.blob()),link=el('a') as HTMLAnchorElement;link.href=url;link.download=fileName;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
+async function download(path:string,fileName:string){const response=await fetch('/report/api/'+path,{credentials:'same-origin'});if(!response.ok){const error=await response.json();throw new Error(error.error);}const url=URL.createObjectURL(await response.blob()),link=el('a') as HTMLAnchorElement;link.href=url;link.download=fileName;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
 function showEvent(event:EventData|null=null,duplicate=false){
   editing=duplicate?null:event;const form=$<HTMLFormElement>('eventForm');form.reset();$('formTitle').textContent=duplicate?'复制活动 · 请确认新日期':event?'编辑活动':'新建活动';
   const control=(key:string)=>form.elements.namedItem(key) as HTMLInputElement|HTMLSelectElement|HTMLTextAreaElement;
