@@ -17,7 +17,7 @@ let me:Member,users:Member[]=[],reports:Report[]=[],selected:Report|null=null,ed
 const endpoint=document.querySelector<HTMLMetaElement>('meta[name="event-hub-endpoint"]')?.content||'';
 const gasMode=Boolean(window.google?.script?.run||endpoint);
 let sessionToken='';
-function showLogin(){sessionToken='';try{sessionStorage.removeItem('eventHubSession');}catch{}$('login').hidden=false;$('content').hidden=true;$('logout').hidden=true;$('identity').textContent='';$('detail').replaceChildren();selected=null;reports=[];}
+function showLogin(){document.body.classList.add('is-login');sessionToken='';try{sessionStorage.removeItem('eventHubSession');}catch{}$('login').hidden=false;$('content').hidden=true;$('logout').hidden=true;$('identity').textContent='';$('detail').replaceChildren();selected=null;reports=[];}
 function googleCall<T>(method:'hubLogin'|'hubLogout'|'hubCall',args:unknown[]):Promise<T>{return new Promise((resolve,reject)=>{
   const receive=(reply:GoogleReply)=>{if(reply.ok)resolve(reply.data as T);else{if(reply.status===401||reply.status===403&&method==='hubCall')showLogin();reject(new Error(reply.error||'请求失败'));}};
   if(endpoint){
@@ -51,17 +51,21 @@ function aggregate(rows:Stats[]):{total:Stats;rates:Record<string,number|null>} 
 }
 function render(){
   const list=filtered(),active=list.filter(r=>r.event.status!=='cancelled'),rows=active.flatMap(r=>r.rows),{total,rates}=aggregate(rows);
-  $('summary').replaceChildren(card('已排期 / 当前筛选',String(active.length)),card('已提交（含最终版）',String(active.filter(r=>['submitted','finalized'].includes(r.event.status)).length)),card('待提交',String(active.filter(r=>!['submitted','finalized'].includes(r.event.status)).length)),card('逾期',String(active.filter(r=>r.event.displayStatus==='overdue').length)),card('出席',String(total.attended)),card('成交',String(total.closedDeals)),card('销售额 RM',money(total.salesAmount)),card('最终版',String(active.filter(r=>r.event.status==='finalized').length)));
+  $('summary').replaceChildren(card('销售额 · RM',money(total.salesAmount)),card('确认出席',String(total.attended)),card('成交单数',String(total.closedDeals)),card('待提交活动',String(active.filter(r=>!['submitted','finalized'].includes(r.event.status)).length)),card('已排期活动',String(active.length)),card('已提交 · 含最终版',String(active.filter(r=>['submitted','finalized'].includes(r.event.status)).length)),card('逾期未交',String(active.filter(r=>r.event.displayStatus==='overdue').length)),card('已确认最终版',String(active.filter(r=>r.event.status==='finalized').length)));
   $('aggregate').replaceChildren(...Object.entries(rates).map(([key,value])=>card(rateLabels[key],rate(value))));
   const table=$('events');table.replaceChildren();
   for(const report of list.sort((a,b)=>a.event.eventDate.localeCompare(b.event.eventDate))){const e=report.event,tr=el('tr');
-    for(const text of [e.brand+' · '+e.name,e.eventDate+' / '+name(e.picUserId),date(e.submissionDeadline),(stateLabels[e.displayStatus]||e.displayStatus)+(e.status!=='finalized'?'（非最终）':''),String(report.total.attended),String(report.total.closedDeals),money(report.total.salesAmount)])tr.append(el('td',text));
+    const title=el('td');title.append(el('span',e.brand,'brand-label'),document.createTextNode(e.name));tr.append(title);
+    tr.append(el('td',e.eventDate+' / '+name(e.picUserId)),el('td',date(e.submissionDeadline)));
+    const statusCell=el('td');statusCell.append(el('span',(stateLabels[e.displayStatus]||e.displayStatus)+(e.status!=='finalized'?' · 非最终':''),'status-badge status-'+e.displayStatus));tr.append(statusCell);
+    for(const text of [String(report.total.attended),String(report.total.closedDeals),money(report.total.salesAmount)])tr.append(el('td',text));
     const cell=el('td');cell.append(button('打开',async()=>{await openReport(e.id);}));tr.append(cell);table.append(tr);
   }
-  if(!list.length){const tr=el('tr'),td=el('td','暂无活动。由 Admin 新建场次后，PIC 从这里填报。') as HTMLTableCellElement;td.colSpan=8;tr.append(td);table.append(tr);}
+  if(!list.length){const tr=el('tr'),td=el('td','','empty-cell') as HTMLTableCellElement;td.colSpan=8;const icon=el('span','▤','empty-icon');icon.setAttribute('aria-hidden','true');td.append(icon,el('strong','这里还没有活动'),el('small',reports.some(r=>!r.event.archived)?'试试其他月份或筛选条件。':'由管理员新建场次，团队就能开始填报。'));tr.append(td);table.append(tr);}
   const groups=new Map<string,Stats[]>();for(const row of rows)groups.set(row.userId,[...(groups.get(row.userId)||[]),row]);
   const ranks=[...groups].map(([id,values])=>({id,...aggregate(values).total})).sort((a,b)=>b.salesAmount-a.salesAmount);
   $('ranking').replaceChildren(...ranks.map((item,i)=>{const node=el('div','','rankrow');node.append(el('span',`${i+1}. ${name(item.id)}`),el('span',`${item.closedDeals} 单 · RM ${money(item.salesAmount)}`));return node;}));
+  if(!ranks.length)$('ranking').append(el('p','等待第一份填报，团队表现将在这里汇总。','rank-empty'));
 }
 async function refresh(){reports=await api<Report[]>('events');render();}
 function controls(e:EventData){return me.role==='admin'||me.id===e.picUserId;}
@@ -147,19 +151,22 @@ $('closeDialog').onclick=()=>$<HTMLDialogElement>('eventDialog').close();
 $('create').onclick=()=>showEvent();$('refresh').onclick=run(refresh);
 for(const id of ['month','brand','pic','state','search'])$(id).addEventListener('input',render);
 $('monthly').onclick=run(()=>download('export?month='+$<HTMLInputElement>('month').value,'final-events-'+$<HTMLInputElement>('month').value+'.csv'));
+function updateNavigation(){for(const link of document.querySelectorAll<HTMLAnchorElement>('.nav-link')){const active=link.hash===(location.hash||'#overview');link.classList.toggle('is-active',active);if(active)link.setAttribute('aria-current','location');else link.removeAttribute('aria-current');}}
+window.addEventListener('hashchange',updateNavigation);updateNavigation();
 async function initialize(){
   $<HTMLInputElement>('month').value=new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Kuala_Lumpur'}).slice(0,7);
-  const result=await api<{user:Member;users:Member[]}>('me');me=result.user;users=result.users;$('identity').textContent=me.displayName+' · '+me.role;$('create').hidden=me.role!=='admin';
+  const result=await api<{user:Member;users:Member[]}>('me');me=result.user;users=result.users;$('identity').textContent=me.displayName+' · '+({admin:'管理员',pic:'负责人',telesales:'团队成员',viewer:'查看成员'}[me.role]);$('create').hidden=me.role!=='admin';
   const allPic=el('option','全部 PIC') as HTMLOptionElement;allPic.value='';$('pic').replaceChildren(allPic);for(const old of $('content').querySelectorAll('[data-inbox]'))old.remove();
   for(const user of users){const option=el('option',user.displayName) as HTMLOptionElement;option.value=user.id;$('pic').append(option);}
   await refresh();$('content').hidden=false;message('');
   const inbox=await api<{eventId:string;eventName:string;type:string;status:string}[]>('inbox');
   const pending=inbox.filter(item=>!['submitted','finalized','cancelled'].includes(item.status));
   if(pending.length){const box=el('section','','notice no-print');box.dataset.inbox='true';box.append(el('h2','我的催交待办'));for(const item of pending)box.append(button(item.eventName+' · '+item.type,async()=>{await openReport(item.eventId);}));$('content').prepend(box);}
-  $('login').hidden=true;$('logout').hidden=!gasMode;
+  $('login').hidden=true;$('logout').hidden=!gasMode;document.body.classList.remove('is-login');
 }
 $<HTMLFormElement>('phoneLogin').onsubmit=event=>{event.preventDefault();void run(async()=>{const form=$<HTMLFormElement>('phoneLogin'),submit=form.querySelector('button') as HTMLButtonElement;submit.disabled=true;try{const result=await googleCall<{token:string}>('hubLogin',[String(new FormData(form).get('phone')||'')]);sessionToken=result.token;try{sessionStorage.setItem('eventHubSession',sessionToken);}catch{}form.reset();await initialize();}finally{submit.disabled=false;}})();};
 $('logout').onclick=run(async()=>{try{await googleCall('hubLogout',[sessionToken]);}finally{showLogin();message('已退出登录。');}});
-if(gasMode){try{sessionToken=sessionStorage.getItem('eventHubSession')||'';}catch{}if(sessionToken)void run(initialize)();else{showLogin();message('请输入已登记的手机号。');}}
+if(gasMode){try{sessionToken=sessionStorage.getItem('eventHubSession')||'';}catch{}if(sessionToken)void run(initialize)();else{showLogin();message('');}}
 else void run(initialize)();
+
 

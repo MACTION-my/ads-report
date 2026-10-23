@@ -5,6 +5,7 @@ from pathlib import Path
 import re
 import sys
 import shutil
+import hashlib
 
 
 def build(output_dir, enabled, url):
@@ -19,6 +20,8 @@ def build(output_dir, enabled, url):
         content = content.replace('<head>', f'<head><meta name="event-hub-endpoint" content="{target}">')
         for asset in ['app.js', 'styles.css']:
             shutil.copyfile(public / asset, destination.parent / asset)
+            version = hashlib.sha256((public / asset).read_bytes()).hexdigest()[:12]
+            content = content.replace(f'/report/{asset}"', f'/report/{asset}?v={version}"')
         destination.write_text(content, encoding='utf-8')
         return
     else:
