@@ -1,4 +1,4 @@
-"""Build a same-domain /report entry; destination is configured only after Web App verification."""
+"""Embed the verified Web App while keeping the company's URL in the address bar."""
 import html
 import os
 from pathlib import Path
@@ -13,10 +13,10 @@ def build(output_dir, enabled, url):
         if not re.fullmatch(r'https://script\.google\.com/macros/s/[A-Za-z0-9_-]+/exec', url or ''):
             raise ValueError('EVENT_HUB_WEBAPP_URL must be a verified Google Apps Script /exec URL')
         target = html.escape(url, quote=True)
-        content = f'<meta http-equiv="refresh" content="0;url={target}"><p>正在进入活动中心… <a href="{target}">点此进入</a></p>'
+        content = f'<iframe title="活动绩效中心" src="{target}" allow="clipboard-write" referrerpolicy="strict-origin-when-cross-origin"></iframe>'
     else:
         content = '<p>活动中心暂未开放，请联系管理员。</p>'
-    destination.write_text('<!doctype html><html lang="zh-Hans"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>活动绩效中心</title></head><body><h1>活动绩效中心</h1>' + content + '<p><a href="/">返回广告报告</a></p></body></html>', encoding='utf-8')
+    destination.write_text('<!doctype html><html lang="zh-Hans"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>活动绩效中心 · MACTION</title><style>html,body{margin:0;width:100%;height:100%;background:#fafafa}iframe{display:block;border:0;width:100%;height:100vh;height:100dvh}p{padding:24px;font:16px/1.6 sans-serif}</style></head><body>' + content + '</body></html>', encoding='utf-8')
 
 
 if __name__ == '__main__':

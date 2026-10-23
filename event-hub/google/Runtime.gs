@@ -1,5 +1,5 @@
 /** Generated build combines this adapter with tested domain code. Deploy as a separate project. */
-function doGet(){return HtmlService.createHtmlOutputFromFile('Index').setTitle('Event Performance Hub').addMetaTag('viewport','width=device-width,initial-scale=1');}
+function doGet(){return HtmlService.createHtmlOutputFromFile('Index').setTitle('Event Performance Hub').addMetaTag('viewport','width=device-width,initial-scale=1').setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);}
 function hubProperties_(){return PropertiesService.getScriptProperties();}
 function hubBook_(){const id=hubProperties_().getProperty('HUB_SPREADSHEET_ID');assert(id,'后台总表尚未配置',503);return SpreadsheetApp.openById(id);}
 function hubLoad_(){
