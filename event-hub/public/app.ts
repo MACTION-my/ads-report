@@ -1,6 +1,6 @@
 export {};
 interface GoogleReply {ok:boolean;data?:unknown;error?:string;status?:number}
-interface GoogleRunner {withSuccessHandler(callback:(reply:GoogleReply)=>void):GoogleRunner;withFailureHandler(callback:(error:{message:string})=>void):GoogleRunner;hubLogin(phone:string):void;hubLogout(token:string):void;hubCall(token:string,path:string,body:unknown):void}
+interface GoogleRunner {withSuccessHandler(callback:(reply:GoogleReply)=>void):GoogleRunner;withFailureHandler(callback:(error:{message:string})=>void):GoogleRunner;hubLogin(phone:string):void;hubStart(phone:string):void;hubLogout(token:string):void;hubCall(token:string,path:string,body:unknown):void}
 declare global {interface Window {google?:{script?:{run:GoogleRunner}}}}
 type Role='admin'|'pic'|'telesales'|'viewer';
 interface Member {id:string;displayName:string;role:Role}
@@ -8,6 +8,8 @@ interface EventData {id:string;name:string;brand:string;eventDate:string;submiss
 interface Stats {userId:string;displayName?:string;notes?:string;newLeads:number;junk:number;pta:number;newLeadPta:number|null;attended:number;closedDeals:number;salesAmount:number;commission:number|null;dealIncentive:number|null;warnings?:string[];rates?:Record<string,number|null>}
 interface Report {event:EventData;rows:Stats[];total:Omit<Stats,'userId'>;rates:Record<string,number|null>;submissions:{version:number;actor:string;createdAt:string}[];completeness:{pendingUserIds:string[];missingNewLeadPta:number;unapprovedCommission:number};attendanceSummary:{records:number;attended:number;unattributed:number}}
 interface Preview {rows:Stats[];errors:{line:number;message:string}[];matches:string[];warnings:{userId:string;message:string}[]}
+interface InboxItem {eventId:string;eventName:string;type:string;status:string}
+interface InitialData {user:Member;users:Member[];reports:Report[];inbox:InboxItem[]}
 const $=<T extends HTMLElement=HTMLElement>(id:string)=>document.getElementById(id) as T;
 const fields=['newLeads','junk','pta','newLeadPta','attended','closedDeals','salesAmount','commission','dealIncentive'] as const;
 const labels:Record<string,string>={newLeads:'New Leads',junk:'Junk',pta:'PTA（旧＋新）',newLeadPta:'新线索 PTA（未知留空）',attended:'出席',closedDeals:'成交',salesAmount:'销售额 RM',commission:'核准佣金 RM',dealIncentive:'核准奖励 RM'};
@@ -18,13 +20,13 @@ const endpoint=document.querySelector<HTMLMetaElement>('meta[name="event-hub-end
 const gasMode=Boolean(window.google?.script?.run||endpoint);
 let sessionToken='';
 function showLogin(){document.body.classList.add('is-login');sessionToken='';try{sessionStorage.removeItem('eventHubSession');}catch{}$('login').hidden=false;$('content').hidden=true;$('logout').hidden=true;$('identity').textContent='';$('detail').replaceChildren();selected=null;reports=[];}
-function googleCall<T>(method:'hubLogin'|'hubLogout'|'hubCall',args:unknown[]):Promise<T>{return new Promise((resolve,reject)=>{
+function googleCall<T>(method:'hubLogin'|'hubStart'|'hubLogout'|'hubCall',args:unknown[]):Promise<T>{return new Promise((resolve,reject)=>{
   const receive=(reply:GoogleReply)=>{if(reply.ok)resolve(reply.data as T);else{if(reply.status===401||reply.status===403&&method==='hubCall')showLogin();reject(new Error(reply.error||'请求失败'));}};
   if(endpoint){
     if(!/^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec$/.test(endpoint)){reject(new Error('后台地址无效'));return;}
     void fetch(endpoint,{method:'POST',credentials:'omit',redirect:'follow',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({method,args})}).then(async response=>{if(!response.ok)throw new Error('后台连接失败');receive(await response.json() as GoogleReply);}).catch(()=>reject(new Error('暂时无法连接后台，请稍后重试。')));return;
   }
-  const runner=window.google?.script?.run;if(!runner){reject(new Error('Google 服务未连接'));return;}const call=runner.withSuccessHandler(receive).withFailureHandler(error=>reject(new Error(error.message||'Google 服务不可用')));if(method==='hubLogin')call.hubLogin(args[0] as string);else if(method==='hubLogout')call.hubLogout(args[0] as string);else call.hubCall(args[0] as string,args[1] as string,args[2]);
+  const runner=window.google?.script?.run;if(!runner){reject(new Error('Google 服务未连接'));return;}const call=runner.withSuccessHandler(receive).withFailureHandler(error=>reject(new Error(error.message||'Google 服务不可用')));if(method==='hubLogin')call.hubLogin(args[0] as string);else if(method==='hubStart')call.hubStart(args[0] as string);else if(method==='hubLogout')call.hubLogout(args[0] as string);else call.hubCall(args[0] as string,args[1] as string,args[2]);
 });}
 const money=(v:number|null|undefined)=>v===null||v===undefined?'待核准 / N/A':v.toLocaleString('en-MY',{minimumFractionDigits:2,maximumFractionDigits:2});
 const rate=(v:number|null|undefined)=>v===null||v===undefined?'N/A':v.toFixed(1)+'%';
@@ -153,18 +155,19 @@ for(const id of ['month','brand','pic','state','search'])$(id).addEventListener(
 $('monthly').onclick=run(()=>download('export?month='+$<HTMLInputElement>('month').value,'final-events-'+$<HTMLInputElement>('month').value+'.csv'));
 function updateNavigation(){for(const link of document.querySelectorAll<HTMLAnchorElement>('.nav-link')){const active=link.hash===(location.hash||'#overview');link.classList.toggle('is-active',active);if(active)link.setAttribute('aria-current','location');else link.removeAttribute('aria-current');}}
 window.addEventListener('hashchange',updateNavigation);updateNavigation();
-async function initialize(){
+async function initialize(initial?:InitialData){
   $<HTMLInputElement>('month').value=new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Kuala_Lumpur'}).slice(0,7);
-  const result=await api<{user:Member;users:Member[]}>('me');me=result.user;users=result.users;$('identity').textContent=me.displayName+' · '+({admin:'管理员',pic:'负责人',telesales:'团队成员',viewer:'查看成员'}[me.role]);$('create').hidden=me.role!=='admin';
+  let result=initial;
+  if(!result){if(gasMode)result=await api<InitialData>('bootstrap');else{const [identity,loadedReports,inbox]=await Promise.all([api<{user:Member;users:Member[]}>('me'),api<Report[]>('events'),api<InboxItem[]>('inbox')]);result={...identity,reports:loadedReports,inbox};}}
+  me=result.user;users=result.users;$('identity').textContent=me.displayName+' · '+({admin:'管理员',pic:'负责人',telesales:'团队成员',viewer:'查看成员'}[me.role]);$('create').hidden=me.role!=='admin';
   const allPic=el('option','全部 PIC') as HTMLOptionElement;allPic.value='';$('pic').replaceChildren(allPic);for(const old of $('content').querySelectorAll('[data-inbox]'))old.remove();
   for(const user of users){const option=el('option',user.displayName) as HTMLOptionElement;option.value=user.id;$('pic').append(option);}
-  await refresh();$('content').hidden=false;message('');
-  const inbox=await api<{eventId:string;eventName:string;type:string;status:string}[]>('inbox');
-  const pending=inbox.filter(item=>!['submitted','finalized','cancelled'].includes(item.status));
+  reports=result.reports;render();$('content').hidden=false;message('');
+  const pending=result.inbox.filter(item=>!['submitted','finalized','cancelled'].includes(item.status));
   if(pending.length){const box=el('section','','notice no-print');box.dataset.inbox='true';box.append(el('h2','我的催交待办'));for(const item of pending)box.append(button(item.eventName+' · '+item.type,async()=>{await openReport(item.eventId);}));$('content').prepend(box);}
   $('login').hidden=true;$('logout').hidden=!gasMode;document.body.classList.remove('is-login');
 }
-$<HTMLFormElement>('phoneLogin').onsubmit=event=>{event.preventDefault();void run(async()=>{const form=$<HTMLFormElement>('phoneLogin'),submit=form.querySelector('button') as HTMLButtonElement;submit.disabled=true;try{const result=await googleCall<{token:string}>('hubLogin',[String(new FormData(form).get('phone')||'')]);sessionToken=result.token;try{sessionStorage.setItem('eventHubSession',sessionToken);}catch{}form.reset();await initialize();}finally{submit.disabled=false;}})();};
+$<HTMLFormElement>('phoneLogin').onsubmit=event=>{event.preventDefault();void run(async()=>{const form=$<HTMLFormElement>('phoneLogin'),submit=form.querySelector('button') as HTMLButtonElement;submit.disabled=true;submit.setAttribute('aria-busy','true');message('正在验证并加载工作台…');try{const result=await googleCall<{token:string;initial:InitialData}>('hubStart',[String(new FormData(form).get('phone')||'')]);sessionToken=result.token;try{sessionStorage.setItem('eventHubSession',sessionToken);}catch{}form.reset();await initialize(result.initial);}finally{submit.disabled=false;submit.removeAttribute('aria-busy');}})();};
 $('logout').onclick=run(async()=>{try{await googleCall('hubLogout',[sessionToken]);}finally{showLogin();message('已退出登录。');}});
 if(gasMode){try{sessionToken=sessionStorage.getItem('eventHubSession')||'';}catch{}if(sessionToken)void run(initialize)();else{showLogin();message('');}}
 else void run(initialize)();

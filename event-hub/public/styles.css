@@ -12,3 +12,5 @@
 
 label{color:#747b85;font-size:12px}.hint,small{color:#858b94}.card>span{color:#7c838d;font-size:11px}th{color:#818892;font-size:11px}#aggregate .card>span{color:#858c96}.nav-link.is-active{background:#fbf0f1;color:var(--accent)}.nav-link:not(.is-active){background:transparent;color:#7b8088}.nav-link:not(.is-active) .nav-dot{display:none}.nav-link:not(.is-active)>span:first-child{color:#9a9fa7}.nav-link.is-active>span:first-child{color:var(--accent)}
 .scroll:has(.empty-cell) table{min-width:100%}.scroll:has(.empty-cell) thead{display:none}
+
+.login-form>button[aria-busy=true]>span{display:none}.login-form>button[aria-busy=true]::after{content:'';width:13px;height:13px;border:2px solid #ffffff55;border-top-color:#fff;border-radius:50%;animation:login-spin .7s linear infinite}@keyframes login-spin{to{transform:rotate(360deg)}}@media(prefers-reduced-motion:reduce){.login-form>button[aria-busy=true]::after{animation:none}}

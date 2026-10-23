@@ -5,6 +5,7 @@ function doPost(event){
     const text=event&&event.postData&&event.postData.contents;assert(typeof text==='string'&&text.length<=2500000,'请求无效');
     const request=JSON.parse(text);assert(request&&Array.isArray(request.args),'请求无效');
     if(request.method==='hubLogin')return hubLogin(request.args[0]);
+    if(request.method==='hubStart')return hubStart(request.args[0]);
     if(request.method==='hubLogout')return hubLogout(request.args[0]);
     if(request.method==='hubCall')return hubCall(request.args[0],request.args[1],request.args[2]);
     assert(false,'接口不存在',404);
@@ -14,15 +15,16 @@ function doPost(event){
 }
 function hubProperties_(){return PropertiesService.getScriptProperties();}
 function hubBook_(){const id=hubProperties_().getProperty('HUB_SPREADSHEET_ID');assert(id,'后台总表尚未配置',503);return SpreadsheetApp.openById(id);}
-function hubLoad_(){
-  const book=hubBook_(),tables={};
-  for(const name of Object.keys(sheetSchema)){
-    const sheet=book.getSheetByName(name);assert(sheet,'缺少后台页签 '+name,503);
-    const expected=sheetSchema[name],header=sheet.getRange(1,1,1,expected.length).getValues()[0];
+function hubLoad_(names){
+  const selected=names||Object.keys(sheetSchema),tables=Object.fromEntries(Object.keys(sheetSchema).map(function(name){return [name,[]];}));
+  const ranges=selected.map(function(name){assert(sheetSchema[name],'未知后台页签');return "'"+name+"'!A1:"+String.fromCharCode(64+sheetSchema[name].length)+'20001';});
+  const id=hubProperties_().getProperty('HUB_SPREADSHEET_ID');assert(id,'后台总表尚未配置',503);
+  const result=Sheets.Spreadsheets.Values.batchGet(id,{ranges:ranges,valueRenderOption:'UNFORMATTED_VALUE',dateTimeRenderOption:'FORMATTED_STRING'});
+  for(let index=0;index<selected.length;index++){
+    const name=selected[index],expected=sheetSchema[name],matrix=result.valueRanges[index].values||[],header=matrix[0]||[];
     assert(JSON.stringify(header)===JSON.stringify(expected),'后台表头不匹配 '+name,503);
-    const count=sheet.getLastRow();assert(count<=20000,'数据量超过当前单表版本限制',503);
-    const values=count>1?sheet.getRange(2,1,count-1,expected.length).getValues():[];
-    tables[name]=values.filter(row=>row.some(value=>value!=='')).map(row=>Object.fromEntries(expected.map((key,index)=>[key,row[index] instanceof Date?row[index].toISOString():row[index]])));
+    assert(matrix.length<=20000,'数据量超过当前单表版本限制',503);
+    tables[name]=matrix.slice(1).filter(function(row){return row.some(function(value){return value!=='';});}).map(function(row){return Object.fromEntries(expected.map(function(key,column){return [key,row[column]===undefined?'':row[column]];}));});
   }return decodeSheetState(tables);
 }
 function hubCommit_(hub){
@@ -44,12 +46,16 @@ function hubSession_(data){
   return new PhoneSessions({cache:cache,digest:function(value){return Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256,value,Utilities.Charset.UTF_8).map(function(byte){return ('0'+((byte+256)%256).toString(16)).slice(-2);}).join('');},randomToken:function(){return Utilities.getUuid().replace(/-/g,'')+Utilities.getUuid().replace(/-/g,'');},now:Date.now(),enabled:hubProperties_().getProperty('HUB_PHONE_ONLY_ENABLED')==='true',members:data.Members});
 }
 function hubEnvelope_(operation){try{return {ok:true,data:operation()};}catch(error){if(!(error instanceof HubError))console.error(String(error.message||error));return {ok:false,error:error instanceof HubError?error.message:'服务处理失败，请管理员检查 Apps Script 执行记录',status:error instanceof HubError?error.status:500};}}
-function hubLogin(phone){return hubEnvelope_(function(){const lock=LockService.getScriptLock();lock.waitLock(20000);try{const data=hubLoad_();return hubSession_(data).login(phone);}finally{lock.releaseLock();}});}
+function hubLogin(phone){return hubEnvelope_(function(){const lock=LockService.getScriptLock();lock.waitLock(20000);try{const data=hubLoad_(['Members']);return hubSession_(data).login(phone);}finally{lock.releaseLock();}});}
+function hubInitial_(hub,actor){const identity=hub.execute(actor,'me');return {user:identity.user,users:identity.users,reports:hub.execute(actor,'events'),inbox:hub.execute(actor,'inbox')};}
+function hubInitialTables_(){return ['Members','Events','Stats','Attendance','Versions','Reminders'];}
+function hubStart(phone){return hubEnvelope_(function(){const lock=LockService.getScriptLock();lock.waitLock(20000);try{const data=hubLoad_(hubInitialTables_()),sessions=hubSession_(data),login=sessions.login(phone),actor=sessions.actor(login.token),hub=new SheetHub(data,new Date().toISOString(),function(){return Utilities.getUuid();});return {...login,initial:hubInitial_(hub,actor)};}finally{lock.releaseLock();}});}
 function hubLogout(token){return hubEnvelope_(function(){return hubSession_({Members:[]}).logout(token);});}
 function hubCall(token,path,body){return hubEnvelope_(function(){
   assert(JSON.stringify(body||{}).length<=2500000,'数据过大');
   const lock=LockService.getScriptLock();lock.waitLock(20000);
-  try{const data=hubLoad_(),actor=hubSession_(data).actor(token),hub=new SheetHub(data,new Date().toISOString(),function(){return Utilities.getUuid();});
+  try{const data=hubLoad_(path==='bootstrap'?hubInitialTables_():undefined),actor=hubSession_(data).actor(token),hub=new SheetHub(data,new Date().toISOString(),function(){return Utilities.getUuid();});
+    if(path==='bootstrap'){assert(body===null||body===undefined,'不接受写入数据');return hubInitial_(hub,actor);}
     const result=hub.execute(actor,path,body===null?undefined:body);hubCommit_(hub);return result;
   }finally{lock.releaseLock();}
 });}

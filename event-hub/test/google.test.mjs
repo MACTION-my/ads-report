@@ -72,3 +72,20 @@ test('Public POST transport dispatches only existing authenticated handlers and 
   assert.equal(request({method:'installHubTrigger_',args:[]}).ok,false);
   assert.equal(request({method:'hubCall',args:null}).ok,false);
 });
+
+test('Combined login reads one Sheets batch, returns no phones, and rechecks disabled sessions',()=>{
+  const files=['../core.mjs','../phone.mjs','../attendance.mjs','sheet-schema.mjs','sheet-state.mjs','phone-sessions.mjs','sheet-service.mjs'];
+  const source=files.map(file=>readFileSync(new URL('../google/'+file,import.meta.url),'utf8').replace(/^import .*?;\r?\n/gm,'').replace(/^export /gm,'')).join('\n')+'\n'+readFileSync(new URL('../google/Runtime.gs',import.meta.url),'utf8');
+  const state=data(),cache=new Map(),calls=[];let released=0;
+  const context=vm.createContext({console,PropertiesService:{getScriptProperties:()=>({getProperty:key=>key==='HUB_PHONE_ONLY_ENABLED'?'true':'test-book'})},CacheService:{getScriptCache:()=>({get:key=>cache.get(key),put:(key,value)=>cache.set(key,value),remove:key=>cache.delete(key)})},Utilities:{DigestAlgorithm:{SHA_256:'sha'},Charset:{UTF_8:'utf8'},computeDigest:(_algorithm,value)=>Array.from(createHash('sha256').update(value).digest()),getUuid:()=> 'a'.repeat(32)},LockService:{getScriptLock:()=>({waitLock(){},releaseLock(){released++;}})},Sheets:{Spreadsheets:{Values:{batchGet:(_id,options)=>{calls.push(options);return {valueRanges:options.ranges.map(range=>{const name=range.split("'")[1];return {values:encodeSheetTable(name,state[name])};})};}}}}});
+  vm.runInContext(source,context);
+  const start=JSON.parse(JSON.stringify(vm.runInContext("hubStart('0123456789')",context)));
+  assert.equal(start.ok,true);assert.equal(calls.length,1);assert.equal(calls[0].ranges.length,6);assert.equal(released,1);
+  assert.equal(start.data.initial.user.id,'admin');assert.deepEqual(start.data.initial.reports,[]);
+  assert.ok(!JSON.stringify(start.data.initial).includes('+601'));assert.ok(!Object.hasOwn(start.data.initial.user,'phone'));
+  context.testToken=start.data.token;
+  const resume=vm.runInContext("hubCall(testToken,'bootstrap',null)",context);assert.equal(resume.ok,true);assert.equal(calls.length,2);
+  state.Members[0].active=false;
+  const disabled=vm.runInContext("hubCall(testToken,'bootstrap',null)",context);assert.equal(disabled.ok,false);assert.equal(disabled.status,403);
+  assert.equal(vm.runInContext("hubCall('invalid','bootstrap',null)",context).status,401);
+});

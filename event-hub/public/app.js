@@ -37,6 +37,8 @@ function googleCall(method, args) {
         const call = runner.withSuccessHandler(receive).withFailureHandler(error => reject(new Error(error.message || 'Google 服务不可用')));
         if (method === 'hubLogin')
             call.hubLogin(args[0]);
+        else if (method === 'hubStart')
+            call.hubStart(args[0]);
         else if (method === 'hubLogout')
             call.hubLogout(args[0]);
         else
@@ -356,9 +358,17 @@ function updateNavigation() { for (const link of document.querySelectorAll('.nav
 } }
 window.addEventListener('hashchange', updateNavigation);
 updateNavigation();
-async function initialize() {
+async function initialize(initial) {
     $('month').value = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kuala_Lumpur' }).slice(0, 7);
-    const result = await api('me');
+    let result = initial;
+    if (!result) {
+        if (gasMode)
+            result = await api('bootstrap');
+        else {
+            const [identity, loadedReports, inbox] = await Promise.all([api('me'), api('events'), api('inbox')]);
+            result = { ...identity, reports: loadedReports, inbox };
+        }
+    }
     me = result.user;
     users = result.users;
     $('identity').textContent = me.displayName + ' · ' + ({ admin: '管理员', pic: '负责人', telesales: '团队成员', viewer: '查看成员' }[me.role]);
@@ -373,11 +383,11 @@ async function initialize() {
         option.value = user.id;
         $('pic').append(option);
     }
-    await refresh();
+    reports = result.reports;
+    render();
     $('content').hidden = false;
     message('');
-    const inbox = await api('inbox');
-    const pending = inbox.filter(item => !['submitted', 'finalized', 'cancelled'].includes(item.status));
+    const pending = result.inbox.filter(item => !['submitted', 'finalized', 'cancelled'].includes(item.status));
     if (pending.length) {
         const box = el('section', '', 'notice no-print');
         box.dataset.inbox = 'true';
@@ -390,18 +400,19 @@ async function initialize() {
     $('logout').hidden = !gasMode;
     document.body.classList.remove('is-login');
 }
-$('phoneLogin').onsubmit = event => { event.preventDefault(); void run(async () => { const form = $('phoneLogin'), submit = form.querySelector('button'); submit.disabled = true; try {
-    const result = await googleCall('hubLogin', [String(new FormData(form).get('phone') || '')]);
+$('phoneLogin').onsubmit = event => { event.preventDefault(); void run(async () => { const form = $('phoneLogin'), submit = form.querySelector('button'); submit.disabled = true; submit.setAttribute('aria-busy', 'true'); message('正在验证并加载工作台…'); try {
+    const result = await googleCall('hubStart', [String(new FormData(form).get('phone') || '')]);
     sessionToken = result.token;
     try {
         sessionStorage.setItem('eventHubSession', sessionToken);
     }
     catch { }
     form.reset();
-    await initialize();
+    await initialize(result.initial);
 }
 finally {
     submit.disabled = false;
+    submit.removeAttribute('aria-busy');
 } })(); };
 $('logout').onclick = run(async () => { try {
     await googleCall('hubLogout', [sessionToken]);
