@@ -14,10 +14,18 @@ const labels:Record<string,string>={newLeads:'New Leads',junk:'Junk',pta:'PTA（
 const rateLabels:Record<string,string>={leadToJunk:'Lead → Junk',leadToWon:'Lead → Won',ptaToWon:'PTA → Won',leadsToPta:'New Lead → PTA',ptaToAttended:'PTA → 出席',attendedToWon:'出席 → Won'};
 const stateLabels:Record<string,string>={draft:'草稿',scheduled:'已排期',awaiting_data:'待填报',submitted:'已提交 · 待审核',needs_correction:'待更正',finalized:'最终版',overdue:'逾期',cancelled:'已取消'};
 let me:Member,users:Member[]=[],reports:Report[]=[],selected:Report|null=null,editing:EventData|null=null,importPreview:{csv:string;revision:number}|null=null;
-const gasMode=Boolean(window.google?.script?.run);
+const endpoint=document.querySelector<HTMLMetaElement>('meta[name="event-hub-endpoint"]')?.content||'';
+const gasMode=Boolean(window.google?.script?.run||endpoint);
 let sessionToken='';
 function showLogin(){sessionToken='';try{sessionStorage.removeItem('eventHubSession');}catch{}$('login').hidden=false;$('content').hidden=true;$('logout').hidden=true;$('identity').textContent='';$('detail').replaceChildren();selected=null;reports=[];}
-function googleCall<T>(method:'hubLogin'|'hubLogout'|'hubCall',args:unknown[]):Promise<T>{return new Promise((resolve,reject)=>{const runner=window.google?.script?.run;if(!runner){reject(new Error('Google 服务未连接'));return;}const call=runner.withSuccessHandler(reply=>{if(reply.ok)resolve(reply.data as T);else{if(reply.status===401||reply.status===403&&method==='hubCall')showLogin();reject(new Error(reply.error||'请求失败'));}}).withFailureHandler(error=>reject(new Error(error.message||'Google 服务不可用')));if(method==='hubLogin')call.hubLogin(args[0] as string);else if(method==='hubLogout')call.hubLogout(args[0] as string);else call.hubCall(args[0] as string,args[1] as string,args[2]);});}
+function googleCall<T>(method:'hubLogin'|'hubLogout'|'hubCall',args:unknown[]):Promise<T>{return new Promise((resolve,reject)=>{
+  const receive=(reply:GoogleReply)=>{if(reply.ok)resolve(reply.data as T);else{if(reply.status===401||reply.status===403&&method==='hubCall')showLogin();reject(new Error(reply.error||'请求失败'));}};
+  if(endpoint){
+    if(!/^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec$/.test(endpoint)){reject(new Error('后台地址无效'));return;}
+    void fetch(endpoint,{method:'POST',credentials:'omit',redirect:'follow',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({method,args})}).then(async response=>{if(!response.ok)throw new Error('后台连接失败');receive(await response.json() as GoogleReply);}).catch(()=>reject(new Error('暂时无法连接后台，请稍后重试。')));return;
+  }
+  const runner=window.google?.script?.run;if(!runner){reject(new Error('Google 服务未连接'));return;}const call=runner.withSuccessHandler(receive).withFailureHandler(error=>reject(new Error(error.message||'Google 服务不可用')));if(method==='hubLogin')call.hubLogin(args[0] as string);else if(method==='hubLogout')call.hubLogout(args[0] as string);else call.hubCall(args[0] as string,args[1] as string,args[2]);
+});}
 const money=(v:number|null|undefined)=>v===null||v===undefined?'待核准 / N/A':v.toLocaleString('en-MY',{minimumFractionDigits:2,maximumFractionDigits:2});
 const rate=(v:number|null|undefined)=>v===null||v===undefined?'N/A':v.toFixed(1)+'%';
 const name=(id:string)=>users.find(u=>u.id===id)?.displayName||id;

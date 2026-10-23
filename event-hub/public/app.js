@@ -4,27 +4,45 @@ const labels = { newLeads: 'New Leads', junk: 'Junk', pta: 'PTA（旧＋新）',
 const rateLabels = { leadToJunk: 'Lead → Junk', leadToWon: 'Lead → Won', ptaToWon: 'PTA → Won', leadsToPta: 'New Lead → PTA', ptaToAttended: 'PTA → 出席', attendedToWon: '出席 → Won' };
 const stateLabels = { draft: '草稿', scheduled: '已排期', awaiting_data: '待填报', submitted: '已提交 · 待审核', needs_correction: '待更正', finalized: '最终版', overdue: '逾期', cancelled: '已取消' };
 let me, users = [], reports = [], selected = null, editing = null, importPreview = null;
-const gasMode = Boolean(window.google?.script?.run);
+const endpoint = document.querySelector('meta[name="event-hub-endpoint"]')?.content || '';
+const gasMode = Boolean(window.google?.script?.run || endpoint);
 let sessionToken = '';
 function showLogin() { sessionToken = ''; try {
     sessionStorage.removeItem('eventHubSession');
 }
 catch { } $('login').hidden = false; $('content').hidden = true; $('logout').hidden = true; $('identity').textContent = ''; $('detail').replaceChildren(); selected = null; reports = []; }
-function googleCall(method, args) { return new Promise((resolve, reject) => { const runner = window.google?.script?.run; if (!runner) {
-    reject(new Error('Google 服务未连接'));
-    return;
-} const call = runner.withSuccessHandler(reply => { if (reply.ok)
-    resolve(reply.data);
-else {
-    if (reply.status === 401 || reply.status === 403 && method === 'hubCall')
-        showLogin();
-    reject(new Error(reply.error || '请求失败'));
-} }).withFailureHandler(error => reject(new Error(error.message || 'Google 服务不可用'))); if (method === 'hubLogin')
-    call.hubLogin(args[0]);
-else if (method === 'hubLogout')
-    call.hubLogout(args[0]);
-else
-    call.hubCall(args[0], args[1], args[2]); }); }
+function googleCall(method, args) {
+    return new Promise((resolve, reject) => {
+        const receive = (reply) => { if (reply.ok)
+            resolve(reply.data);
+        else {
+            if (reply.status === 401 || reply.status === 403 && method === 'hubCall')
+                showLogin();
+            reject(new Error(reply.error || '请求失败'));
+        } };
+        if (endpoint) {
+            if (!/^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec$/.test(endpoint)) {
+                reject(new Error('后台地址无效'));
+                return;
+            }
+            void fetch(endpoint, { method: 'POST', credentials: 'omit', redirect: 'follow', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ method, args }) }).then(async (response) => { if (!response.ok)
+                throw new Error('后台连接失败'); receive(await response.json()); }).catch(() => reject(new Error('暂时无法连接后台，请稍后重试。')));
+            return;
+        }
+        const runner = window.google?.script?.run;
+        if (!runner) {
+            reject(new Error('Google 服务未连接'));
+            return;
+        }
+        const call = runner.withSuccessHandler(receive).withFailureHandler(error => reject(new Error(error.message || 'Google 服务不可用')));
+        if (method === 'hubLogin')
+            call.hubLogin(args[0]);
+        else if (method === 'hubLogout')
+            call.hubLogout(args[0]);
+        else
+            call.hubCall(args[0], args[1], args[2]);
+    });
+}
 const money = (v) => v === null || v === undefined ? '待核准 / N/A' : v.toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const rate = (v) => v === null || v === undefined ? 'N/A' : v.toFixed(1) + '%';
 const name = (id) => users.find(u => u.id === id)?.displayName || id;

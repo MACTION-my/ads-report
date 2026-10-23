@@ -60,3 +60,15 @@ test('Apps Script commit uses one atomic batch and treats user text as strings',
   assert.equal(calls.length,1);assert.equal(calls[0].body.requests.length,2);
   const update=calls[0].body.requests[0].updateCells;assert.equal(update.range.endRowIndex,5);assert.equal(update.rows[1].values[8].userEnteredValue.numberValue,123);assert.equal(update.rows[1].values[11].userEnteredValue.stringValue,'=not-a-formula');
 });
+
+test('Public POST transport dispatches only existing authenticated handlers and wraps malformed requests',()=>{
+  const source=readFileSync(new URL('../google/Runtime.gs',import.meta.url),'utf8');
+  const context=vm.createContext({console:{error(){}},HubError:class extends Error{},assert:(ok,message)=>{if(!ok)throw Error(message);},ContentService:{MimeType:{JSON:'json'},createTextOutput:text=>({setMimeType:()=>text})}});
+  vm.runInContext(source,context);
+  vm.runInContext("hubLogin=function(phone){return {ok:true,data:{phone:phone}}};hubCall=function(token,path,body){return token==='valid'?{ok:true,data:{path:path,body:body}}:{ok:false,status:401,error:'denied'}};",context);
+  const request=body=>JSON.parse(vm.runInContext('doPost('+JSON.stringify({postData:{contents:JSON.stringify(body)}})+')',context));
+  assert.deepEqual(request({method:'hubCall',args:['valid','events',null]}),{ok:true,data:{path:'events',body:null}});
+  assert.equal(request({method:'hubCall',args:['invalid','events',null]}).status,401);
+  assert.equal(request({method:'installHubTrigger_',args:[]}).ok,false);
+  assert.equal(request({method:'hubCall',args:null}).ok,false);
+});

@@ -1,5 +1,17 @@
 /** Generated build combines this adapter with tested domain code. Deploy as a separate project. */
-function doGet(){return HtmlService.createHtmlOutputFromFile('Index').setTitle('Event Performance Hub').addMetaTag('viewport','width=device-width,initial-scale=1').setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);}
+function doGet(){return HtmlService.createHtmlOutputFromFile('Index').setTitle('Event Performance Hub').addMetaTag('viewport','width=device-width,initial-scale=1');}
+function doPost(event){
+  const reply=hubEnvelope_(function(){
+    const text=event&&event.postData&&event.postData.contents;assert(typeof text==='string'&&text.length<=2500000,'请求无效');
+    const request=JSON.parse(text);assert(request&&Array.isArray(request.args),'请求无效');
+    if(request.method==='hubLogin')return hubLogin(request.args[0]);
+    if(request.method==='hubLogout')return hubLogout(request.args[0]);
+    if(request.method==='hubCall')return hubCall(request.args[0],request.args[1],request.args[2]);
+    assert(false,'接口不存在',404);
+  });
+  // Existing handlers already return an envelope; parser errors use the outer one.
+  return ContentService.createTextOutput(JSON.stringify(reply.ok?reply.data:reply)).setMimeType(ContentService.MimeType.JSON);
+}
 function hubProperties_(){return PropertiesService.getScriptProperties();}
 function hubBook_(){const id=hubProperties_().getProperty('HUB_SPREADSHEET_ID');assert(id,'后台总表尚未配置',503);return SpreadsheetApp.openById(id);}
 function hubLoad_(){

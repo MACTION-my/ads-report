@@ -2,7 +2,7 @@
 
 当前主用部署方案见 [google/README.md](google/README.md)：Google Sheets / Apps Script，无需自管服务器，按用户选择支持已登记手机号直接进入。下文 Node/SQLite 方式保留作本地参考。两种实现均经过本地验证；Google 版本仍须实际授权、发布及云端测试，后台总表建立不代表已经上线。
 
-指定线上地址：`https://ads.aikpi.my/report`，由后端以 308 跳转 `/report/`（保留 query）。GitHub Pages API 已确认 ads.aikpi.my 是当前仓库的自定义域名；2026-10-23 现场检查首页为 200，/report 为 404。路径代码尚未部署。GitHub Pages 不能执行本模块的 Node API，也不能单独按路径转发到后端；需要在当前域名前增加反向代理/边缘路由，或迁移至支持后端的同站托管平台。不要只开启导航变量就声称已经绑定成功。
+线上入口：`https://ads.aikpi.my/report/`。GitHub Pages 托管原生页面、CSS 和 JS，通过无 Cookie 的 text/plain POST 请求连接 Google Apps Script，业务逻辑和私有总表仍在 Google。地址栏不会跳转，不依赖 iframe 或第三方会话存储；手机会话令牌只存当前站点 sessionStorage。接口仅分发登录、退出和已认证业务请求，权限继续由服务端验证。下文 Node 网关部署说明仅适用于可选的自管后端。
 
 更新后的主流程：Admin 建活动并分配 telesales → 每位 telesales 登录后填写并提交本人数据 → 系统实时核算、显示缺报及催交 → PIC 汇总提交 → Admin 核准最终版。数据由团队直接填报，Google Sheets / GHL / Zoom 同步不是上线前提。PIC/Admin 保留补录及代填，记录操作人；代填也视为该成员已有数据。出席名单仍由 PIC/Admin 上传。
 

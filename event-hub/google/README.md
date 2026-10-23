@@ -30,6 +30,6 @@ legacy-import.mjs 提供只读预览解析，保留文件/区块/行号，校验
 3. 在独立 Apps Script 项目粘贴构建的三份文件，避免覆盖广告脚本。Script Properties 设置 HUB_SPREADSHEET_ID 为私有总表 ID，HUB_PHONE_ONLY_ENABLED=true 才开放号码登录。清单启用 Sheets 高级服务并声明 spreadsheets 和 script.scriptapp scopes，首次授权必须由拥有者确认。
 4. Web App 执行为拥有者，允许 Anyone 进入外壳；未登记/停用号码拒绝进入数据接口。发布会创建可公开访问的应用地址，因此需在最终发布前确认设置与访问模式。
 5. 手动在编辑器运行 installHubTrigger_ 建立每小时任务（已存在则不重复安装）。它只生成站内待办；不发送邮件、短信或 WhatsApp。runScheduledReminders_ 和安装函数以 _ 结尾，不可从 google.script.run 调用。
-6. 在独立测试总表验证真实 Sheets 原子写入、两个角色、提交版本、退出、定时器后，才能开放正式数据。GitHub Variables 设置 EVENT_HUB_WEBAPP_URL 为已验证的 Google /exec URL，EVENT_HUB_ENABLED=true。scripts/build_hub_entry.py 生成 /report/ 入口跳转，地址栏随后会进入 Google 托管页面；并不声称 Google Web App 绑定自定义域名。
+6. 在独立测试总表验证真实 Sheets 原子写入、两个角色、提交版本、退出、定时器后，才能开放正式数据。GitHub Variables 设置 EVENT_HUB_WEBAPP_URL 为已验证的 Google /exec URL，EVENT_HUB_ENABLED=true。scripts/build_hub_entry.py 发布原生页面与静态资源，meta 配置公开 API 地址。页面以 text/plain POST 调用 doPost，再由 ContentService 返回 JSON；手机号和令牌放在请求体，不进入 URL 或仓库。接口不使用 Cookie，所有业务权限仍通过现有会话和角色检查。独立 Google 页面继续可用，默认不允许跨站嵌入。
 
 当前尚待真实授权/部署验证；后台没有正式活动数字，历史文件只读。已有完整本地及模拟 Google 通讯测试不能替代线上测试。

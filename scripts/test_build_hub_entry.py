@@ -12,8 +12,11 @@ class HubEntryTest(unittest.TestCase):
             self.assertIn('暂未开放', path.read_text(encoding='utf-8'))
             build(folder, True, 'https://script.google.com/macros/s/test-deployment/exec')
             page = path.read_text(encoding='utf-8')
-            self.assertIn('<iframe title="活动绩效中心"', page)
-            self.assertIn('src="https://script.google.com/macros/s/test-deployment/exec"', page)
+            self.assertIn('name="event-hub-endpoint" content="https://script.google.com/macros/s/test-deployment/exec"', page)
+            self.assertIn('id="phoneLogin"', page)
+            self.assertTrue((path.parent / 'app.js').is_file())
+            self.assertTrue((path.parent / 'styles.css').is_file())
+            self.assertNotIn('<iframe', page)
             self.assertNotIn('http-equiv="refresh"', page)
             self.assertNotIn('window.location', page)
             for url in ['', 'https://evil.example/app', 'https://script.google.com.evil.example/macros/s/a/exec', 'https://script.google.com/macros/s/a/exec?token=secret']:
