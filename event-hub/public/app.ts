@@ -168,5 +168,3 @@ $<HTMLFormElement>('phoneLogin').onsubmit=event=>{event.preventDefault();void ru
 $('logout').onclick=run(async()=>{try{await googleCall('hubLogout',[sessionToken]);}finally{showLogin();message('已退出登录。');}});
 if(gasMode){try{sessionToken=sessionStorage.getItem('eventHubSession')||'';}catch{}if(sessionToken)void run(initialize)();else{showLogin();message('');}}
 else void run(initialize)();
-
-
