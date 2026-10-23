@@ -1,5 +1,11 @@
 # 验证记录 — 2026-10-23（马来西亚）
 
+正式部署更新（19:30 MYT）：用户完成首次 Google 授权后，独立 Web App 已发布版本 2，Anyone 入口已按用户明确选择启用。PR #1 已合并，GitHub Pages 工作流 39945762395 成功；实际浏览器从 https://ads.aikpi.my/report 跳转并显示手机号登录页。管理员真实登录、活动创建、绩效保存及刷新读回成功；修复 Google RPC 省略 null 时的前端 N/A 和汇总显示，23 项测试、TypeScript、语法和 Build 再次通过，CI 成功。验证活动已归档，正式总览为 0 场，测试记录保留审计。
+
+每小时 runScheduledReminders_ 触发器已创建并在 Google Triggers 列表读回确认；尚未等待首次定时执行，不能声称实际到期催交已经验证。仅生成站内待办，没有邮件或 WhatsApp 通知。一次性拥有者安装函数仅存在未发布的编辑器 Head，执行后已移除并保存；没有进入公开部署。首次误运行默认 assert 的记录已核查，安装函数实际执行成功后输出 installed=true。历史表仅登记来源，未自动迁移正式数据。
+
+以下为各阶段历史记录，状态以本节正式部署更新为准。
+
 发布阶段实际状态：用户已明确同意 Anyone 互联网入口、手机号直接登录边界及 Google 表格/后台任务授权。已选择 Anyone 并提交部署；首次 Google OAuth 显示尚未验证应用，需本人处理提示。未完成授权、未发布、未安装定时触发器、未上线 /report。此前自动审批拒绝已在用户补充明确授权后继续，未绕过拒绝。
 
 Google 运行版增量：按用户明确选择实现无密码手机号进入，Wilson 为 Admin，五位成员为 telesales（号码不在仓库）。新增 Google 业务服务、原子批量写入适配、会话到期/退出/停用、站内提醒、Google 通讯前端及 Apps Script 构建。23 项自动测试、TypeScript strict、JS 检查、Node/Google Build 通过；Google transport 手机流程通过（模拟通讯），原 Node 桌面/手机流程通过。Python 两项生成测试通过。已创建独立脚本并保存服务端/页面；Google 编辑器实际发现数字分隔符语法不兼容，已增加 ES2019 转译。尚未授权或发布，未以真实 Google 账号执行读写、建立触发器或上线 /report。不得把本地/模拟验证表述为 Google 端到端成功。
