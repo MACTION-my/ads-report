@@ -1,0 +1,8 @@
+data/
+dist/
+compiled/
+qa/
+node_modules/
+.env
+*.sqlite*
+!public/index.html

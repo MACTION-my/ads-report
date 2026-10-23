@@ -1,0 +1,25 @@
+name: Event Hub checks
+on:
+  pull_request:
+    paths: ['event-hub/**', 'scripts/build_report.py', 'scripts/test_build_report.py', '.github/workflows/event-hub.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: event-hub/package-lock.json
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: npm ci
+        working-directory: event-hub
+      - run: npm test && npm run typecheck && npm run build && npm run check
+        working-directory: event-hub
+      - run: python scripts/test_build_report.py

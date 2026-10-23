@@ -20,6 +20,11 @@ new = re.sub(r"/\*DATA_START\*/.*?/\*DATA_END\*/",
 if new == html:
     raise SystemExit("找不到 /*DATA_START*/.../*DATA_END*/ 标记，请确认用的是带标记的 HTML 模板。")
 
+# Enable only after the same-origin authenticated /events/ backend is deployed.
+# Default output and the existing ad-data build remain unchanged.
+if os.environ.get("EVENT_HUB_ENABLED") == "true":
+    new = new.replace("</h1>", '</h1><p><a href="/events/">团队活动绩效 · Event Performance Hub</a></p>', 1)
+
 open(html_path, "w", encoding="utf-8").write(new)
 rd = json.loads(data).get("report_date", "?")
 print(f"[OK] 报告已生成: {html_path}  (报告日 {rd})  —— 双击这个 HTML 即可查看。")

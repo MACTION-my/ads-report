@@ -33,6 +33,8 @@ jobs:
         run: python scripts/meta_ads_pull.py
 
       - name: 生成报告页面
+        env:
+          EVENT_HUB_ENABLED: ${{ vars.EVENT_HUB_ENABLED }}
         run: |
           cp daily_ads_dashboard.html index.html
           python scripts/build_report.py dashboard_data.json index.html
