@@ -236,21 +236,28 @@ function renderInputs(section, r, own = false) {
     form.append(el('h3', own ? '填写我的活动数据 · 仅修改本人记录' : 'PIC / Admin 汇总与补录 · 所有数字均为本场归属'));
     const inputs = new Map();
     for (const id of own ? [me.id] : r.event.assignedUserIds) {
-        const old = r.rows.find(row => row.userId === id), person = el('div', '', 'person'), grid = el('div', '', 'inputs');
+        const old = r.rows.find(row => row.userId === id), person = el('div', '', 'person'), grid = el('div', '', 'input-sections');
         person.append(el('h3', name(id)));
         const rowInputs = {};
-        for (const key of fields) {
-            const label = el('label', labels[key]), input = el('input');
-            input.type = 'number';
-            input.min = '0';
-            input.step = ['salesAmount', 'commission', 'dealIncentive'].includes(key) ? '.01' : '1';
-            input.value = old?.[key] === null ? '' : String(old?.[key] ?? (['newLeadPta', 'commission', 'dealIncentive'].includes(key) ? '' : 0));
-            input.required = !['newLeadPta', 'commission', 'dealIncentive'].includes(key);
-            if (['commission', 'dealIncentive'].includes(key) && me.role !== 'admin')
-                input.readOnly = true;
-            rowInputs[key] = input;
-            label.append(input);
-            grid.append(label);
+        const groups = [{ title: '01 · 线索与预约', keys: ['newLeads', 'junk', 'pta', 'newLeadPta'] }, { title: '02 · 出席与成交', keys: ['attended', 'closedDeals', 'salesAmount'] }, { title: '03 · 佣金与奖励', keys: ['commission', 'dealIncentive'] }];
+        for (const group of groups) {
+            const fieldset = el('fieldset', '', 'input-group'), inner = el('div', '', 'inputs');
+            fieldset.append(el('legend', group.title));
+            for (const key of group.keys) {
+                const label = el('label', labels[key]), input = el('input');
+                input.type = 'number';
+                input.min = '0';
+                input.step = ['salesAmount', 'commission', 'dealIncentive'].includes(key) ? '.01' : '1';
+                input.value = old?.[key] === null ? '' : String(old?.[key] ?? (['newLeadPta', 'commission', 'dealIncentive'].includes(key) ? '' : 0));
+                input.required = !['newLeadPta', 'commission', 'dealIncentive'].includes(key);
+                if (['commission', 'dealIncentive'].includes(key) && me.role !== 'admin')
+                    input.readOnly = true;
+                rowInputs[key] = input;
+                label.append(input);
+                inner.append(label);
+            }
+            fieldset.append(inner);
+            grid.append(fieldset);
         }
         const notesLabel = el('label', '异常说明 / 备注'), notes = el('textarea');
         notes.value = old?.notes || '';
