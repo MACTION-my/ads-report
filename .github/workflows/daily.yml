@@ -35,11 +35,13 @@ jobs:
       - name: 生成报告页面
         env:
           EVENT_HUB_ENABLED: ${{ vars.EVENT_HUB_ENABLED }}
+          EVENT_HUB_WEBAPP_URL: ${{ vars.EVENT_HUB_WEBAPP_URL }}
         run: |
           cp daily_ads_dashboard.html index.html
           python scripts/build_report.py dashboard_data.json index.html
           mkdir -p _site
           cp index.html _site/index.html
+          python scripts/build_hub_entry.py _site
 
       - name: 写入 Google Sheet（每日广告数据 + 课程花费/Lead）
         env:

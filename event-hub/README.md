@@ -1,6 +1,6 @@
 # Event Performance Hub
 
-Google Sheets 方案的迁移准备见 [google/README.md](google/README.md)：已提供独立表结构及历史多区块只读解析器，当前尚未替换 Node/SQLite 服务端或上线 Google 填报服务。后台总表可建立不代表登录、填报及催交已经接通。
+当前主用部署方案见 [google/README.md](google/README.md)：Google Sheets / Apps Script，无需自管服务器，按用户选择支持已登记手机号直接进入。下文 Node/SQLite 方式保留作本地参考。两种实现均经过本地验证；Google 版本仍须实际授权、发布及云端测试，后台总表建立不代表已经上线。
 
 指定线上地址：`https://ads.aikpi.my/report`，由后端以 308 跳转 `/report/`（保留 query）。GitHub Pages API 已确认 ads.aikpi.my 是当前仓库的自定义域名；2026-10-23 现场检查首页为 200，/report 为 404。路径代码尚未部署。GitHub Pages 不能执行本模块的 Node API，也不能单独按路径转发到后端；需要在当前域名前增加反向代理/边缘路由，或迁移至支持后端的同站托管平台。不要只开启导航变量就声称已经绑定成功。
 

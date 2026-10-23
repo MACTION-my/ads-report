@@ -2,6 +2,8 @@
 <html lang="zh-Hans"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Event Performance Hub · MACTION</title><link rel="stylesheet" href="/report/styles.css"><script defer type="module" src="/report/app.js"></script></head>
 <body><header><div class="wrap"><a href="/">← Ads Report</a><h1><mark>活动绩效</mark> Event Performance Hub</h1><p>一场活动，一份记录。负责人填报，团队看结果。</p><span id="identity"></span></div></header><main class="wrap">
 <div id="message" role="status" aria-live="polite">正在检查连接…</div>
+<section id="login" hidden><form id="phoneLogin" class="person"><h2>团队登录</h2><label>已登记手机号<input name="phone" type="tel" autocomplete="tel" inputmode="tel" required placeholder="输入你的手机号"></label><p class="hint">仅限已登记成员。无需密码或短信验证码。</p><button type="submit">进入活动中心</button></form></section>
+<button id="logout" class="secondary no-print" hidden>退出登录</button>
 <div id="content" hidden>
 <section class="toolbar"><label>月份<input id="month" type="month"></label><label>品牌<select id="brand"><option value="">全部品牌</option><option>Pinyu</option><option>Chain</option></select></label><label>负责人<select id="pic"><option value="">全部 PIC</option></select></label><label>状态<select id="state"><option value="">全部状态</option><option value="pending">待提交</option><option value="overdue">逾期</option><option value="submitted">已提交</option><option value="finalized">最终版</option></select></label><label>活动搜索<input id="search" type="search" placeholder="活动名称"></label><button id="refresh">刷新</button><button id="create" hidden>＋ 新建活动</button><button id="monthly">导出本月最终数据</button></section>
 <p class="hint">排期参考：Pinyu 5 场 / 连锁 4 场；实际场次数量不限。仪表盘统计当前筛选的非取消活动，未最终确认的数据会明确标示。</p>

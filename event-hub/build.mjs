@@ -12,3 +12,4 @@ for(const file of ['server.mjs','service.mjs','core.mjs','schema.sql','admin.mjs
 const html=readFileSync(new URL('./dist/public/index.html',import.meta.url),'utf8');
 if(!html.includes('/report/app.js')||!html.includes('viewport'))throw new Error('Missing application entry or mobile viewport');
 console.log('Build complete: dist/ (no identities, database or secrets bundled).');
+execFileSync(process.execPath,[fileURLToPath(new URL('./google/build.mjs',import.meta.url))],{cwd:root,stdio:'inherit'});

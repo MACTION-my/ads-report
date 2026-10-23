@@ -46,7 +46,8 @@ export function rates(row) {
 }
 export function status(event, now=new Date()) {
   if (['scheduled','draft','awaiting_data','needs_correction'].includes(event.status) && new Date(event.submissionDeadline)<now) return 'overdue';
-  if(event.status==='scheduled' && event.eventDate<now.toLocaleDateString('en-CA',{timeZone:'Asia/Kuala_Lumpur'})) return 'awaiting_data';
+  const malaysiaDate=new Date(now.getTime()+8*3600000).toISOString().slice(0,10);
+  if(event.status==='scheduled' && event.eventDate<malaysiaDate) return 'awaiting_data';
   return event.status;
 }
 export const csvHeaders = ['eventId','userId',...fields,'notes'];

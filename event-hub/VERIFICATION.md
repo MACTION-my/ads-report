@@ -1,5 +1,9 @@
 # 验证记录 — 2026-10-23（马来西亚）
 
+发布阶段实际状态：用户已明确同意 Anyone 互联网入口、手机号直接登录边界及 Google 表格/后台任务授权。已选择 Anyone 并提交部署；首次 Google OAuth 显示尚未验证应用，需本人处理提示。未完成授权、未发布、未安装定时触发器、未上线 /report。此前自动审批拒绝已在用户补充明确授权后继续，未绕过拒绝。
+
+Google 运行版增量：按用户明确选择实现无密码手机号进入，Wilson 为 Admin，五位成员为 telesales（号码不在仓库）。新增 Google 业务服务、原子批量写入适配、会话到期/退出/停用、站内提醒、Google 通讯前端及 Apps Script 构建。23 项自动测试、TypeScript strict、JS 检查、Node/Google Build 通过；Google transport 手机流程通过（模拟通讯），原 Node 桌面/手机流程通过。Python 两项生成测试通过。已创建独立脚本并保存服务端/页面；Google 编辑器实际发现数字分隔符语法不兼容，已增加 ES2019 转译。尚未授权或发布，未以真实 Google 账号执行读写、建立触发器或上线 /report。不得把本地/模拟验证表述为 Google 端到端成功。
+
 手机号成员登记增量：用户改为手机号登录。私有总表登记 5 位填报成员，规范化手机号，active=false / pending_setup，未推断管理员、未设置密码、未创建会话。真实电话号码未提交 GitHub。17 项测试、TypeScript strict、JS 语法及 Build 全通过。Google OAuth 不再作为该登录方案前提；实际手机号认证、密码方式和管理员权限仍待配置。
 
 Google 迁移准备增量：16 项自动测试全部通过（新增历史日期解析、重复候选、多区块溯源、缺值/身份映射测试）；TypeScript strict、JS 检查和 Build 通过。已通过连接器建立原生 Google Sheets 后台结构并读回确认：11 个页签、Sources 18 条来源记录、Events/Stats/Members 无正式记录；权限元数据为 shared=false，只有拥有者。已将时区设为 Asia/Kuala_Lumpur。实际 Pinyu 和 Chain Conversion 样本分别识别 3 / 1 个区块，未提交写入。历史原表未改动；未把私有来源快照或业务数字提交 GitHub。表格工具导出后进程返回非零，但生成的 XLSX 经独立读取、原生转换及云端读回验证；未以退出码声称生成完全无误。Google 混合账号身份验证、Apps Script 服务与触发器仍未实现或部署。

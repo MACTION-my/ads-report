@@ -1,7 +1,7 @@
 name: Event Hub checks
 on:
   pull_request:
-    paths: ['event-hub/**', 'scripts/build_report.py', 'scripts/test_build_report.py', '.github/workflows/event-hub.yml']
+    paths: ['event-hub/**', 'scripts/build_report.py', 'scripts/test_build_report.py', 'scripts/build_hub_entry.py', 'scripts/test_build_hub_entry.py', '.github/workflows/event-hub.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -22,4 +22,4 @@ jobs:
         working-directory: event-hub
       - run: npm test && npm run typecheck && npm run build && npm run check
         working-directory: event-hub
-      - run: python scripts/test_build_report.py
+      - run: python -m unittest discover -s scripts -p 'test_build*.py'

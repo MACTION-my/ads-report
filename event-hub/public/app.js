@@ -4,6 +4,27 @@ const labels = { newLeads: 'New Leads', junk: 'Junk', pta: 'PTA（旧＋新）',
 const rateLabels = { leadToJunk: 'Lead → Junk', leadToWon: 'Lead → Won', ptaToWon: 'PTA → Won', leadsToPta: 'New Lead → PTA', ptaToAttended: 'PTA → 出席', attendedToWon: '出席 → Won' };
 const stateLabels = { draft: '草稿', scheduled: '已排期', awaiting_data: '待填报', submitted: '已提交 · 待审核', needs_correction: '待更正', finalized: '最终版', overdue: '逾期', cancelled: '已取消' };
 let me, users = [], reports = [], selected = null, editing = null, importPreview = null;
+const gasMode = Boolean(window.google?.script?.run);
+let sessionToken = '';
+function showLogin() { sessionToken = ''; try {
+    sessionStorage.removeItem('eventHubSession');
+}
+catch { } $('login').hidden = false; $('content').hidden = true; $('logout').hidden = true; $('identity').textContent = ''; $('detail').replaceChildren(); selected = null; reports = []; }
+function googleCall(method, args) { return new Promise((resolve, reject) => { const runner = window.google?.script?.run; if (!runner) {
+    reject(new Error('Google 服务未连接'));
+    return;
+} const call = runner.withSuccessHandler(reply => { if (reply.ok)
+    resolve(reply.data);
+else {
+    if (reply.status === 401 || reply.status === 403 && method === 'hubCall')
+        showLogin();
+    reject(new Error(reply.error || '请求失败'));
+} }).withFailureHandler(error => reject(new Error(error.message || 'Google 服务不可用'))); if (method === 'hubLogin')
+    call.hubLogin(args[0]);
+else if (method === 'hubLogout')
+    call.hubLogout(args[0]);
+else
+    call.hubCall(args[0], args[1], args[2]); }); }
 const money = (v) => v === null || v === undefined ? '待核准 / N/A' : v.toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const rate = (v) => v === null || v === undefined ? 'N/A' : v.toFixed(1) + '%';
 const name = (id) => users.find(u => u.id === id)?.displayName || id;
@@ -12,6 +33,8 @@ function el(tag, text = '', className = '') { const node = document.createElemen
     node.className = className; return node; }
 function message(text) { $('message').textContent = text; }
 async function api(path, body) {
+    if (gasMode)
+        return googleCall('hubCall', [sessionToken, path, body === undefined ? null : body]);
     const response = await fetch('/report/api/' + path, { method: body === undefined ? 'GET' : 'POST', credentials: 'same-origin', headers: body === undefined ? {} : { 'Content-Type': 'application/json', 'X-Event-Hub-Request': '1' }, body: body === undefined ? undefined : JSON.stringify(body) });
     const result = await response.json();
     if (!response.ok)
@@ -255,10 +278,16 @@ function renderImport(section, r) {
 }
 async function transition(action, extra = {}) { if (!selected)
     return; selected = await api(`events/${selected.event.id}/transition`, { revision: selected.event.revision, action, ...extra }); await refresh(); renderDetail(); message('状态已更新。'); }
-async function download(path, fileName) { const response = await fetch('/report/api/' + path, { credentials: 'same-origin' }); if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error);
-} const url = URL.createObjectURL(await response.blob()), link = el('a'); link.href = url; link.download = fileName; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000); }
+async function download(path, fileName) { let blob; if (gasMode)
+    blob = new Blob([await api(path)], { type: 'text/csv;charset=utf-8' });
+else {
+    const response = await fetch('/report/api/' + path, { credentials: 'same-origin' });
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error);
+    }
+    blob = await response.blob();
+} const url = URL.createObjectURL(blob), link = el('a'); link.href = url; link.download = fileName; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000); }
 function showEvent(event = null, duplicate = false) {
     editing = duplicate ? null : event;
     const form = $('eventForm');
@@ -287,13 +316,18 @@ $('refresh').onclick = run(refresh);
 for (const id of ['month', 'brand', 'pic', 'state', 'search'])
     $(id).addEventListener('input', render);
 $('monthly').onclick = run(() => download('export?month=' + $('month').value, 'final-events-' + $('month').value + '.csv'));
-void run(async () => {
+async function initialize() {
     $('month').value = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kuala_Lumpur' }).slice(0, 7);
     const result = await api('me');
     me = result.user;
     users = result.users;
     $('identity').textContent = me.displayName + ' · ' + me.role;
     $('create').hidden = me.role !== 'admin';
+    const allPic = el('option', '全部 PIC');
+    allPic.value = '';
+    $('pic').replaceChildren(allPic);
+    for (const old of $('content').querySelectorAll('[data-inbox]'))
+        old.remove();
     for (const user of users) {
         const option = el('option', user.displayName);
         option.value = user.id;
@@ -306,10 +340,47 @@ void run(async () => {
     const pending = inbox.filter(item => !['submitted', 'finalized', 'cancelled'].includes(item.status));
     if (pending.length) {
         const box = el('section', '', 'notice no-print');
+        box.dataset.inbox = 'true';
         box.append(el('h2', '我的催交待办'));
         for (const item of pending)
             box.append(button(item.eventName + ' · ' + item.type, async () => { await openReport(item.eventId); }));
         $('content').prepend(box);
     }
-})();
+    $('login').hidden = true;
+    $('logout').hidden = !gasMode;
+}
+$('phoneLogin').onsubmit = event => { event.preventDefault(); void run(async () => { const form = $('phoneLogin'), submit = form.querySelector('button'); submit.disabled = true; try {
+    const result = await googleCall('hubLogin', [String(new FormData(form).get('phone') || '')]);
+    sessionToken = result.token;
+    try {
+        sessionStorage.setItem('eventHubSession', sessionToken);
+    }
+    catch { }
+    form.reset();
+    await initialize();
+}
+finally {
+    submit.disabled = false;
+} })(); };
+$('logout').onclick = run(async () => { try {
+    await googleCall('hubLogout', [sessionToken]);
+}
+finally {
+    showLogin();
+    message('已退出登录。');
+} });
+if (gasMode) {
+    try {
+        sessionToken = sessionStorage.getItem('eventHubSession') || '';
+    }
+    catch { }
+    if (sessionToken)
+        void run(initialize)();
+    else {
+        showLogin();
+        message('请输入已登记的手机号。');
+    }
+}
+else
+    void run(initialize)();
 export {};
