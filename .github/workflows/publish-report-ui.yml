@@ -1,0 +1,49 @@
+name: Publish Event Report UI
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Preserve the currently published Ads homepage
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from urllib.request import urlopen
+          from urllib.parse import urlparse
+          with urlopen('https://ads.aikpi.my/', timeout=60) as response:
+              assert response.status == 200
+              assert urlparse(response.url).hostname == 'ads.aikpi.my'
+              page = response.read()
+          assert b'<html' in page.lower() and len(page) > 1000
+          Path('_site').mkdir()
+          Path('_site/index.html').write_bytes(page)
+          PY
+      - name: Publish the company-domain Event Hub frontend
+        env:
+          EVENT_HUB_ENABLED: ${{ vars.EVENT_HUB_ENABLED }}
+          EVENT_HUB_WEBAPP_URL: ${{ vars.EVENT_HUB_WEBAPP_URL }}
+        run: python scripts/build_hub_entry.py _site
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deploy
+        uses: actions/deploy-pages@v4
