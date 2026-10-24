@@ -9,8 +9,9 @@ test('telesales submit only own assigned row, preserve teammates, permissions an
     const {event}=hub.saveEvent('admin',{name:'Self report',brand:'Pinyu',eventDate:'2026-10-21',submissionDeadline:'2026-10-24T18:00:00+08:00',picUserId:'pic',assignedUserIds:['a','b']});
     const row={userId:'a',newLeads:10,junk:1,pta:2,newLeadPta:1,attended:1,closedDeals:0,salesAmount:0,commission:null,dealIncentive:null};
     for(const actor of ['b','outsider','viewer'])assert.throws(()=>hub.submitOwnRow(actor,event.id,{revision:1,row}));
-    assert.throws(()=>hub.submitOwnRow('a',event.id,{revision:1,row:{...row,commission:100}}));
-    hub.submitOwnRow('a',event.id,{revision:1,row});
+    assert.throws(()=>hub.submitOwnRow('a',event.id,{revision:1,row:{...row,dealIncentive:100}}));
+    hub.submitOwnRow('a',event.id,{revision:1,row:{...row,commission:123.45}});
+    assert.equal(hub.rows(event.id).find(item=>item.userId==='a').commission,123.45);
     assert.deepEqual(hub.report('b',event.id).completeness.pendingUserIds,['b']);
     assert.throws(()=>hub.submitOwnRow('b',event.id,{revision:1,row:{...row,userId:'b'}}));
     runReminders(hub,new Date('2026-10-22T01:00:00Z'));

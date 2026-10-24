@@ -11,9 +11,9 @@ interface Preview {rows:Stats[];errors:{line:number;message:string}[];matches:st
 interface InboxItem {eventId:string;eventName:string;type:string;status:string}
 interface InitialData {user:Member;users:Member[];reports:Report[];inbox:InboxItem[]}
 const $=<T extends HTMLElement=HTMLElement>(id:string)=>document.getElementById(id) as T;
-const fields=['newLeads','junk','pta','newLeadPta','attended','closedDeals','salesAmount','commission','dealIncentive'] as const;
-const labels:Record<string,string>={newLeads:'New Leads',junk:'Junk',pta:'PTA（旧＋新）',newLeadPta:'新线索 PTA（未知留空）',attended:'出席',closedDeals:'成交',salesAmount:'销售额 RM',commission:'核准佣金 RM',dealIncentive:'核准奖励 RM'};
-const rateLabels:Record<string,string>={leadToJunk:'Lead → Junk',leadToWon:'Lead → Won',ptaToWon:'PTA → Won',leadsToPta:'New Lead → PTA',ptaToAttended:'PTA → 出席',attendedToWon:'出席 → Won'};
+const fields=['newLeads','junk','pta','attended','closedDeals','salesAmount','commission','dealIncentive'] as const;
+const labels:Record<string,string>={newLeads:'New Lead（广告线索）',junk:'Junk（无效／假线索）',pta:'PTA（答应出席）',newLeadPta:'新线索 PTA（未知留空）',attended:'Attended（最终出席）',closedDeals:'Closed Deal（成交单数）',salesAmount:'Amount（成交额 RM）',commission:'Commission（手填 RM）',dealIncentive:'核准奖励 RM'};
+const rateLabels:Record<string,string>={leadToJunk:'Lead → Junk',leadToWon:'Lead → Won',ptaToWon:'PTA → Won',leadsToPta:'Lead → PTA',leadToAttended:'Lead → 出席',ptaToAttended:'PTA → 出席',attendedToWon:'出席 → Won'};
 const stateLabels:Record<string,string>={draft:'草稿',scheduled:'已排期',awaiting_data:'待填报',submitted:'已提交 · 待审核',needs_correction:'待更正',finalized:'最终版',overdue:'逾期',cancelled:'已取消'};
 let me:Member,users:Member[]=[],reports:Report[]=[],selected:Report|null=null,editing:EventData|null=null,importPreview:{csv:string;revision:number}|null=null;
 const endpoint=document.querySelector<HTMLMetaElement>('meta[name="event-hub-endpoint"]')?.content||'';
@@ -49,7 +49,7 @@ function filtered(){
 function aggregate(rows:Stats[]):{total:Stats;rates:Record<string,number|null>} {
   const total=Object.fromEntries(fields.map(key=>[key,rows.some(r=>r[key]==null)?null:rows.reduce((sum,r)=>sum+(r[key]||0),0)])) as unknown as Stats;
   const ratio=(a:number|null,b:number)=>a===null||!b?null:a/b*100;
-  return {total,rates:{leadToJunk:ratio(total.junk,total.newLeads),leadToWon:ratio(total.closedDeals,total.newLeads),ptaToWon:ratio(total.closedDeals,total.pta),leadsToPta:ratio(total.newLeadPta,total.newLeads),ptaToAttended:ratio(total.attended,total.pta),attendedToWon:ratio(total.closedDeals,total.attended)}};
+  return {total,rates:{leadToJunk:ratio(total.junk,total.newLeads),leadToWon:ratio(total.closedDeals,total.newLeads),ptaToWon:ratio(total.closedDeals,total.pta),leadsToPta:ratio(total.pta,total.newLeads),leadToAttended:ratio(total.attended,total.newLeads),ptaToAttended:ratio(total.attended,total.pta),attendedToWon:ratio(total.closedDeals,total.attended)}};
 }
 function render(){
   const list=filtered(),active=list.filter(r=>r.event.status!=='cancelled'),rows=active.flatMap(r=>r.rows),{total,rates}=aggregate(rows);
@@ -82,7 +82,7 @@ function renderDetail(){
   if(!selected)return;const r=selected,e=r.event,section=$('detail');section.hidden=false;section.replaceChildren();
   section.append(el('h2',e.brand+' · '+e.name),el('p',`${e.eventDate} · PIC ${name(e.picUserId)} · ${stateLabels[e.displayStatus]} · v${e.reportVersion} · 数据修订 ${e.revision}`),el('p',`截止 ${date(e.submissionDeadline)} · 提交人 ${e.submittedBy?name(e.submittedBy):'尚未提交'} · ${e.submittedAt?date(e.submittedAt):''}`));
   if(e.status!=='finalized')section.append(el('p','草稿 / 未最终确认，不作为最终结算依据。','notice'));
-  section.append(el('p',`缺少新线索 PTA：${r.completeness.missingNewLeadPta} 人；待核准佣金/奖励：${r.completeness.unapprovedCommission} 人。`));
+  section.append(el('p',`佣金或奖励待补齐：${r.completeness.unapprovedCommission} 人。`));
   section.append(el('p','尚未填报：'+(r.completeness.pendingUserIds.map(name).join('、')||'全部已填报')));
   section.append(el('p',`名单记录 ${r.attendanceSummary.records}；确认出席 ${r.attendanceSummary.attended}；未归属 ${r.attendanceSummary.unattributed}。名单与绩效填报分开核对，不自动覆盖人数。`));
   if(r.attendanceSummary.records && r.attendanceSummary.attended!==r.total.attended)section.append(el('p','名单出席人数与绩效填报不一致，请 PIC 核对。','warning'));
@@ -121,12 +121,12 @@ function renderInputs(section:HTMLElement,r:Report,own=false){
   const inputs=new Map<string,Record<string,HTMLInputElement|HTMLTextAreaElement>>();
   for(const id of own?[me.id]:r.event.assignedUserIds){
     const old=r.rows.find(row=>row.userId===id),person=el('div','','person'),grid=el('div','','input-sections');person.append(el('h3',name(id)));const rowInputs:Record<string,HTMLInputElement|HTMLTextAreaElement>={};
-    const groups=[{title:'01 · 线索与预约',keys:['newLeads','junk','pta','newLeadPta']},{title:'02 · 出席与成交',keys:['attended','closedDeals','salesAmount']},{title:'03 · 佣金与奖励',keys:['commission','dealIncentive']}] as const;
-    for(const group of groups){const fieldset=el('fieldset','','input-group'),inner=el('div','','inputs');fieldset.append(el('legend',group.title));for(const key of group.keys){const label=el('label',labels[key]),input=el('input') as HTMLInputElement;input.type='number';input.min='0';input.step=['salesAmount','commission','dealIncentive'].includes(key)?'.01':'1';input.value=old?.[key]===null?'':String(old?.[key]??(['newLeadPta','commission','dealIncentive'].includes(key)?'':0));input.required=!['newLeadPta','commission','dealIncentive'].includes(key);if(['commission','dealIncentive'].includes(key)&&me.role!=='admin')input.readOnly=true;rowInputs[key]=input;label.append(input);inner.append(label);}fieldset.append(inner);grid.append(fieldset);}
+    const groups=[{title:'01 · 线索与预约',keys:['newLeads','junk','pta']},{title:'02 · 出席与成交',keys:['attended','closedDeals','salesAmount']},{title:'03 · 佣金与奖励',keys:['commission','dealIncentive']}] as const;
+    for(const group of groups){const fieldset=el('fieldset','','input-group'),inner=el('div','','inputs');fieldset.append(el('legend',group.title));for(const key of group.keys){const label=el('label',labels[key]),input=el('input') as HTMLInputElement;input.type='number';input.min='0';input.step=['salesAmount','commission','dealIncentive'].includes(key)?'.01':'1';input.value=old?.[key]===null?'':String(old?.[key]??(['newLeadPta','commission','dealIncentive'].includes(key)?'':0));input.required=!['newLeadPta','commission','dealIncentive'].includes(key);if(me.role!=='admin'&&(key==='dealIncentive'||key==='commission'&&id!==me.id))input.readOnly=true;rowInputs[key]=input;label.append(input);inner.append(label);}fieldset.append(inner);grid.append(fieldset);}
     const notesLabel=el('label','异常说明 / 备注'),notes=el('textarea') as HTMLTextAreaElement;notes.value=old?.notes||'';notes.maxLength=4000;rowInputs.notes=notes;notesLabel.append(notes);person.append(grid,notesLabel);form.append(person);inputs.set(id,rowInputs);
   }
   const save=el('button',own?'提交我的数据':'保存草稿') as HTMLButtonElement;save.type='submit';const submit=button('提交并锁定',async()=>{if(!form.reportValidity())return;if(!confirm('先保存当前输入，再提交并锁定。若有异常数字，是否已确认归属？'))return;await saveData();await transition('submit',{acknowledgeWarnings:true});});
-  const saveData=async()=>{const rows=[...inputs].map(([userId,values])=>Object.fromEntries([['userId',userId],...Object.entries(values).map(([key,input])=>[key,key==='notes'?input.value:input.value===''?null:Number(input.value)])]));selected=await api<Report>('events/'+r.event.id+(own?'/own-row':'/rows'),own?{revision:selected!.event.revision,row:rows[0],acknowledgeWarnings:true}:{revision:selected!.event.revision,rows});};
+  const saveData=async()=>{const rows=[...inputs].map(([userId,values])=>Object.fromEntries([['userId',userId],['newLeadPta',r.rows.find(row=>row.userId===userId)?.newLeadPta??null],...Object.entries(values).map(([key,input])=>[key,key==='notes'?input.value:input.value===''?null:Number(input.value)])]));selected=await api<Report>('events/'+r.event.id+(own?'/own-row':'/rows'),own?{revision:selected!.event.revision,row:rows[0],acknowledgeWarnings:true}:{revision:selected!.event.revision,rows});};
   form.onsubmit=event=>{event.preventDefault();if(own&&!confirm('确认本人数字及异常归属无误并提交？'))return;void run(async()=>{save.disabled=true;try{await saveData();await refresh();renderDetail();message(own?'本人数据已提交，系统已自动汇总。':'草稿已保存到数据库。');}finally{save.disabled=false;}})();};
   form.append(save);if(!own)form.append(document.createTextNode(' '),submit);section.append(form);
 }

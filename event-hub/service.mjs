@@ -91,7 +91,7 @@ export class Hub {
       assert(!seen.has(row.userId),'同场每人只可有一行');seen.add(row.userId);
       if(user.role!=='admin') {
         const previous=old.find(item=>item.userId===row.userId);
-        for(const key of ['commission','dealIncentive']) assert(row[key]===(previous?.[key]??null),'佣金和奖励须 Admin 核准',403);
+        for(const key of ['commission','dealIncentive']) {if(key==='commission'&&row.userId===actor)continue;assert(row[key]===(previous?.[key]??null),'只能填写本人佣金；奖励由 Admin 核准',403);}
       }
       return row;
     });

@@ -8,12 +8,12 @@ const fixture=()=>{
   const row={userId:'pic',newLeads:96,junk:15,pta:30,newLeadPta:null,attended:20,closedDeals:1,salesAmount:1058.4,commission:null,dealIncentive:null};
   return {hub,id:report.event.id,row};
 };
-test('active team can view; unassigned writes, forged commissions, stale edits denied',()=>{
+test('active team can view; unassigned writes, forged incentives, stale edits denied',()=>{
   const {hub,id,row}=fixture();try{
     assert.equal(hub.list('viewer').length,1);
     for(const actor of ['viewer','other'])assert.throws(()=>hub.saveRows(actor,id,{revision:1,rows:[row]}));
-    assert.throws(()=>hub.saveRows('pic',id,{revision:1,rows:[{...row,commission:100}]}));
-    const saved=hub.saveRows('pic',id,{revision:1,rows:[row]});assert.equal(saved.event.revision,2);
+    assert.throws(()=>hub.saveRows('pic',id,{revision:1,rows:[{...row,dealIncentive:100}]}));
+    const saved=hub.saveRows('pic',id,{revision:1,rows:[{...row,commission:100}]});assert.equal(saved.event.revision,2);assert.equal(saved.rows[0].commission,100);
     assert.throws(()=>hub.saveRows('admin',id,{revision:1,rows:[row]}));
     hub.db.prepare('UPDATE users SET active=0 WHERE id=?').run('viewer');assert.throws(()=>hub.list('viewer'));
   }finally{hub.close();}

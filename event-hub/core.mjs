@@ -25,7 +25,6 @@ export function validateRow(input) {
 export function warnings(row) {
   return [
     [row.junk>row.newLeads,'Junk 大于 New Leads'],
-    [row.newLeadPta!==null && row.newLeadPta>row.pta,'新线索 PTA 大于总 PTA'],
     [row.attended>row.pta,'出席大于 PTA'],
     [row.closedDeals>row.attended,'成交大于出席，请确认后续成交归属'],
     [row.salesAmount>0 && row.closedDeals===0,'有销售额但没有成交数'],
@@ -40,8 +39,8 @@ export function totals(rows) {
 }
 export function rates(row) {
   const rate = (a,b)=>a===null || !b ? null : a/b*100;
-  return {leadToJunk:rate(row.junk,row.newLeads),leadToWon:rate(row.closedDeals,row.newLeads),
-    ptaToWon:rate(row.closedDeals,row.pta),leadsToPta:rate(row.newLeadPta,row.newLeads),
+  return {leadToJunk:rate(row.junk,row.newLeads),leadToWon:rate(row.closedDeals,row.newLeads),leadToAttended:rate(row.attended,row.newLeads),
+    ptaToWon:rate(row.closedDeals,row.pta),leadsToPta:rate(row.pta,row.newLeads),
     ptaToAttended:rate(row.attended,row.pta),attendedToWon:rate(row.closedDeals,row.attended)};
 }
 export function status(event, now=new Date()) {
@@ -50,7 +49,7 @@ export function status(event, now=new Date()) {
   if(event.status==='scheduled' && event.eventDate<malaysiaDate) return 'awaiting_data';
   return event.status;
 }
-export const csvHeaders = ['eventId','userId',...fields,'notes'];
+export const csvHeaders = ['eventId','userId',...fields.filter(key=>key!=='newLeadPta'),'notes'];
 export function parseCsv(text,expectedHeaders=csvHeaders,convert=null) {
   assert(typeof text==='string' && text.length<=2_000_000,'CSV 太大或格式无效');
   const records=[]; let record=[], value='', quoted=false;
@@ -71,6 +70,7 @@ export function parseCsv(text,expectedHeaders=csvHeaders,convert=null) {
   record.push(value); if(record.some(v=>v!=='')) records.push(record);
   assert(records.length>1,'CSV 没有数据行');
   const headers=records.shift();
+  if(expectedHeaders===csvHeaders&&headers.includes('newLeadPta'))expectedHeaders=[...csvHeaders,'newLeadPta'];
   assert(new Set(headers).size===headers.length && expectedHeaders.every(key=>headers.includes(key)) && headers.length===expectedHeaders.length,'CSV 表头必须与模板一致');
   const rows=[], errors=[], seen=new Set();
   records.forEach((cells,index)=>{

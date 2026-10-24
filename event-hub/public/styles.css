@@ -20,3 +20,5 @@ label{color:#747b85;font-size:12px}.hint,small{color:#858b94}.card>span{color:#7
 @media print{body{background:#fff}#detail{border:0}.section-head{background:none}}
 
 .conversion-panel{overflow:hidden}#aggregate{padding-top:18px}
+/* Confirmed business fields: no separate new-lead PTA input is required. */
+.input-group:first-child .inputs{grid-template-columns:repeat(3,minmax(0,1fr))}#aggregate{grid-template-columns:repeat(4,minmax(0,1fr));row-gap:22px}#aggregate .card:nth-child(4n){border-right:0}@media(max-width:760px){.input-group:first-child .inputs{grid-template-columns:repeat(2,minmax(0,1fr))}.input-group:first-child label:last-child{grid-column:1/-1}#aggregate{grid-template-columns:repeat(2,minmax(0,1fr))}#aggregate .card:nth-child(2n){border-right:0}}

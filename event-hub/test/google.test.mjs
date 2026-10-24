@@ -21,7 +21,9 @@ test('Google service: self-write isolation, snapshot, correction and server role
   let id=0;const hub=new SheetHub(data(),'2026-10-23T09:00:00Z',()=>String(++id));
   const event=hub.execute('admin','events',{brand:'Pinyu',name:'Test',eventDate:'2026-10-21',submissionDeadline:'2026-10-24T18:00:00+08:00',picUserId:'admin',assignedUserIds:['a','b']}).event;
   assert.throws(()=>hub.execute('a',`events/${event.id}/own-row`,{revision:1,row:row('b')}));
-  hub.execute('a',`events/${event.id}/own-row`,{revision:1,row:row('a')});
+  hub.execute('a',`events/${event.id}/own-row`,{revision:1,row:{...row('a'),commission:123.45}});
+  assert.equal(hub.rows(event.id).find(item=>item.userId==='a').commission,123.45);
+  assert.throws(()=>hub.prepare('a',hub.event(event.id),[{...row('b'),commission:500}]));
   assert.throws(()=>hub.execute('b',`events/${event.id}/own-row`,{revision:1,row:row('b')}));
   hub.execute('b',`events/${event.id}/own-row`,{revision:2,row:row('b')});
   assert.equal(hub.report(event.id).total.salesAmount,200);assert.equal(hub.rows(event.id).length,2);
