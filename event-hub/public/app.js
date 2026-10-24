@@ -82,9 +82,10 @@ function button(text, action, className = '') { const node = el('button', text, 
 finally {
     node.disabled = false;
 } }); return node; }
+const malaysiaToday = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kuala_Lumpur' });
 function filtered() {
     const month = $('month').value, brand = $('brand').value, pic = $('pic').value, state = $('state').value, query = $('search').value.toLowerCase();
-    return reports.filter(r => !r.event.archived && r.event.eventDate.startsWith(month) && (!brand || r.event.brand === brand) && (!pic || r.event.picUserId === pic) && r.event.name.toLowerCase().includes(query) && (!state || (state === 'pending' ? ['draft', 'scheduled', 'awaiting_data', 'needs_correction', 'overdue'].includes(r.event.displayStatus) : (state === 'finalized' ? ['submitted', 'finalized'].includes(r.event.status) : r.event.displayStatus === state))));
+    return reports.filter(r => !r.event.archived && r.event.eventDate.startsWith(month) && (!brand || r.event.brand === brand) && (!pic || r.event.picUserId === pic) && r.event.name.toLowerCase().includes(query) && (!state || (state === 'upcoming' ? r.event.status !== 'cancelled' && r.event.eventDate > malaysiaToday() : state === 'pending' ? ['draft', 'scheduled', 'awaiting_data', 'needs_correction', 'overdue'].includes(r.event.displayStatus) : (state === 'finalized' ? ['submitted', 'finalized'].includes(r.event.status) : r.event.displayStatus === state))));
 }
 function aggregate(rows) {
     const total = Object.fromEntries(fields.map(key => [key, rows.some(r => r[key] == null) ? null : rows.reduce((sum, r) => sum + (r[key] || 0), 0)]));
@@ -94,6 +95,11 @@ function aggregate(rows) {
 function render() {
     const list = filtered(), active = list.filter(r => r.event.status !== 'cancelled'), rows = active.flatMap(r => r.rows), { total } = aggregate(rows);
     $('summary').replaceChildren(card('Revenue · RM', money(total.salesAmount)), card('Attended', String(total.attended)), card('Closed Deals', String(total.closedDeals)), card('Pending submissions', String(active.filter(r => !['submitted', 'finalized'].includes(r.event.status)).length)), card('Scheduled events', String(active.length)), card('Overdue submissions', String(active.filter(r => r.event.displayStatus === 'overdue').length)), card('Final reports', String(active.filter(r => ['submitted', 'finalized'].includes(r.event.status)).length)));
+    const upcoming = button('', () => { $('state').value = 'upcoming'; selected = null; render(); location.hash = '#eventPanel'; }, 'card upcoming-card');
+    upcoming.id = 'upcomingEvents';
+    upcoming.append(el('span', 'Upcoming Events'), el('strong', String(active.filter(r => r.event.eventDate > malaysiaToday()).length)));
+    upcoming.title = 'View events after today in Malaysia, using the current filters';
+    $('summary').append(upcoming);
     const table = $('events');
     table.replaceChildren();
     for (const report of list.sort((a, b) => a.event.eventDate.localeCompare(b.event.eventDate))) {
@@ -489,6 +495,10 @@ function showEvent(event = null, duplicate = false) {
 }
 $('eventForm').onsubmit = event => { event.preventDefault(); void run(async () => { const form = new FormData($('eventForm')); const body = { name: form.get('name'), brand: form.get('brand'), eventDate: form.get('eventDate'), submissionDeadline: form.get('deadline') + ':00+08:00', picUserId: form.get('picUserId'), assignedUserIds: form.getAll('assigned'), venue: form.get('venue'), notes: form.get('notes'), revision: editing?.revision }; const report = await api('events' + (editing ? '/' + editing.id : ''), body); $('eventDialog').close(); await refresh(); await openReport(report.event.id); message('Event saved.'); })(); };
 $('closeDialog').onclick = () => $('eventDialog').close();
+$('create').onclick = () => showEvent();
+$('refresh').onclick = run(refresh);
+for (const id of ['month', 'brand', 'pic', 'state', 'search'])
+    $(id).addEventListener('input', render);
 $('monthly').onclick = run(() => download('export?month=' + $('month').value, 'final-events-' + $('month').value + '.csv'));
 const viewNames = { '#overview': 'Dashboard', '#eventPanel': 'Event Pipeline', '#rankingPanel': 'Team Performance', '#teamPrivacy': 'Team Member' };
 let teamPageLoading = null;

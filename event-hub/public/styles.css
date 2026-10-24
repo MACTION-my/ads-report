@@ -70,3 +70,5 @@ body,.is-login{background:#f7f3e9}
 .mobile-member-link{display:none}@media(max-width:760px){.mobile-member-link{display:block;border:1.5px solid var(--accent);border-radius:9px;padding:9px 13px;font-size:13px;font-weight:700;color:var(--accent)}}
 
 .mobile-nav{display:none}@media(max-width:760px){.mobile-nav{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:20px}.mobile-nav a{padding:10px;border:1.5px solid #c5d2e6;border-radius:9px;font-size:13px;font-weight:700;background:#fff}.mobile-nav a.is-active{background:#fff0df;color:var(--accent);border-color:var(--accent)}}
+
+#summary .upcoming-card{text-align:left;white-space:normal;color:var(--ink);border-top:4px solid #109b83}#summary .upcoming-card:hover{background:#edf9f4;border-color:#109b83;box-shadow:0 5px 18px #109b8315}#summary .upcoming-card>span{font-weight:700}#summary .upcoming-card strong{color:#24456b}

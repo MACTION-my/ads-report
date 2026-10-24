@@ -51,9 +51,10 @@ async function api<T>(path:string,body?:unknown):Promise<T> {
 function run(action:()=>Promise<void>){return async()=>{try{await action();}catch(error){message(error instanceof Error?error.message:String(error));}};}
 function card(title:string,value:string){const node=el('div','','card');node.append(el('span',title),el('strong',value));return node;}
 function button(text:string,action:()=>Promise<void>|void,className=''){const node=el('button',text,className) as HTMLButtonElement;node.type='button';node.onclick=run(async()=>{node.disabled=true;try{await action();}finally{node.disabled=false;}});return node;}
+const malaysiaToday=()=>new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Kuala_Lumpur'});
 function filtered(){
   const month=$<HTMLInputElement>('month').value,brand=$<HTMLSelectElement>('brand').value,pic=$<HTMLSelectElement>('pic').value,state=$<HTMLSelectElement>('state').value,query=$<HTMLInputElement>('search').value.toLowerCase();
-  return reports.filter(r=>!r.event.archived&&r.event.eventDate.startsWith(month)&&(!brand||r.event.brand===brand)&&(!pic||r.event.picUserId===pic)&&r.event.name.toLowerCase().includes(query)&&(!state||(state==='pending'?['draft','scheduled','awaiting_data','needs_correction','overdue'].includes(r.event.displayStatus):(state==='finalized'?['submitted','finalized'].includes(r.event.status):r.event.displayStatus===state))));
+  return reports.filter(r=>!r.event.archived&&r.event.eventDate.startsWith(month)&&(!brand||r.event.brand===brand)&&(!pic||r.event.picUserId===pic)&&r.event.name.toLowerCase().includes(query)&&(!state||(state==='upcoming'?r.event.status!=='cancelled'&&r.event.eventDate>malaysiaToday():state==='pending'?['draft','scheduled','awaiting_data','needs_correction','overdue'].includes(r.event.displayStatus):(state==='finalized'?['submitted','finalized'].includes(r.event.status):r.event.displayStatus===state))));
 }
 function aggregate(rows:Stats[]):{total:Stats;rates:Record<string,number|null>} {
   const total=Object.fromEntries(fields.map(key=>[key,rows.some(r=>r[key]==null)?null:rows.reduce((sum,r)=>sum+(r[key]||0),0)])) as unknown as Stats;
@@ -63,6 +64,7 @@ function aggregate(rows:Stats[]):{total:Stats;rates:Record<string,number|null>} 
 function render(){
   const list=filtered(),active=list.filter(r=>r.event.status!=='cancelled'),rows=active.flatMap(r=>r.rows),{total}=aggregate(rows);
   $('summary').replaceChildren(card('Revenue · RM',money(total.salesAmount)),card('Attended',String(total.attended)),card('Closed Deals',String(total.closedDeals)),card('Pending submissions',String(active.filter(r=>!['submitted','finalized'].includes(r.event.status)).length)),card('Scheduled events',String(active.length)),card('Overdue submissions',String(active.filter(r=>r.event.displayStatus==='overdue').length)),card('Final reports',String(active.filter(r=>['submitted','finalized'].includes(r.event.status)).length)));
+  const upcoming=button('',()=>{$<HTMLSelectElement>('state').value='upcoming';selected=null;render();location.hash='#eventPanel';},'card upcoming-card');upcoming.id='upcomingEvents';upcoming.append(el('span','Upcoming Events'),el('strong',String(active.filter(r=>r.event.eventDate>malaysiaToday()).length)));upcoming.title='View events after today in Malaysia, using the current filters';$('summary').append(upcoming);
   const table=$('events');table.replaceChildren();
   for(const report of list.sort((a,b)=>a.event.eventDate.localeCompare(b.event.eventDate))){const e=report.event,tr=el('tr');
     const title=el('td');title.append(el('span',e.brand,'brand-label'),document.createTextNode(e.name));tr.append(title);
@@ -189,6 +191,8 @@ function showEvent(event:EventData|null=null,duplicate=false){
 }
 $<HTMLFormElement>('eventForm').onsubmit=event=>{event.preventDefault();void run(async()=>{const form=new FormData($<HTMLFormElement>('eventForm'));const body={name:form.get('name'),brand:form.get('brand'),eventDate:form.get('eventDate'),submissionDeadline:form.get('deadline')+':00+08:00',picUserId:form.get('picUserId'),assignedUserIds:form.getAll('assigned'),venue:form.get('venue'),notes:form.get('notes'),revision:editing?.revision};const report=await api<Report>('events'+(editing?'/'+editing.id:''),body);$<HTMLDialogElement>('eventDialog').close();await refresh();await openReport(report.event.id);message('Event saved.');})();};
 $('closeDialog').onclick=()=>$<HTMLDialogElement>('eventDialog').close();
+$('create').onclick=()=>showEvent();$('refresh').onclick=run(refresh);
+for(const id of ['month','brand','pic','state','search'])$(id).addEventListener('input',render);
 $('monthly').onclick=run(()=>download('export?month='+$<HTMLInputElement>('month').value,'final-events-'+$<HTMLInputElement>('month').value+'.csv'));
 const viewNames:Record<string,string>={'#overview':'Dashboard','#eventPanel':'Event Pipeline','#rankingPanel':'Team Performance','#teamPrivacy':'Team Member'};
 let teamPageLoading:Promise<void>|null=null;

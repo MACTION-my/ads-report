@@ -1,5 +1,7 @@
 # 验证记录 — 2026-10-23（马来西亚）
 
+2026-10-24 Upcoming Events：Dashboard 右下角第八张卡片，按当前筛选及 Malaysia 日期统计 eventDate 晚于今日的非取消/非归档活动；点击进入 Event Pipeline 并设 Upcoming 筛选，保留月份/品牌/PIC/搜索范围。卡片为键盘可操作的原生按钮。浏览器新增未来活动 fixture 验证计数与点击结果，同时发现前一版分屏导航遗漏 create/refresh/filter 事件绑定，已恢复并添加实际打开新建对话框、刷新、月份筛选的回归。38 项 Node 测试、TypeScript strict、Build、语法与桌面/手机流程通过。没有创建真实活动或新增服务连接。
+
 2026-10-24 Dashboard 阻塞修复、号码转交和分屏导航（8794467，Google v13，Pages 40081753421 发布成功）：生产执行列表观察到长请求及约 20.7 秒请求；只读复现 hubStart 返回通用500。旧实现把登录、Dashboard读取与所有写入放同一 ScriptLock，可能被长写入阻塞。读取和登录不再等待写锁，写操作保留 1 秒 tryLock、503 繁忙提示及原子批量提交；写入元数据改为 Sheets API 单次读取，避免 SpreadsheetApp 多次同步调用，原表尾行清理保留。新增阻塞锁回归测试。
 
 Admin Transfer number 在同一次 Members 原子提交中保留旧ID/姓名、清空其号码并停用，创建新 telesales ID 接同号码；旧统计、历史快照和活动分配不转移，不修改真实员工。Dashboard、Event Pipeline、Team Performance、Team Member 现在是按 hash 路由互斥显示的四个视图，手机有全部导航，成员页只给 Admin；支持直达及前进/后退。没有建立新后端或改变 OAuth scope。38 项 Node 测试、2 项 Python、TypeScript strict、Build、语法及桌面/手机流程通过；真实 hubStart/历史版本读取已恢复，24 场/68 条历史记录、6 个活跃账号与原金额核对通过。模拟 Google 浏览器验证号码转交和四页互斥。外部通知、自动 Drive 报表等未接通项不变。
