@@ -3,6 +3,7 @@ const fields = ['newLeads', 'junk', 'pta', 'attended', 'closedDeals', 'salesAmou
 const labels = { newLeads: 'New Leads (from ads)', junk: 'Junk (invalid / fake leads)', pta: 'PTA (confirmed to attend)', newLeadPta: 'New-lead PTA (optional)', attended: 'Attended (actual turnout)', closedDeals: 'Closed Deals', salesAmount: 'Amount (RM)', commission: 'Commission (manual, RM)', dealIncentive: 'Approved Incentive (RM)' };
 const rateLabels = { leadToJunk: 'Lead → Junk', leadToWon: 'Lead → Won', ptaToWon: 'PTA → Won', leadsToPta: 'Lead → PTA', leadToAttended: 'Lead → Attended', ptaToAttended: 'PTA → Attended', attendedToWon: 'Attended → Won' };
 const stateLabels = { draft: 'Draft', scheduled: 'Scheduled', awaiting_data: 'Awaiting data', submitted: 'Submitted · awaiting review', needs_correction: 'Needs correction', finalized: 'Final', overdue: 'Overdue', cancelled: 'Cancelled' };
+let canManageMembers = false;
 let me, users = [], reports = [], selected = null, editing = null, importPreview = null;
 const endpoint = document.querySelector('meta[name="event-hub-endpoint"]')?.content || '';
 // Translate legacy backend validation text without changing stored business data.
@@ -17,7 +18,7 @@ let sessionToken = '';
 function showLogin() { document.body.classList.add('is-login'); sessionToken = ''; try {
     sessionStorage.removeItem('eventHubSession');
 }
-catch { } $('teamPrivacy').hidden = true; $('manageVisibility').hidden = true; $('visibilityScope').hidden = true; $('login').hidden = false; $('content').hidden = true; $('logout').hidden = true; $('identity').textContent = ''; $('detail').replaceChildren(); selected = null; reports = []; }
+catch { } $('teamPrivacy').hidden = true; $('manageVisibility').hidden = true; $('manageMembersMobile').hidden = true; $('visibilityScope').hidden = true; $('login').hidden = false; $('content').hidden = true; $('logout').hidden = true; $('identity').textContent = ''; $('detail').replaceChildren(); selected = null; reports = []; }
 function googleCall(method, args) {
     return new Promise((resolve, reject) => {
         const receive = (reply) => { if (reply.ok)
@@ -101,10 +102,7 @@ function render() {
         const title = el('td');
         title.append(el('span', e.brand, 'brand-label'), document.createTextNode(e.name));
         tr.append(title);
-        tr.append(el('td', e.eventDate + ' / ' + name(e.picUserId)), el('td', isPlaceholder(e) ? 'Not set' : date(e.submissionDeadline)));
-        const statusCell = el('td');
-        statusCell.append(el('span', (stateLabels[e.displayStatus] || e.displayStatus) + (e.status !== 'finalized' ? ' · Not final' : ''), 'status-badge status-' + e.displayStatus));
-        tr.append(statusCell);
+        tr.append(el('td', e.eventDate + ' / ' + name(e.picUserId)));
         for (const text of [String(report.total.attended), String(report.total.closedDeals), money(report.total.salesAmount)])
             tr.append(el('td', text));
         const cell = el('td');
@@ -114,7 +112,7 @@ function render() {
     }
     if (!list.length) {
         const tr = el('tr'), td = el('td', '', 'empty-cell');
-        td.colSpan = 8;
+        td.colSpan = 6;
         const icon = el('span', '▤', 'empty-icon');
         icon.setAttribute('aria-hidden', 'true');
         td.append(icon, el('strong', 'Your next event starts here'), el('small', reports.some(r => !r.event.archived) ? 'Try a different month or filter.' : 'An admin can create an event to get the team started.'));
@@ -340,20 +338,35 @@ function renderImport(section, r) {
 }
 function renderTeamPrivacy(settings) {
     const panel = $('teamPrivacy'), head = el('div', '', 'section-head'), heading = el('div');
-    heading.append(el('span', 'ADMIN ONLY', 'eyebrow'), el('h2', 'Team privacy'));
+    heading.append(el('span', 'ADMIN ONLY', 'eyebrow'), el('h2', 'Team Member'));
     head.append(heading, button('Close', () => { panel.hidden = true; }, 'secondary'));
     panel.replaceChildren(head, el('p', 'Hidden data stays in your Admin view. Team dashboards, reports, versions, attendance and CSV exports exclude it. Login access is managed separately.', 'privacy-intro'));
+    if (canManageMembers) {
+        const form = el('form', '', 'toolbar member-add'), nameLabel = el('label', 'Name'), phoneLabel = el('label', 'Phone number'), nameInput = el('input'), phoneInput = el('input');
+        nameInput.required = true;
+        nameInput.maxLength = 200;
+        phoneInput.required = true;
+        phoneInput.type = 'tel';
+        phoneInput.placeholder = 'e.g. 0123456789';
+        nameLabel.append(nameInput);
+        phoneLabel.append(phoneInput);
+        const add = el('button', '＋ Add member');
+        add.type = 'submit';
+        form.append(nameLabel, phoneLabel, add);
+        form.onsubmit = event => { event.preventDefault(); void run(async () => { const result = await api('team-members', { displayName: nameInput.value, phone: phoneInput.value }); renderTeamPrivacy(canManageMembers ? await api('team-members') : result); users = (await api('me')).users; message('Member added. Phone sign-in is enabled.'); })(); };
+        panel.append(form, el('p', 'New members can submit their assigned events. Historical records without a registered phone cannot sign in.', 'hint'));
+    }
     const wrap = el('div', '', 'scroll'), table = el('table'), thead = el('thead'), header = el('tr');
-    for (const label of ['Member', 'Login', 'Data visibility', 'Actions'])
+    for (const label of ['Member', 'Phone / Role', 'Login', 'Data visibility', 'Actions'])
         header.append(el('th', label));
     thead.append(header);
     table.append(thead);
     const tbody = el('tbody');
     for (const member of settings.members) {
         const tr = el('tr');
-        tr.append(el('td', member.displayName), el('td', member.active ? 'Enabled' : 'Disabled'), el('td', member.hiddenFromTeam ? 'Admin only' : 'Shared with team'));
+        tr.append(el('td', member.displayName), el('td', (member.phone || 'No registered phone') + ' / ' + member.role), el('td', member.canLogin ? (member.active ? 'Enabled' : 'Disabled') : 'No login'), el('td', member.hiddenFromTeam ? 'Admin only' : 'Shared with team'));
         const actions = el('td');
-        const update = async (change) => { const result = await api('team-visibility', { revision: settings.revision, userId: member.id, ...change }); renderTeamPrivacy(result); users = (await api('me')).users; await refresh(); if (selected) {
+        const update = async (change) => { const result = await api('team-visibility', { revision: settings.revision, userId: member.id, ...change }); renderTeamPrivacy(canManageMembers ? await api('team-members') : result); users = (await api('me')).users; await refresh(); if (selected) {
             selected = await api('events/' + selected.event.id);
             renderDetail();
         } message('Team privacy settings saved.'); };
@@ -408,11 +421,12 @@ function showEvent(event = null, duplicate = false) {
 }
 $('eventForm').onsubmit = event => { event.preventDefault(); void run(async () => { const form = new FormData($('eventForm')); const body = { name: form.get('name'), brand: form.get('brand'), eventDate: form.get('eventDate'), submissionDeadline: form.get('deadline') + ':00+08:00', picUserId: form.get('picUserId'), assignedUserIds: form.getAll('assigned'), venue: form.get('venue'), notes: form.get('notes'), revision: editing?.revision }; const report = await api('events' + (editing ? '/' + editing.id : ''), body); $('eventDialog').close(); await refresh(); await openReport(report.event.id); message('Event saved.'); })(); };
 $('closeDialog').onclick = () => $('eventDialog').close();
-$('manageVisibility').onclick = run(async () => { const settings = await api('team-visibility'); renderTeamPrivacy(settings); $('teamPrivacy').hidden = false; $('teamPrivacy').scrollIntoView({ behavior: 'smooth' }); });
+$('manageVisibility').onclick = run(async () => { const settings = await api(canManageMembers ? 'team-members' : 'team-visibility'); renderTeamPrivacy(settings); $('teamPrivacy').hidden = false; $('teamPrivacy').scrollIntoView({ behavior: 'smooth' }); });
 $('create').onclick = () => showEvent();
 $('refresh').onclick = run(refresh);
 for (const id of ['month', 'brand', 'pic', 'state', 'search'])
     $(id).addEventListener('input', render);
+$('manageMembersMobile').onclick = $('manageVisibility').onclick;
 $('monthly').onclick = run(() => download('export?month=' + $('month').value, 'final-events-' + $('month').value + '.csv'));
 function updateNavigation() { for (const link of document.querySelectorAll('.nav-link')) {
     const active = link.hash === (location.hash || '#overview');
@@ -437,7 +451,9 @@ async function initialize(initial) {
     }
     me = result.user;
     users = result.users;
+    canManageMembers = Boolean(result.capabilities?.teamMembers);
     $('manageVisibility').hidden = me.role !== 'admin' || !result.capabilities?.teamVisibility;
+    $('manageMembersMobile').hidden = $('manageVisibility').hidden;
     $('visibilityScope').hidden = false;
     $('visibilityScope').textContent = me.role === 'admin' ? 'Admin view · Complete company data' : 'Team view · Shows only data shared with the team';
     $('identity').textContent = me.displayName + ' · ' + ({ admin: 'Admin', pic: 'Person in charge', telesales: 'Team member', viewer: 'Viewer' }[me.role]);

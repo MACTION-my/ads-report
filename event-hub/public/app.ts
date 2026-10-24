@@ -9,14 +9,15 @@ interface Stats {userId:string;displayName?:string;notes?:string;newLeads:number
 interface Report {event:EventData;rows:Stats[];total:Omit<Stats,'userId'>;rates:Record<string,number|null>;submissions:{version:number;actor:string;createdAt:string}[];completeness:{pendingUserIds:string[];missingNewLeadPta:number;unapprovedCommission:number};attendanceSummary:{records:number;attended:number;unattributed:number}}
 interface Preview {rows:Stats[];errors:{line:number;message:string}[];matches:string[];warnings:{userId:string;message:string}[]}
 interface InboxItem {eventId:string;eventName:string;type:string;status:string}
-interface TeamPrivacyMember extends Member {active:boolean;hiddenFromTeam:boolean;canLogin:boolean}
+interface TeamPrivacyMember extends Member {active:boolean;hiddenFromTeam:boolean;canLogin:boolean;phone?:string}
 interface TeamPrivacySettings {revision:number;members:TeamPrivacyMember[]}
-interface InitialData {user:Member;users:Member[];reports:Report[];inbox:InboxItem[];capabilities?:{teamVisibility:boolean}}
+interface InitialData {user:Member;users:Member[];reports:Report[];inbox:InboxItem[];capabilities?:{teamVisibility:boolean;teamMembers?:boolean}}
 const $=<T extends HTMLElement=HTMLElement>(id:string)=>document.getElementById(id) as T;
 const fields=['newLeads','junk','pta','attended','closedDeals','salesAmount','commission','dealIncentive'] as const;
 const labels:Record<string,string>={newLeads:'New Leads (from ads)',junk:'Junk (invalid / fake leads)',pta:'PTA (confirmed to attend)',newLeadPta:'New-lead PTA (optional)',attended:'Attended (actual turnout)',closedDeals:'Closed Deals',salesAmount:'Amount (RM)',commission:'Commission (manual, RM)',dealIncentive:'Approved Incentive (RM)'};
 const rateLabels:Record<string,string>={leadToJunk:'Lead → Junk',leadToWon:'Lead → Won',ptaToWon:'PTA → Won',leadsToPta:'Lead → PTA',leadToAttended:'Lead → Attended',ptaToAttended:'PTA → Attended',attendedToWon:'Attended → Won'};
 const stateLabels:Record<string,string>={draft:'Draft',scheduled:'Scheduled',awaiting_data:'Awaiting data',submitted:'Submitted · awaiting review',needs_correction:'Needs correction',finalized:'Final',overdue:'Overdue',cancelled:'Cancelled'};
+let canManageMembers=false;
 let me:Member,users:Member[]=[],reports:Report[]=[],selected:Report|null=null,editing:EventData|null=null,importPreview:{csv:string;revision:number}|null=null;
 const endpoint=document.querySelector<HTMLMetaElement>('meta[name="event-hub-endpoint"]')?.content||'';
 // Translate legacy backend validation text without changing stored business data.
@@ -27,7 +28,7 @@ const backendMessages:Record<string,string>={
 function englishMessage(text:string){for(const [original,translated]of Object.entries(backendMessages).sort((a,b)=>b[0].length-a[0].length))text=text.replaceAll(original,translated);return text;}
 const gasMode=Boolean(window.google?.script?.run||endpoint);
 let sessionToken='';
-function showLogin(){document.body.classList.add('is-login');sessionToken='';try{sessionStorage.removeItem('eventHubSession');}catch{}$('teamPrivacy').hidden=true;$('manageVisibility').hidden=true;$('visibilityScope').hidden=true;$('login').hidden=false;$('content').hidden=true;$('logout').hidden=true;$('identity').textContent='';$('detail').replaceChildren();selected=null;reports=[];}
+function showLogin(){document.body.classList.add('is-login');sessionToken='';try{sessionStorage.removeItem('eventHubSession');}catch{}$('teamPrivacy').hidden=true;$('manageVisibility').hidden=true;$('manageMembersMobile').hidden=true;$('visibilityScope').hidden=true;$('login').hidden=false;$('content').hidden=true;$('logout').hidden=true;$('identity').textContent='';$('detail').replaceChildren();selected=null;reports=[];}
 function googleCall<T>(method:'hubLogin'|'hubStart'|'hubLogout'|'hubCall',args:unknown[]):Promise<T>{return new Promise((resolve,reject)=>{
   const receive=(reply:GoogleReply)=>{if(reply.ok)resolve(reply.data as T);else{if(reply.status===401||reply.status===403&&method==='hubCall')showLogin();reject(new Error(reply.error||'Request failed'));}};
   if(endpoint){
@@ -66,12 +67,11 @@ function render(){
   const table=$('events');table.replaceChildren();
   for(const report of list.sort((a,b)=>a.event.eventDate.localeCompare(b.event.eventDate))){const e=report.event,tr=el('tr');
     const title=el('td');title.append(el('span',e.brand,'brand-label'),document.createTextNode(e.name));tr.append(title);
-    tr.append(el('td',e.eventDate+' / '+name(e.picUserId)),el('td',isPlaceholder(e)?'Not set':date(e.submissionDeadline)));
-    const statusCell=el('td');statusCell.append(el('span',(stateLabels[e.displayStatus]||e.displayStatus)+(e.status!=='finalized'?' · Not final':''),'status-badge status-'+e.displayStatus));tr.append(statusCell);
+    tr.append(el('td',e.eventDate+' / '+name(e.picUserId)));
     for(const text of [String(report.total.attended),String(report.total.closedDeals),money(report.total.salesAmount)])tr.append(el('td',text));
     const cell=el('td');cell.append(button('Open',async()=>{await openReport(e.id);}));tr.append(cell);table.append(tr);
   }
-  if(!list.length){const tr=el('tr'),td=el('td','','empty-cell') as HTMLTableCellElement;td.colSpan=8;const icon=el('span','▤','empty-icon');icon.setAttribute('aria-hidden','true');td.append(icon,el('strong','Your next event starts here'),el('small',reports.some(r=>!r.event.archived)?'Try a different month or filter.':'An admin can create an event to get the team started.'));tr.append(td);table.append(tr);}
+  if(!list.length){const tr=el('tr'),td=el('td','','empty-cell') as HTMLTableCellElement;td.colSpan=6;const icon=el('span','▤','empty-icon');icon.setAttribute('aria-hidden','true');td.append(icon,el('strong','Your next event starts here'),el('small',reports.some(r=>!r.event.archived)?'Try a different month or filter.':'An admin can create an event to get the team started.'));tr.append(td);table.append(tr);}
   const rankingRows=active.flatMap(report=>report.rows.filter(row=>!report.event.rankingExcludedUserIds?.includes(row.userId)));
   const groups=new Map<string,Stats[]>();for(const row of rankingRows)groups.set(row.userId,[...(groups.get(row.userId)||[]),row]);
   const ranks=[...groups].map(([id,values])=>({id,...aggregate(values).total})).sort((a,b)=>b.salesAmount-a.salesAmount);
@@ -155,10 +155,15 @@ function renderImport(section:HTMLElement,r:Report){
   box.append(button('Download CSV template',()=>download('template','event-performance-template.csv')),input,button('Preview & validate',async()=>{const file=input.files?.[0];if(!file)throw new Error('Choose a file first');if(file.size>2_000_000)throw new Error('CSV must be 2 MB or smaller');const csv=await file.text();const preview=await api<Preview>(`events/${r.event.id}/preview`,{revision:r.event.revision,csv});result.textContent=JSON.stringify(preview,(key,value)=>key==='message'&&typeof value==='string'?englishMessage(value):value,2);importPreview=preview.errors.length?null:{csv,revision:r.event.revision};commit.disabled=!importPreview||!mode.value;}),result,mode,commit);section.append(box);
 }
 function renderTeamPrivacy(settings:TeamPrivacySettings){
-  const panel=$('teamPrivacy'),head=el('div','','section-head'),heading=el('div');heading.append(el('span','ADMIN ONLY','eyebrow'),el('h2','Team privacy'));head.append(heading,button('Close',()=>{panel.hidden=true;},'secondary'));panel.replaceChildren(head,el('p','Hidden data stays in your Admin view. Team dashboards, reports, versions, attendance and CSV exports exclude it. Login access is managed separately.','privacy-intro'));
-  const wrap=el('div','','scroll'),table=el('table'),thead=el('thead'),header=el('tr');for(const label of ['Member','Login','Data visibility','Actions'])header.append(el('th',label));thead.append(header);table.append(thead);const tbody=el('tbody');
-  for(const member of settings.members){const tr=el('tr');tr.append(el('td',member.displayName),el('td',member.active?'Enabled':'Disabled'),el('td',member.hiddenFromTeam?'Admin only':'Shared with team'));const actions=el('td');
-    const update=async(change:{hidden?:boolean;active?:boolean})=>{const result=await api<TeamPrivacySettings>('team-visibility',{revision:settings.revision,userId:member.id,...change});renderTeamPrivacy(result);users=(await api<{users:Member[]}>('me')).users;await refresh();if(selected){selected=await api<Report>('events/'+selected.event.id);renderDetail();}message('Team privacy settings saved.');};
+  const panel=$('teamPrivacy'),head=el('div','','section-head'),heading=el('div');heading.append(el('span','ADMIN ONLY','eyebrow'),el('h2','Team Member'));head.append(heading,button('Close',()=>{panel.hidden=true;},'secondary'));panel.replaceChildren(head,el('p','Hidden data stays in your Admin view. Team dashboards, reports, versions, attendance and CSV exports exclude it. Login access is managed separately.','privacy-intro'));
+  if(canManageMembers){
+    const form=el('form','','toolbar member-add'),nameLabel=el('label','Name'),phoneLabel=el('label','Phone number'),nameInput=el('input') as HTMLInputElement,phoneInput=el('input') as HTMLInputElement;
+    nameInput.required=true;nameInput.maxLength=200;phoneInput.required=true;phoneInput.type='tel';phoneInput.placeholder='e.g. 0123456789';nameLabel.append(nameInput);phoneLabel.append(phoneInput);const add=el('button','＋ Add member') as HTMLButtonElement;add.type='submit';form.append(nameLabel,phoneLabel,add);
+    form.onsubmit=event=>{event.preventDefault();void run(async()=>{const result=await api<TeamPrivacySettings>('team-members',{displayName:nameInput.value,phone:phoneInput.value});renderTeamPrivacy(canManageMembers?await api<TeamPrivacySettings>('team-members'):result);users=(await api<{users:Member[]}>('me')).users;message('Member added. Phone sign-in is enabled.');})();};panel.append(form,el('p','New members can submit their assigned events. Historical records without a registered phone cannot sign in.','hint'));
+  }
+  const wrap=el('div','','scroll'),table=el('table'),thead=el('thead'),header=el('tr');for(const label of ['Member','Phone / Role','Login','Data visibility','Actions'])header.append(el('th',label));thead.append(header);table.append(thead);const tbody=el('tbody');
+  for(const member of settings.members){const tr=el('tr');tr.append(el('td',member.displayName),el('td',(member.phone||'No registered phone')+' / '+member.role),el('td',member.canLogin?(member.active?'Enabled':'Disabled'):'No login'),el('td',member.hiddenFromTeam?'Admin only':'Shared with team'));const actions=el('td');
+    const update=async(change:{hidden?:boolean;active?:boolean})=>{const result=await api<TeamPrivacySettings>('team-visibility',{revision:settings.revision,userId:member.id,...change});renderTeamPrivacy(canManageMembers?await api<TeamPrivacySettings>('team-members'):result);users=(await api<{users:Member[]}>('me')).users;await refresh();if(selected){selected=await api<Report>('events/'+selected.event.id);renderDetail();}message('Team privacy settings saved.');};
     if(member.role==='admin')actions.append(el('span','Admin account'));
     else{actions.append(button(member.hiddenFromTeam?'Share data with team':'Hide data from team',async()=>{if(!confirm(member.hiddenFromTeam?`Allow team members to see ${member.displayName}'s historical data again?`:`Hide ${member.displayName}'s data from all non-admin users? Your full Admin view and original records are preserved.`))return;await update({hidden:!member.hiddenFromTeam});},'secondary'));
       if(member.canLogin)actions.append(document.createTextNode(' '),button(member.active?'Disable login':'Enable login',async()=>{if(!confirm(member.active?`Disable ${member.displayName}'s login? Existing sessions will be rejected on the next request.`:`Enable the registered login for ${member.displayName}?`))return;await update({active:!member.active});},'secondary'));}
@@ -177,9 +182,10 @@ function showEvent(event:EventData|null=null,duplicate=false){
 }
 $<HTMLFormElement>('eventForm').onsubmit=event=>{event.preventDefault();void run(async()=>{const form=new FormData($<HTMLFormElement>('eventForm'));const body={name:form.get('name'),brand:form.get('brand'),eventDate:form.get('eventDate'),submissionDeadline:form.get('deadline')+':00+08:00',picUserId:form.get('picUserId'),assignedUserIds:form.getAll('assigned'),venue:form.get('venue'),notes:form.get('notes'),revision:editing?.revision};const report=await api<Report>('events'+(editing?'/'+editing.id:''),body);$<HTMLDialogElement>('eventDialog').close();await refresh();await openReport(report.event.id);message('Event saved.');})();};
 $('closeDialog').onclick=()=>$<HTMLDialogElement>('eventDialog').close();
-$('manageVisibility').onclick=run(async()=>{const settings=await api<TeamPrivacySettings>('team-visibility');renderTeamPrivacy(settings);$('teamPrivacy').hidden=false;$('teamPrivacy').scrollIntoView({behavior:'smooth'});});
+$('manageVisibility').onclick=run(async()=>{const settings=await api<TeamPrivacySettings>(canManageMembers?'team-members':'team-visibility');renderTeamPrivacy(settings);$('teamPrivacy').hidden=false;$('teamPrivacy').scrollIntoView({behavior:'smooth'});});
 $('create').onclick=()=>showEvent();$('refresh').onclick=run(refresh);
 for(const id of ['month','brand','pic','state','search'])$(id).addEventListener('input',render);
+$('manageMembersMobile').onclick=$('manageVisibility').onclick;
 $('monthly').onclick=run(()=>download('export?month='+$<HTMLInputElement>('month').value,'final-events-'+$<HTMLInputElement>('month').value+'.csv'));
 function updateNavigation(){for(const link of document.querySelectorAll<HTMLAnchorElement>('.nav-link')){const active=link.hash===(location.hash||'#overview');link.classList.toggle('is-active',active);if(active)link.setAttribute('aria-current','location');else link.removeAttribute('aria-current');}}
 window.addEventListener('hashchange',updateNavigation);updateNavigation();
@@ -187,7 +193,7 @@ async function initialize(initial?:InitialData){
   $<HTMLInputElement>('month').value=new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Kuala_Lumpur'}).slice(0,7);
   let result=initial;
   if(!result){if(gasMode)result=await api<InitialData>('bootstrap');else{const [identity,loadedReports,inbox]=await Promise.all([api<{user:Member;users:Member[]}>('me'),api<Report[]>('events'),api<InboxItem[]>('inbox')]);result={...identity,reports:loadedReports,inbox};}}
-  me=result.user;users=result.users;$('manageVisibility').hidden=me.role!=='admin'||!result.capabilities?.teamVisibility;$('visibilityScope').hidden=false;$('visibilityScope').textContent=me.role==='admin'?'Admin view · Complete company data':'Team view · Shows only data shared with the team';$('identity').textContent=me.displayName+' · '+({admin:'Admin',pic:'Person in charge',telesales:'Team member',viewer:'Viewer'}[me.role]);$('create').hidden=me.role!=='admin';
+  me=result.user;users=result.users;canManageMembers=Boolean(result.capabilities?.teamMembers);$('manageVisibility').hidden=me.role!=='admin'||!result.capabilities?.teamVisibility;$('manageMembersMobile').hidden=$('manageVisibility').hidden;$('visibilityScope').hidden=false;$('visibilityScope').textContent=me.role==='admin'?'Admin view · Complete company data':'Team view · Shows only data shared with the team';$('identity').textContent=me.displayName+' · '+({admin:'Admin',pic:'Person in charge',telesales:'Team member',viewer:'Viewer'}[me.role]);$('create').hidden=me.role!=='admin';
   const allPic=el('option','All PICs') as HTMLOptionElement;allPic.value='';$('pic').replaceChildren(allPic);for(const old of $('content').querySelectorAll('[data-inbox]'))old.remove();
   for(const user of users){const option=el('option',user.displayName) as HTMLOptionElement;option.value=user.id;$('pic').append(option);}
   reports=result.reports;render();$('content').hidden=false;message('');

@@ -2,6 +2,7 @@ import {assert,validateRow,totals,rates,warnings,status,parseCsv,csvExport,csvHe
 import {parseAttendance,attendanceHeaders} from '../attendance.mjs';
 import {visibilitySettingsId,hiddenTeamIds,eventHasHiddenData,projectTeamReport} from '../visibility.mjs';
 import {canonicalBrand,canonicalEvent} from '../brands.mjs';
+import {normalizeMalaysiaPhone} from '../phone.mjs';
 
 // Pure domain service shared by Apps Script and tests. The adapter commits all changed
 // tables in one atomic Sheets batch under a script lock; no SQL emulator is involved.
@@ -23,6 +24,18 @@ export class SheetHub {
       const ids=this.hiddenIds();if(typeof body.hidden==='boolean'){if(body.hidden)ids.add(target.userId);else ids.delete(target.userId);}config.teamHiddenUserIds=[...ids];this.touch(config);this.audit(actor,'member.visibility',target.userId,{hidden:ids.has(target.userId),active:target.active});
     }
     const hidden=this.hiddenIds();return {revision:config?.revision||0,members:this.data.Members.map(m=>({id:m.userId,displayName:m.displayName,role:m.role,active:m.active,hiddenFromTeam:hidden.has(m.userId),canLogin:Boolean(m.phone&&m.loginStatus==='phone_only')}))};
+  }
+  teamMembers(actor,body){
+    this.admin(actor);
+    if(body!==undefined){
+      assert(body&&typeof body.displayName==='string'&&body.displayName.trim()&&body.displayName.trim().length<=200,'Name is required (maximum 200 characters)');
+      const phone=normalizeMalaysiaPhone(body.phone),displayName=body.displayName.trim();
+      assert(!this.data.Members.some(m=>m.phone===phone),'This phone already has an account. Enable the existing login instead.',409);
+      assert(!this.data.Members.some(m=>m.displayName.trim().toLowerCase()===displayName.toLowerCase()),'This name already exists. Use a distinct name to avoid duplicate historical records.',409);
+      const userId=this.uuid();this.data.Members.push({userId,displayName,phone,role:'telesales',active:true,loginStatus:'phone_only',updatedAt:this.now});this.changed.add('Members');
+      this.audit(actor,'member.create',userId,{displayName,role:'telesales'});
+    }
+    const result=this.teamVisibility(actor);return {...result,members:result.members.map(m=>({...m,phone:this.data.Members.find(row=>row.userId===m.id).phone||''}))};
   }
   event(id){const event=this.data.Events.find(row=>row.id===id);assert(event,'活动不存在',404);return event;}
   rows(id){return this.data.Stats.filter(row=>row.eventId===id).map(row=>({...row,displayName:this.data.Members.find(u=>u.userId===row.userId)?.displayName||row.userId}));}
@@ -64,8 +77,9 @@ export class SheetHub {
   attendanceAccess(actor,event){assert(this.user(actor).role==='admin'||event.picUserId===actor,'名单明细仅 Admin / 本场 PIC 可见',403);}
   execute(actor,path,body){const result=this.executeRaw(actor,path,body);if(result?.event&&Array.isArray(result.rows))return this.visibleReport(actor,result);if(path==='events'&&body===undefined)return result.map(report=>this.visibleReport(actor,report));return result;}
   executeRaw(actor,path,body){this.user(actor);assert(typeof path==='string'&&path.length<=300,'路径无效');
+    if(path==='team-members')return this.teamMembers(actor,body);
     if(path==='team-visibility')return this.teamVisibility(actor,body);
-    if(path==='me'&&body===undefined){const me=this.members().find(row=>row.id===actor);return {user:me,users:this.members().filter(m=>me.role==='admin'||!this.hiddenIds().has(m.id)),capabilities:{teamVisibility:true}};}
+    if(path==='me'&&body===undefined){const me=this.members().find(row=>row.id===actor);return {user:me,users:this.members().filter(m=>me.role==='admin'||!this.hiddenIds().has(m.id)),capabilities:{teamVisibility:true,teamMembers:true}};}
     if(path==='events')return body===undefined?this.data.Events.filter(e=>e.id!==visibilitySettingsId).map(event=>this.report(event.id)):this.saveEvent(actor,body,null);
     if(path==='inbox')return this.data.Reminders.filter(row=>row.recipientUserId===actor&&row.deliveryStatus==='delivered_in_app').filter(row=>{const e=this.event(row.eventId);return !e.archived&&!['submitted','finalized','cancelled'].includes(e.status)&&(e.picUserId===actor||this.user(actor).role==='admin'||!this.rows(e.id).some(item=>item.userId===actor));}).map(row=>({...row,eventName:canonicalEvent(this.event(row.eventId)).name,status:this.event(row.eventId).status}));
     if(path==='template')return '\uFEFF'+csvHeaders.join(',')+'\r\n';

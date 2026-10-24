@@ -44,7 +44,8 @@ try{
   await page.getByRole('button',{name:'Sign out',exact:true}).click();await page.getByRole('button',{name:'Enter workspace',exact:true}).waitFor();
   if(await page.getByRole('link',{name:'← Back to Ads Report',exact:true}).count())throw Error('Ads link retained after logout');
   await page.getByRole('textbox',{name:'Registered phone number'}).fill('0000000000');await page.getByRole('button',{name:'Enter workspace',exact:true}).click();
-  await page.getByRole('button',{name:'Team privacy',exact:true}).click();
+  await page.getByRole('link',{name:'Team Member',exact:true}).click();
+  await page.getByRole('textbox',{name:'Name',exact:true}).fill('New Test Member');await page.getByRole('textbox',{name:'Phone number',exact:true}).fill('01123456789');await page.getByRole('button',{name:'＋ Add member',exact:true}).click();await page.locator('#teamPrivacy').getByRole('cell',{name:'New Test Member',exact:true}).waitFor();
   const staffRow=page.locator('#teamPrivacy').getByRole('row').filter({hasText:'Test Staff'});
   await staffRow.getByRole('button',{name:'Hide data from team',exact:true}).click();
   await staffRow.getByText('Admin only',{exact:true}).waitFor();
@@ -54,6 +55,6 @@ try{
   await page.getByRole('button',{name:'Sign out',exact:true}).click();await page.getByRole('button',{name:'Enter workspace',exact:true}).waitFor();
   await page.getByRole('textbox',{name:'Registered phone number'}).fill('0123456789');await page.getByRole('button',{name:'Enter workspace',exact:true}).click();
   await page.getByRole('button',{name:'Open',exact:true}).waitFor();
-  if(await page.getByRole('button',{name:'Team privacy',exact:true}).count())throw Error('Privacy management exposed to staff');
+  if(await page.getByRole('link',{name:'Team Member',exact:true}).count())throw Error('Privacy management exposed to staff');
   if(errors.length)throw new Error(errors.join(';'));console.log('Google transport mobile flow passed: phone login, own submission, logout; mock transport only.');
 }finally{await browser?.close();await new Promise(resolve=>server.close(resolve));sqlite.close();}

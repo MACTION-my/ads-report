@@ -44,7 +44,7 @@ th,td{font-size:14px;padding:16px 18px}th,.panel .scroll table th,#detail .scrol
 /* MACTION: warm ivory canvas and vivid Chinese red. */
 .source-report-link{display:inline-flex;align-items:center;min-height:42px;padding:9px 14px;border:1.5px solid #b9cae2;border-radius:10px;color:#294465;background:#fff;font-size:13px;font-weight:700}
 .scope-note{font-size:13px;font-weight:700;color:#526784;margin:-10px 0 22px}.privacy-intro{padding:4px 24px;font-size:14px;color:#526784}#teamPrivacy td button{font-size:13px;min-height:38px}#teamPrivacy td:last-child{white-space:normal;min-width:280px}#teamPrivacy{margin-bottom:26px}@media print{#teamPrivacy,.scope-note{display:none!important}}
-@media(max-width:760px){#teamPrivacy table{min-width:0}#teamPrivacy thead{display:none}#teamPrivacy tbody{display:grid;gap:13px;padding:15px}#teamPrivacy tr{display:block;border:1.5px solid #c5d2e6;border-radius:12px;background:#fff;padding:12px}#teamPrivacy td{display:block;white-space:normal;border:0;padding:5px 4px}#teamPrivacy td:first-child{font-size:17px;font-weight:800}#teamPrivacy td:nth-child(2)::before{content:'Login: ';font-weight:700}#teamPrivacy td:nth-child(3)::before{content:'Data: ';font-weight:700}#teamPrivacy td:last-child{min-width:0;padding-top:9px}#teamPrivacy td button{display:block;width:100%;margin:6px 0;min-height:44px}}
+@media(max-width:760px){#teamPrivacy table{min-width:0}#teamPrivacy thead{display:none}#teamPrivacy tbody{display:grid;gap:13px;padding:15px}#teamPrivacy tr{display:block;border:1.5px solid #c5d2e6;border-radius:12px;background:#fff;padding:12px}#teamPrivacy td{display:block;white-space:normal;border:0;padding:5px 4px}#teamPrivacy td:first-child{font-size:17px;font-weight:800}#teamPrivacy td:nth-child(2)::before{content:'Phone / Role: ';font-weight:700}#teamPrivacy td:nth-child(3)::before{content:'Login: ';font-weight:700}#teamPrivacy td:last-child{min-width:0;padding-top:9px}#teamPrivacy td button{display:block;width:100%;margin:6px 0;min-height:44px}}
 :root{--accent:#e60012;--accent-dark:#bf0010}
 body,.is-login{background:#f7f3e9}
 .brand-icon{background:linear-gradient(135deg,#ff261c,#e60012);box-shadow:0 5px 12px #e6001226}
@@ -64,3 +64,7 @@ body,.is-login{background:#f7f3e9}
 #summary .card:nth-child(1){background:linear-gradient(125deg,#f62018,#d80010)}
 .input-group:nth-child(3){background:#fff5e8;border-color:#e9c9a4}.input-group:nth-child(3) legend{color:#a74616}
 @media print{body{background:#fff}}
+
+.member-add{padding:4px 24px 16px}.member-add+.hint{padding:0 24px}#teamPrivacy td:nth-child(4)::before{font-weight:700}@media(max-width:760px){#teamPrivacy td:nth-child(4)::before{content:'Data: '}}
+
+.mobile-member-link{display:none}@media(max-width:760px){.mobile-member-link{display:block;border:1.5px solid var(--accent);border-radius:9px;padding:9px 13px;font-size:13px;font-weight:700;color:var(--accent)}}
