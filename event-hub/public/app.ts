@@ -61,9 +61,8 @@ function aggregate(rows:Stats[]):{total:Stats;rates:Record<string,number|null>} 
   return {total,rates:{leadToJunk:ratio(total.junk,total.newLeads),leadToWon:ratio(total.closedDeals,total.newLeads),ptaToWon:ratio(total.closedDeals,total.pta),leadsToPta:ratio(total.pta,total.newLeads),leadToAttended:ratio(total.attended,total.newLeads),ptaToAttended:ratio(total.attended,total.pta),attendedToWon:ratio(total.closedDeals,total.attended)}};
 }
 function render(){
-  const list=filtered(),active=list.filter(r=>r.event.status!=='cancelled'),rows=active.flatMap(r=>r.rows),{total,rates}=aggregate(rows);
+  const list=filtered(),active=list.filter(r=>r.event.status!=='cancelled'),rows=active.flatMap(r=>r.rows),{total}=aggregate(rows);
   $('summary').replaceChildren(card('Revenue · RM',money(total.salesAmount)),card('Attended',String(total.attended)),card('Closed Deals',String(total.closedDeals)),card('Pending submissions',String(active.filter(r=>!['submitted','finalized'].includes(r.event.status)).length)),card('Scheduled events',String(active.length)),card('Submitted incl. finals',String(active.filter(r=>['submitted','finalized'].includes(r.event.status)).length)),card('Overdue submissions',String(active.filter(r=>r.event.displayStatus==='overdue').length)),card('Final reports',String(active.filter(r=>r.event.status==='finalized').length)));
-  $('aggregate').replaceChildren(...Object.entries(rates).map(([key,value])=>card(rateLabels[key],rate(value))));
   const table=$('events');table.replaceChildren();
   for(const report of list.sort((a,b)=>a.event.eventDate.localeCompare(b.event.eventDate))){const e=report.event,tr=el('tr');
     const title=el('td');title.append(el('span',e.brand,'brand-label'),document.createTextNode(e.name));tr.append(title);
@@ -99,6 +98,7 @@ function renderDetail(){
   if(r.attendanceSummary.records && r.attendanceSummary.attended!==r.total.attended)section.append(el('p','Attendance list and performance counts differ. PIC review required.','warning'));
   if(e.correctionReason)section.append(el('p','Correction reason: '+e.correctionReason,'warning'));
   if(isPlaceholder(e))section.append(el('p','Awaiting actual data. Zero totals are placeholders, not confirmed results. Use Edit event to assign a team and set a submission deadline.','notice'));
+  const conversion=el('section','','conversion-panel'),conversionHead=el('div','','section-head'),conversionTitle=el('div');conversionTitle.append(el('span','THIS EVENT','eyebrow'),el('h2','Event Conversion Rates'));conversionHead.append(conversionTitle,el('span',e.name+' · '+e.eventDate,'hint'));const conversionCards=el('div','','cards');conversionCards.id='aggregate';conversionCards.append(...Object.entries(r.rates).map(([key,value])=>card(rateLabels[key],rate(value))));conversion.append(conversionHead,conversionCards);section.append(conversion);
   section.append(table(r.rows,r.total,r.rates));if(e.notes)section.append(el('p','Event notes: '+e.notes));
   for(const row of r.rows){if(row.notes)section.append(el('p',name(row.userId)+': '+row.notes));for(const warning of row.warnings||[])section.append(el('p',name(row.userId)+': '+englishMessage(warning),'warning'));}
   const actions=el('div','','toolbar no-print');actions.append(button('Print / Save PDF',()=>window.print()),button('Export event CSV',()=>download(`events/${e.id}/export`,e.name+'.csv')));
