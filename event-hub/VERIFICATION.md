@@ -1,8 +1,8 @@
 # 验证记录 — 2026-10-23（马来西亚）
 
-2026-10-24 五项流程优化（e79a885，Google v15，Pages 40084518603 发布成功）：活动列表 Admin 专用 Edit/Copy/Delete；Final 的 Edit 先填写原因重新打开，保留原快照。Delete 使用 archived+deletedAt 软删除，Deleted events 可恢复相同 ID、状态、名单和历史；普通成员无法读取已删除活动及直达历史/出席，列表和汇总排除。Node 与 Google 都实现删除/恢复并保持版本冲突/权限检查。复制入口包括行内 Copy 和 Copy previous event，保留可用 PIC/团队和场地，要求新日期/截止，清空旧备注，业绩及名单新场为空；不复制来源溯源或历史金额。
+2026-10-24 五项流程优化（e79a885，Google v15 首发；最终 v16、Pages 40084797888 发布成功（打印兼容 0236e25））：活动列表 Admin 专用 Edit/Copy/Delete；Final 的 Edit 先填写原因重新打开，保留原快照。Delete 使用 archived+deletedAt 软删除，Deleted events 可恢复相同 ID、状态、名单和历史；普通成员无法读取已删除活动及直达历史/出席，列表和汇总排除。Node 与 Google 都实现删除/恢复并保持版本冲突/权限检查。复制入口包括行内 Copy 和 Copy previous event，保留可用 PIC/团队和场地，要求新日期/截止，清空旧备注，业绩及名单新场为空；不复制来源溯源或历史金额。
 
-列表显示缺报人员，单场显示每人 Missing/Saved/Submitted 及最后记录时间，空团队明确要求分配。单场集中 Performance/Attendance 页签，CSV 高级导入折叠；名单仍遵守 Admin/PIC 权限及导入预览。保存成功显示 MYT 时间，单场显示最后保存时间；409 冲突、503 繁忙、网络中断与服务端500分别提示，未知写入结果要求先刷新核对；未知后端异常有非敏感错误引用及日志。40 项 Node 测试、2 项 Python、TypeScript strict、Build、语法及桌面/手机流程通过；真实接口只读核对 24 场历史活动、68 条绩效、6 个活跃账号及原金额不变。模拟 Google 实际复制/编辑/名单上传/删除/恢复，核对恢复名单与零继承业绩。未新增外部通知或自动 Drive 报表接入。没有修改、删除或复制真实活动。
+列表显示缺报人员，单场显示每人 Missing/Saved/Submitted 及最后记录时间，空团队明确要求分配。单场集中 Performance/Attendance 页签，CSV 高级导入折叠；名单仍遵守 Admin/PIC 权限及导入预览。保存成功显示 MYT 时间，单场显示最后保存时间；409 冲突、503 繁忙、网络中断与服务端500分别提示，未知写入结果要求先刷新核对；未知后端异常有非敏感错误引用及日志。40 项 Node 测试、2 项 Python、TypeScript strict、Build、语法及桌面/手机流程通过；真实接口只读核对 24 场历史活动、68 条绩效、6 个活跃账号及原金额不变。模拟 Google 实际复制/编辑/名单上传/删除/恢复，核对恢复名单与零继承业绩。未新增外部通知或自动 Drive 报表接入。没有修改、删除或复制真实活动。页签打印兼容补充：从 Attendance 打印先切回完整 Performance，浏览器回归通过；最后 TypeScript、Build、语法通过。
 
 2026-10-24 Upcoming Events（dac8ae6，Google v14，Pages 40083215802 发布成功）：Dashboard 右下角第八张卡片，按当前筛选及 Malaysia 日期统计 eventDate 晚于今日的非取消/非归档活动；点击进入 Event Pipeline 并设 Upcoming 筛选，保留月份/品牌/PIC/搜索范围。卡片为键盘可操作的原生按钮。浏览器新增未来活动 fixture 验证计数与点击结果，同时发现前一版分屏导航遗漏 create/refresh/filter 事件绑定，已恢复并添加实际打开新建对话框、刷新、月份筛选的回归。38 项 Node 测试、2 项 Python、TypeScript strict、Build、语法与桌面/手机流程通过。正式网页确认八张卡片，当前十月 Upcoming 为0，点击可筛选空列表并恢复 All statuses。没有创建真实活动或新增服务连接。
 

@@ -50,6 +50,7 @@ try{
   await page.getByRole('button',{name:'Complete event',exact:true}).click();
   if(await page.getByRole('button',{name:'Approve final report',exact:true}).count())throw Error('Unexpected approval step');
   await page.getByText('Final · v1',{exact:false}).waitFor();
+  await page.getByRole('tab',{name:'Attendance',exact:true}).click();await page.evaluate(()=>{window.print=()=>{window.printedPerformance=!document.getElementById('eventPerformancePane').hidden;};});await page.getByRole('button',{name:'Print / Save PDF',exact:true}).click();if(!await page.evaluate(()=>window.printedPerformance))throw Error('Print omitted performance after attendance tab');
   await page.setViewportSize({width:1366,height:1000});await page.screenshot({path:fileURLToPath(new URL('../qa/desktop.png',import.meta.url)),fullPage:true});
   await page.setViewportSize({width:390,height:844});await page.screenshot({path:fileURLToPath(new URL('../qa/mobile.png',import.meta.url)),fullPage:true});
   const overflow=await page.evaluate(()=>document.documentElement.scrollWidth>window.innerWidth);
