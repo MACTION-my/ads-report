@@ -40,3 +40,24 @@ th,td{font-size:14px;padding:16px 18px}th,.panel .scroll table th,#detail .scrol
 @media(max-width:1150px){:root{--sidebar:220px}.wrap{padding-inline:24px}.brand{font-size:19px}.nav-link{font-size:14px}.login-story{padding:36px 30px}.login-form{padding:42px 30px}.login-story h1{font-size:43px}.card{padding:18px}#summary .card:nth-child(n+5){padding:16px}.heading-actions{flex-direction:column}#aggregate{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:760px){:root{--sidebar:0px}.topbar{height:66px}.wrap{padding-inline:16px}.mobile-brand{font-size:15px}.mobile-brand span{display:none}.account #identity{font-size:12px}.account button{font-size:12px}.main-wrap{padding-top:24px}.page-heading{flex-direction:column;gap:16px}.page-heading h1{font-size:36px}.page-heading p{font-size:14px}.heading-actions{flex-direction:row;max-width:none;justify-content:flex-start}.heading-actions button{font-size:13px;padding:10px 13px;min-height:42px}.eyebrow{font-size:10px}.filter-bar{padding:15px}.filter-bar input,.filter-bar select{font-size:14px}.filter-bar button{flex:0 0 auto;font-size:13px}.section-kicker{font-size:14px;align-items:flex-start;gap:12px}.section-kicker small{font-size:11px;max-width:145px;text-align:right}#summary{gap:11px}.card{padding:16px;min-height:120px}.card>span,#summary .card:nth-child(-n+4)>span{font-size:13px;line-height:1.4}.card strong{font-size:30px;margin-top:14px}#summary .card:nth-child(n+5){padding:14px;min-height:108px}#summary .card:nth-child(n+5) strong{font-size:26px}.section-head{padding:19px 16px;flex-wrap:wrap;gap:9px}.section-head h2{font-size:22px}.section-head .hint{font-size:11px;max-width:none;text-align:left}.section-head .eyebrow{font-size:9px}.panel-note{font-size:11px}#aggregate{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;padding:15px}#aggregate .card{padding:13px;min-height:104px}#aggregate .card>span{font-size:12px}#aggregate .card strong{font-size:25px}.panel-foot{font-size:11px;padding:13px 16px}.rank-empty,.rankrow{font-size:14px}.person{padding:16px}.person>button{font-size:13px}#detail>h2{font-size:25px}.input-group legend{font-size:13px}.input-group label{font-size:13px}.input-group .inputs{gap:12px}.page-footer{font-size:10px;flex-direction:column;gap:5px}.connection-note p{font-size:12px}.is-login .topbar{height:62px}.is-login .mobile-brand{font-size:17px}.is-login .main-wrap{padding-top:0}.login-layout{grid-template-columns:1fr;border-radius:20px;min-height:0}.login-story{padding:27px}.login-brand{font-size:20px;margin-bottom:24px}.login-story h1{font-size:37px;margin:12px 0 16px;max-width:none}.login-story>p{font-size:14px;line-height:1.7}.login-story>.eyebrow{font-size:9px}.login-form{padding:29px 26px}.login-form h2{font-size:31px}.login-form>.eyebrow{font-size:9px}.login-intro{font-size:14px;margin-bottom:23px}.login-form label{font-size:14px}.login-form .hint{font-size:12px}.login-footer{font-size:12px}.login-form>.back-link{font-size:12px}dialog{padding:22px}.member{font-size:13px}}
 @media print{body{background:#fff;font-size:11px}#detail>h2{font-size:20px}td,th{font-size:9px;padding:4px}.status-badge{font-size:9px}}
+
+/* MACTION: warm ivory canvas and vivid Chinese red. */
+:root{--accent:#e60012;--accent-dark:#bf0010}
+body,.is-login{background:#f7f3e9}
+.brand-icon{background:linear-gradient(135deg,#ff261c,#e60012);box-shadow:0 5px 12px #e6001226}
+.nav-link.is-active{background:#fff0e5;color:#c90010;box-shadow:inset 4px 0 #e60012}
+.sidebar-note{background:#fff9ed;border-color:#e4d4b7;color:#282720;padding:20px 16px}
+.sidebar-note>strong{font-size:13px;letter-spacing:.14em;font-weight:850}
+.sidebar-note p{color:#26251f;font-size:28px;line-height:1.1;font-weight:850;margin-top:12px;letter-spacing:-.025em}
+.sidebar-note p>span{color:#e60012}
+.is-login .mobile-brand{color:#d00010}
+.login-layout{border-color:#fffdf7;box-shadow:0 24px 75px #73572612}
+.login-story{background:linear-gradient(145deg,#ff281d 0%,#e60012 58%,#c90010 100%)}
+.login-brand>span,.login-story>.eyebrow,.login-story>p,.login-steps small,.story-footer{color:#fff3dd}
+.login-story h1>span{color:#ffe08a}
+.form-symbol{background:#fff0df;color:#e60012}
+.login-form>button{background:linear-gradient(110deg,#f51b18,#e60012);box-shadow:0 7px 18px #e6001226}
+.login-form>button:hover{background:var(--accent-dark)}
+#summary .card:nth-child(1){background:linear-gradient(125deg,#f62018,#d80010)}
+.input-group:nth-child(3){background:#fff5e8;border-color:#e9c9a4}.input-group:nth-child(3) legend{color:#a74616}
+@media print{body{background:#fff}}
