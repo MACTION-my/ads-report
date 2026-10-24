@@ -25,8 +25,7 @@ const backendMessages:Record<string,string>={
 function englishMessage(text:string){for(const [original,translated]of Object.entries(backendMessages).sort((a,b)=>b[0].length-a[0].length))text=text.replaceAll(original,translated);return text;}
 const gasMode=Boolean(window.google?.script?.run||endpoint);
 let sessionToken='';
-function setAdsReportLink(admin=false){const link=$<HTMLAnchorElement>('adsReportLink');link.hidden=!admin;if(admin)link.href='https://ads.aikpi.my/';else link.removeAttribute('href');}
-function showLogin(){setAdsReportLink();document.body.classList.add('is-login');sessionToken='';try{sessionStorage.removeItem('eventHubSession');}catch{}$('login').hidden=false;$('content').hidden=true;$('logout').hidden=true;$('identity').textContent='';$('detail').replaceChildren();selected=null;reports=[];}
+function showLogin(){document.body.classList.add('is-login');sessionToken='';try{sessionStorage.removeItem('eventHubSession');}catch{}$('login').hidden=false;$('content').hidden=true;$('logout').hidden=true;$('identity').textContent='';$('detail').replaceChildren();selected=null;reports=[];}
 function googleCall<T>(method:'hubLogin'|'hubStart'|'hubLogout'|'hubCall',args:unknown[]):Promise<T>{return new Promise((resolve,reject)=>{
   const receive=(reply:GoogleReply)=>{if(reply.ok)resolve(reply.data as T);else{if(reply.status===401||reply.status===403&&method==='hubCall')showLogin();reject(new Error(reply.error||'Request failed'));}};
   if(endpoint){
@@ -167,7 +166,7 @@ async function initialize(initial?:InitialData){
   $<HTMLInputElement>('month').value=new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Kuala_Lumpur'}).slice(0,7);
   let result=initial;
   if(!result){if(gasMode)result=await api<InitialData>('bootstrap');else{const [identity,loadedReports,inbox]=await Promise.all([api<{user:Member;users:Member[]}>('me'),api<Report[]>('events'),api<InboxItem[]>('inbox')]);result={...identity,reports:loadedReports,inbox};}}
-  me=result.user;users=result.users;setAdsReportLink(me.role==='admin');$('identity').textContent=me.displayName+' · '+({admin:'Admin',pic:'Person in charge',telesales:'Team member',viewer:'Viewer'}[me.role]);$('create').hidden=me.role!=='admin';
+  me=result.user;users=result.users;$('identity').textContent=me.displayName+' · '+({admin:'Admin',pic:'Person in charge',telesales:'Team member',viewer:'Viewer'}[me.role]);$('create').hidden=me.role!=='admin';
   const allPic=el('option','All PICs') as HTMLOptionElement;allPic.value='';$('pic').replaceChildren(allPic);for(const old of $('content').querySelectorAll('[data-inbox]'))old.remove();
   for(const user of users){const option=el('option',user.displayName) as HTMLOptionElement;option.value=user.id;$('pic').append(option);}
   reports=result.reports;render();$('content').hidden=false;message('');

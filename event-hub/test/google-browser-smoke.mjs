@@ -37,6 +37,6 @@ try{
   await page.getByRole('status').filter({hasText:'Your results have been submitted'}).waitFor();
   if(domain.rows('1').length!==1)throw new Error('Submission not recorded');
   await page.getByRole('button',{name:'Sign out',exact:true}).click();await page.getByRole('button',{name:'Enter workspace',exact:true}).waitFor();
-  if(await page.locator('#adsReportLink').getAttribute('href'))throw Error('Ads link retained after logout');
+  if(await page.getByRole('link',{name:'← Back to Ads Report',exact:true}).count())throw Error('Ads link retained after logout');
   if(errors.length)throw new Error(errors.join(';'));console.log('Google transport mobile flow passed: phone login, own submission, logout; mock transport only.');
 }finally{await browser?.close();await new Promise(resolve=>server.close(resolve));sqlite.close();}
