@@ -59,6 +59,11 @@ function hubStart(phone){return hubEnvelope_(function(){const data=hubLoad_(hubI
 function hubLogout(token){return hubEnvelope_(function(){return hubSession_({Members:[]}).logout(token);});}
 function hubCall(token,path,body){return hubEnvelope_(function(){
   assert(JSON.stringify(body||{}).length<=2500000,'数据过大');
+  if(path==='calendar-status'||path==='calendar-sync'){
+    const identity=hubLoad_(['Members']),actor=hubSession_(identity).actor(token);new SheetHub(identity,new Date().toISOString(),function(){return Utilities.getUuid();}).admin(actor);
+    if(path==='calendar-status')return {enabled:hubProperties_().getProperty('HUB_CALENDAR_ENABLED')==='true',lastSync:hubProperties_().getProperty('HUB_CALENDAR_LAST_SYNC')||'',lastError:hubProperties_().getProperty('HUB_CALENDAR_LAST_ERROR')||''};
+    assert(body&&Object.keys(body).length===0,'Calendar sync does not accept client event data');return hubCalendarSync_(actor);
+  }
   const operation=function(){const data=hubLoad_(path==='bootstrap'?hubInitialTables_():undefined),actor=hubSession_(data).actor(token),hub=new SheetHub(data,new Date().toISOString(),function(){return Utilities.getUuid();});
     if(path==='bootstrap'){assert(body===null||body===undefined,'不接受写入数据');return hubInitial_(hub,actor);}
     const result=hub.execute(actor,path,body===null?undefined:body);hubCommit_(hub);return result;
@@ -67,5 +72,19 @@ function hubCall(token,path,body){return hubEnvelope_(function(){
   return body===null||body===undefined?operation():hubWithLock_(operation);
 });}
 // Private functions ending in _ cannot be invoked through google.script.run.
-function runScheduledReminders_(){const lock=LockService.getScriptLock();lock.waitLock(20000);try{const data=hubLoad_(),hub=new SheetHub(data,new Date().toISOString(),function(){return Utilities.getUuid();}),result=hub.remind();hubCommit_(hub);console.log(JSON.stringify(result));return result;}finally{lock.releaseLock();}}
+function runScheduledReminders_(){const lock=LockService.getScriptLock();lock.waitLock(20000);let result;try{const data=hubLoad_(),hub=new SheetHub(data,new Date().toISOString(),function(){return Utilities.getUuid();});result=hub.remind();hubCommit_(hub);}finally{lock.releaseLock();}if(hubProperties_().getProperty('HUB_CALENDAR_ENABLED')==='true')hubCalendarSync_();console.log(JSON.stringify(result));return result;}
 function installHubTrigger_(){assert(hubProperties_().getProperty('HUB_PHONE_ONLY_ENABLED')==='true','先完成部署配置');const existing=ScriptApp.getProjectTriggers().filter(function(trigger){return trigger.getHandlerFunction()==='runScheduledReminders_';});if(!existing.length)ScriptApp.newTrigger('runScheduledReminders_').timeBased().everyHours(1).create();return {installed:existing.length===0};}
+function hubCalendarSync_(requestedActor){
+  const properties=hubProperties_();assert(properties.getProperty('HUB_CALENDAR_ENABLED')==='true','Calendar sync is not enabled. Owner authorization is required.',503);
+  try{
+    const calendarId=properties.getProperty('HUB_CALENDAR_ID')||'primary';
+    const baseline=hubLoad_(['Members','Events']);const actor=requestedActor||baseline.Members.find(m=>m.active&&m.role==='admin')?.userId;
+    new SheetHub(baseline,new Date().toISOString(),function(){return Utilities.getUuid();}).admin(actor);
+    const now=Date.now(),options={timeMin:new Date(now-60*86400000).toISOString(),timeMax:new Date(now+180*86400000).toISOString(),singleEvents:true,showDeleted:true,maxResults:250,timeZone:'Asia/Kuala_Lumpur'},items=[];
+    let page;do{const response=Calendar.Events.list(calendarId,Object.assign({},options,page?{pageToken:page}:{}));items.push(...(response.items||[]));assert(items.length<=2000,'Calendar window exceeds 2,000 entries',503);page=response.nextPageToken;}while(page);
+    // Follow linked IDs even after rescheduling outside the rolling window.
+    const ids=new Set(items.map(item=>item.id));for(const event of baseline.Events){if(!event.calendarKey?.startsWith(calendarId+':')||event.archived)continue;const id=event.calendarKey.slice(calendarId.length+1);if(!ids.has(id)){try{items.push(Calendar.Events.get(calendarId,id));}catch(error){if(!/not found|gone|deleted|404|410/i.test(String(error.message)))throw error;items.push({id:id,status:'unavailable'});}ids.add(id);}}
+    const result=hubWithLock_(function(){const data=hubLoad_(),hub=new SheetHub(data,new Date().toISOString(),function(){return Utilities.getUuid();});const applied=syncCalendarSnapshot(hub,actor,calendarId,items);hubCommit_(hub);return applied;});
+    properties.setProperty('HUB_CALENDAR_LAST_SYNC',new Date().toISOString());properties.deleteProperty('HUB_CALENDAR_LAST_ERROR');return result;
+  }catch(error){properties.setProperty('HUB_CALENDAR_LAST_ERROR','Calendar sync failed. Existing system data was retained. Check Apps Script execution logs.');throw error;}
+}

@@ -125,6 +125,8 @@ function render() {
         const e = report.event, tr = el('tr');
         const title = el('td');
         title.append(el('span', e.brand, 'brand-label'), document.createTextNode(eventName(e.name)), el('small', report.completeness.pendingUserIds.length ? 'Missing: ' + report.completeness.pendingUserIds.map(name).join(', ') : e.assignedUserIds.length ? 'All assigned members have entered results' : 'No team assigned', 'entry-progress'));
+        if (e.calendarIssue)
+            title.append(el('small', 'Calendar change · Admin review needed', 'notice'));
         tr.append(title);
         tr.append(el('td', calendarDate(e.eventDate) + ' / ' + name(e.picUserId)));
         for (const text of [String(report.total.attended), String(report.total.closedDeals), money(report.total.salesAmount)])
@@ -225,6 +227,10 @@ function renderDetail() {
     section.hidden = currentView() !== '#eventPanel';
     section.replaceChildren();
     section.append(el('h2', e.brand + ' · ' + eventName(e.name)), el('p', `${calendarDate(e.eventDate)} · PIC ${name(e.picUserId)} · ${stateLabels[e.displayStatus]} · v${e.reportVersion} · Revision ${e.revision}`), el('p', `Deadline ${isPlaceholder(e) ? 'Not set' : date(e.submissionDeadline)} · Submitted by ${e.submittedBy ? name(e.submittedBy) : 'Not submitted'} · ${e.submittedAt ? date(e.submittedAt) : ''}`));
+    if (e.calendarStart)
+        section.append(el('p', 'Calendar schedule: ' + (e.calendarStart.includes('T') ? date(e.calendarStart) : calendarDate(e.calendarStart)) + ' · Malaysia time'));
+    if (e.calendarIssue)
+        section.append(el('p', e.calendarIssue, 'notice'));
     section.append(el('p', 'Last saved: ' + (e.updatedAt ? date(e.updatedAt) : 'No saved timestamp recorded'), 'saved-time'));
     if (!['submitted', 'finalized'].includes(e.status))
         section.append(el('p', 'Draft / not final. Do not use for final settlement.', 'notice'));
@@ -594,6 +600,22 @@ function showEvent(event = null, duplicate = false) {
 }
 $('eventForm').onsubmit = event => { event.preventDefault(); void run(async () => { const form = new FormData($('eventForm')); const body = { name: form.get('name'), brand: form.get('brand'), eventDate: inputDate(String(form.get('eventDate') || '')), submissionDeadline: inputDeadline(String(form.get('deadline') || '')), picUserId: form.get('picUserId'), assignedUserIds: form.getAll('assigned'), venue: form.get('venue'), notes: form.get('notes'), revision: editing?.revision }; const report = await api('events' + (editing ? '/' + editing.id : ''), body); $('eventDialog').close(); await refresh(); await openReport(report.event.id); saved('Event saved.'); })(); };
 $('closeDialog').onclick = () => $('eventDialog').close();
+$('closeCalendar').onclick = () => $('calendarDialog').close();
+$('calendarSync').onclick = run(async () => { $('calendarResults').replaceChildren(); $('calendarStatus').textContent = 'Checking Calendar connection…'; $('calendarDialog').showModal(); const status = await api('calendar-status'); $('calendarStatus').textContent = status.enabled ? 'Hourly sync enabled. Last sync: ' + (status.lastSync ? date(status.lastSync) : 'Not run yet') + (status.lastError ? ' · ' + status.lastError : '') : 'Not connected. Owner Calendar authorization and setup are required.'; $('runCalendarSync').disabled = !status.enabled; });
+$('runCalendarSync').onclick = run(async () => { const btn = $('runCalendarSync'); btn.disabled = true; $('calendarStatus').textContent = 'Syncing course schedules…'; try {
+    const result = await api('calendar-sync', {});
+    $('calendarStatus').textContent = 'Sync complete · ' + Object.entries(result.counts).map(([key, value]) => key + ': ' + value).join(' · ');
+    $('calendarResults').replaceChildren(...result.results.filter(r => r.action !== 'unchanged').map(r => el('p', r.name + ' · ' + r.action + (r.reason ? ' · ' + r.reason : ''))));
+    await refresh();
+    saved('Calendar schedules synced. Review new events and assign the responsible team.');
+}
+catch (error) {
+    $('calendarStatus').textContent = 'Sync failed. Refresh system data before retrying.';
+    throw error;
+}
+finally {
+    btn.disabled = false;
+} });
 $('create').onclick = () => showEvent();
 $('copyLatest').onclick = () => { const latest = reports.filter(r => !r.event.archived && (!$('brand').value || r.event.brand === $('brand').value)).sort((a, b) => b.event.eventDate.localeCompare(a.event.eventDate))[0]; if (!latest) {
     message('No previous event found. Create your first event instead.');
@@ -634,6 +656,7 @@ function updateNavigation() {
     document.querySelectorAll('.connection-note').forEach(node => node.hidden = view !== '#eventPanel');
     $('create').hidden = me.role !== 'admin' || view !== '#eventPanel';
     $('copyLatest').hidden = $('create').hidden;
+    $('calendarSync').hidden = $('create').hidden || !gasMode;
     $('monthly').hidden = view !== '#overview';
 }
 async function navigateView() {

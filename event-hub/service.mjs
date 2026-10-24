@@ -53,7 +53,7 @@ export class Hub {
         assert(input.revision===previous.revision,'活动已被修改，请刷新',409);
         assert(!['submitted','finalized','cancelled'].includes(previous.status),'已锁定活动不可修改');
       }
-      assert(['Pinyu','Franchise'].includes(input.brand),'品牌只能是 Pinyu / Franchise');
+      assert(['Pinyu','Franchise','AI','Other Courses'].includes(input.brand),'Invalid course brand');
       assert(typeof input.name==='string' && input.name.trim() && input.name.length<=200,'活动名称必填且最多 200 字');
       assert(typeof input.eventDate==='string' && /^\d{4}-\d{2}-\d{2}$/.test(input.eventDate) && Number.isFinite(Date.parse(input.eventDate)) && new Date(input.eventDate).toISOString().slice(0,10)===input.eventDate,'活动日期无效');
       assert(typeof input.submissionDeadline==='string' && /(?:Z|[+-]\d{2}:\d{2})$/.test(input.submissionDeadline) && Number.isFinite(Date.parse(input.submissionDeadline)),'截止日期须包含时区');

@@ -1,5 +1,13 @@
 # Google Sheets / Apps Script 运行方式
 
+## Calendar 单向排期同步（代码完成，待拥有者授权和正式发布）
+
+Calendar v3 高级服务及 calendar.events.readonly scope 用于仅读取活动。默认关闭；HUB_CALENDAR_ENABLED=true 才执行，HUB_CALENDAR_ID 默认为拥有者 primary。正式开启前必须取得拥有者对新增 Calendar 读取权限的确认并完成 Google 授权。已有小时站内提醒任务完成后执行同步，不另建重复触发器。Admin 在 Event Pipeline 可打开 Sync Calendar 查看连接状态、最后成功时间和错误，并 Sync now；普通成员无控制按钮或接口权限。
+
+读取过去60天至未来180天，分页完成后再拿写锁加载最新表并单批原子提交。已有链接即使改期到窗口外也按稳定 Calendar event ID 追踪；循环活动按 API 展开的 instance ID 区分。新建只含今天起的未来课程，过去未建报表的课程不补造业绩。业务课程按标题识别：Pinyu/绩效/品育，Franchise/连锁（包括 JB OFFLINE）、AI Agent/课程，以及其他 course/workshop/seminar/training/中文课程关键词。原始课程名保留；无匹配关键词的新课程名称需要扩充规则。私人标记、Gmail旅行、节假日和非课程条目跳过。仅保留课程标题、日期/起止时间、场地和来源ID，不复制说明、参与者或附件。
+
+新场 scheduled、零业绩、无分配团队，PIC 暂为运行同步的 Admin，须由 Admin 分配人员后填报。同品牌同日仅在唯一且线上/线下/课程类型匹配时关联既有报告，不明确者返回 review，不自动重建。已删除/归档不复活；日历取消或不可读只提示核对，不删除系统记录。有业绩/名单/最终版，或系统手工修改过的字段，遇源排期变化保留原值并显示 Admin review；空白未手改活动可以更新排期。自动默认截止随日期移动，手动截止须核对。业绩、名单、成员账号、隐私及历史版本不写入本模块。Calendar 到系统单向同步不改日历、不接通 Drive 模板复制或报表导出。
+
 用户明确选择：只输入已登记的手机号即可进入，无密码、无 OTP，知道登记号码即具有相应成员访问能力。Wilson 为 Admin，其余已提供的五位为 telesales。实际号码只保存在私有 Members 表，不进入代码仓库。Google Drive 存放历史来源/附件，Google Sheets 为后台存储，Apps Script 运行服务端和站内催交。
 
 Google 版本已实现并可独立构建，Node/SQLite 版保留作本地参考。Google Web App 需要在真实账号中授权、发布、验证后才可称为上线。后台表只供拥有者直接编辑，团队经页面访问。不要把 SQLite 文件上传 Drive 作为数据库。
