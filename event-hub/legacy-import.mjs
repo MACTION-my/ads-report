@@ -20,7 +20,7 @@ function value(cell){const v=cell?.effectiveValue||cell?.userEnteredValue||{};if
 const text=cell=>String(cell?.formattedValue??cell?.effectiveValue?.stringValue??cell?.userEnteredValue?.stringValue??'').trim();
 // Only accepts bounded CellData from the Conversion sheet. Never reads customer lists.
 // Returns a preview; it deliberately cannot commit or guess identity/segment ownership.
-export function previewLegacyConversion({sourceFileId,title,rowData,startRow=0,identityMap={}}){
+export function previewLegacyConversion({sourceFileId,title,rowData,startRow=0,identityMap={},allowNegativeSales=false}){
   assert(sourceFileId&&Array.isArray(rowData),'缺少来源或 CellData');
   const identity=sourceIdentity(title),sections=[],errors=[],notices=[];let active=null,context='';
   for(let index=0;index<rowData.length;index++){
@@ -37,7 +37,8 @@ export function previewLegacyConversion({sourceFileId,title,rowData,startRow=0,i
     try{
       const mapped=identityMap[label]||null;
       const raw={userId:mapped||'unmapped',newLeads:value(cells[1]),junk:value(cells[2]),pta:value(cells[3]),newLeadPta:null,attended:value(cells[4]),closedDeals:value(cells[5]),salesAmount:value(cells[6]),commission:null,dealIncentive:null};
-      const row=validateRow(raw);delete row.userId;
+      const negativeSales=allowNegativeSales&&typeof raw.salesAmount==='number'&&raw.salesAmount<0;
+      const row=validateRow(negativeSales?{...raw,salesAmount:-raw.salesAmount}:raw);if(negativeSales)row.salesAmount=raw.salesAmount;delete row.userId;
       const optional=column=>{try{const v=value(cells[column]);return typeof v==='number'&&Number.isFinite(v)&&v>=0?v:null;}catch{return null;}};
       active.rows.push({...row,userId:mapped,sourceName:label,sourceRow:line,sourceSegmentId:active.sourceSegmentId,
         sourceCommission:optional(9),sourceDealIncentive:optional(10),rates:rates(row),warnings:warnings(row)});

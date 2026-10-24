@@ -42,6 +42,7 @@ th,td{font-size:14px;padding:16px 18px}th,.panel .scroll table th,#detail .scrol
 @media print{body{background:#fff;font-size:11px}#detail>h2{font-size:20px}td,th{font-size:9px;padding:4px}.status-badge{font-size:9px}}
 
 /* MACTION: warm ivory canvas and vivid Chinese red. */
+.source-report-link{display:inline-flex;align-items:center;min-height:42px;padding:9px 14px;border:1.5px solid #b9cae2;border-radius:10px;color:#294465;background:#fff;font-size:13px;font-weight:700}
 :root{--accent:#e60012;--accent-dark:#bf0010}
 body,.is-login{background:#f7f3e9}
 .brand-icon{background:linear-gradient(135deg,#ff261c,#e60012);box-shadow:0 5px 12px #e6001226}

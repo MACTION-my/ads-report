@@ -54,7 +54,7 @@ function googleCall(method, args) {
 }
 const money = (v) => v === null || v === undefined ? 'Pending / N/A' : v.toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const rate = (v) => v === null || v === undefined ? 'N/A' : v.toFixed(1) + '%';
-const name = (id) => users.find(u => u.id === id)?.displayName || id;
+const name = (id) => users.find(u => u.id === id)?.displayName || reports.flatMap(r => r.rows).find(row => row.userId === id)?.displayName || id;
 const date = (iso) => new Date(iso).toLocaleString('en-MY', { timeZone: 'Asia/Kuala_Lumpur', hour12: false });
 function el(tag, text = '', className = '') { const node = document.createElement(tag); node.textContent = text; if (className)
     node.className = className; return node; }
@@ -101,7 +101,7 @@ function render() {
         const title = el('td');
         title.append(el('span', e.brand, 'brand-label'), document.createTextNode(e.name));
         tr.append(title);
-        tr.append(el('td', e.eventDate + ' / ' + name(e.picUserId)), el('td', date(e.submissionDeadline)));
+        tr.append(el('td', e.eventDate + ' / ' + name(e.picUserId)), el('td', isPlaceholder(e) ? 'Not set' : date(e.submissionDeadline)));
         const statusCell = el('td');
         statusCell.append(el('span', (stateLabels[e.displayStatus] || e.displayStatus) + (e.status !== 'finalized' ? ' · Not final' : ''), 'status-badge status-' + e.displayStatus));
         tr.append(statusCell);
@@ -130,6 +130,7 @@ function render() {
         $('ranking').append(el('p', 'Team results will appear after the first submission.', 'rank-empty'));
 }
 async function refresh() { reports = await api('events'); render(); }
+function isPlaceholder(e) { return Boolean(e.legacyPlaceholderDeadline && e.legacyPlaceholderDeadline === e.submissionDeadline); }
 function controls(e) { return me.role === 'admin' || me.id === e.picUserId; }
 function editable(e) { return controls(e) && !e.archived && ['scheduled', 'draft', 'awaiting_data', 'needs_correction'].includes(e.status); }
 async function openReport(id) { selected = await api('events/' + id); importPreview = null; renderDetail(); $('detail').scrollIntoView({ behavior: 'smooth' }); }
@@ -161,9 +162,11 @@ function renderDetail() {
     const r = selected, e = r.event, section = $('detail');
     section.hidden = false;
     section.replaceChildren();
-    section.append(el('h2', e.brand + ' · ' + e.name), el('p', `${e.eventDate} · PIC ${name(e.picUserId)} · ${stateLabels[e.displayStatus]} · v${e.reportVersion} · Revision ${e.revision}`), el('p', `Deadline ${date(e.submissionDeadline)} · Submitted by ${e.submittedBy ? name(e.submittedBy) : 'Not submitted'} · ${e.submittedAt ? date(e.submittedAt) : ''}`));
+    section.append(el('h2', e.brand + ' · ' + e.name), el('p', `${e.eventDate} · PIC ${name(e.picUserId)} · ${stateLabels[e.displayStatus]} · v${e.reportVersion} · Revision ${e.revision}`), el('p', `Deadline ${isPlaceholder(e) ? 'Not set' : date(e.submissionDeadline)} · Submitted by ${e.submittedBy ? name(e.submittedBy) : 'Not submitted'} · ${e.submittedAt ? date(e.submittedAt) : ''}`));
     if (e.status !== 'finalized')
         section.append(el('p', 'Draft / not final. Do not use for final settlement.', 'notice'));
+    if (e.legacySourceSection)
+        section.append(el('p', 'Historical snapshot imported from Drive. Source values are preserved and have not been newly approved. Empty template rows were skipped.', 'notice'));
     section.append(el('p', `Commission or incentive pending: ${r.completeness.unapprovedCommission} member(s).`));
     section.append(el('p', 'Awaiting submission: ' + (r.completeness.pendingUserIds.map(name).join(', ') || 'Everyone has submitted')));
     section.append(el('p', `Attendance records: ${r.attendanceSummary.records}; attended: ${r.attendanceSummary.attended}; unassigned: ${r.attendanceSummary.unattributed}. Attendance lists are reviewed separately and do not overwrite performance counts.`));
@@ -171,6 +174,8 @@ function renderDetail() {
         section.append(el('p', 'Attendance list and performance counts differ. PIC review required.', 'warning'));
     if (e.correctionReason)
         section.append(el('p', 'Correction reason: ' + e.correctionReason, 'warning'));
+    if (isPlaceholder(e))
+        section.append(el('p', 'Awaiting actual data. Zero totals are placeholders, not confirmed results. Use Edit event to assign a team and set a submission deadline.', 'notice'));
     section.append(table(r.rows, r.total, r.rates));
     if (e.notes)
         section.append(el('p', 'Event notes: ' + e.notes));
@@ -197,10 +202,17 @@ function renderDetail() {
             actions.append(button('Approve final report', async () => { if (confirm('Confirm that results, commission and incentives have been reviewed?'))
                 await transition('finalize'); }));
     }
+    if (controls(e) && e.legacySourceFileId && /^[A-Za-z0-9_-]+$/.test(e.legacySourceFileId)) {
+        const source = el('a', 'Open original Drive report', 'source-report-link');
+        source.href = 'https://docs.google.com/spreadsheets/d/' + e.legacySourceFileId + '/edit';
+        source.target = '_blank';
+        source.rel = 'noopener';
+        actions.append(source);
+    }
     section.append(actions);
     if (controls(e))
         renderAttendance(section, r);
-    if (editable(e))
+    if (editable(e) && e.assignedUserIds.length)
         renderInputs(section, r);
     else if (!e.archived && ['scheduled', 'draft', 'awaiting_data', 'needs_correction'].includes(e.status) && e.assignedUserIds.includes(me.id) && ['telesales', 'pic'].includes(me.role))
         renderInputs(section, r, true);
@@ -210,6 +222,9 @@ function renderDetail() {
 function renderAttendance(section, r) {
     const box = el('div', '', 'no-print person');
     box.append(el('h3', 'Attendance list · Admin / event PIC only'), el('p', 'Deduplicated by external attendee ID within this event. Set attended=1 for actual attendance or 0 for absence. Registration is not proof of attendance. Imports do not change performance ownership.'));
+    box.append(el('p', 'Upload here: download the attendance template, paste the actual attendee records, save as CSV, then preview and save. Only assign a team member when you know who owns that attendee. Leave unknown ownership blank.'));
+    if (!editable(r.event))
+        box.append(el('p', 'Uploads are available while the report is editable. Ask an Admin to return a submitted report for correction before changing its attendance list.', 'hint'));
     const output = el('pre');
     box.append(button('View restricted attendance', async () => { output.textContent = JSON.stringify(await api(`events/${r.event.id}/attendance`), null, 2); }));
     if (editable(r.event)) {
@@ -347,7 +362,7 @@ function showEvent(event = null, duplicate = false) {
             control(key).value = event[key];
         if (!duplicate) {
             control('eventDate').value = event.eventDate;
-            control('deadline').value = new Date(Date.parse(event.submissionDeadline) + 8 * 3600_000).toISOString().slice(0, 16);
+            control('deadline').value = isPlaceholder(event) ? '' : new Date(Date.parse(event.submissionDeadline) + 8 * 3600_000).toISOString().slice(0, 16);
         }
         else
             control('name').value = event.name + ' (new event)';

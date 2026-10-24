@@ -4,7 +4,7 @@ interface GoogleRunner {withSuccessHandler(callback:(reply:GoogleReply)=>void):G
 declare global {interface Window {google?:{script?:{run:GoogleRunner}}}}
 type Role='admin'|'pic'|'telesales'|'viewer';
 interface Member {id:string;displayName:string;role:Role}
-interface EventData {id:string;name:string;brand:string;eventDate:string;submissionDeadline:string;picUserId:string;assignedUserIds:string[];status:string;displayStatus:string;revision:number;reportVersion:number;venue:string;notes:string;archived:boolean;correctionReason?:string;submittedBy?:string;submittedAt?:string}
+interface EventData {id:string;name:string;brand:string;eventDate:string;submissionDeadline:string;picUserId:string;assignedUserIds:string[];status:string;displayStatus:string;revision:number;reportVersion:number;venue:string;notes:string;archived:boolean;correctionReason?:string;submittedBy?:string;submittedAt?:string;legacySourceFileId?:string;legacySourceSection?:string;legacyPlaceholderDeadline?:string}
 interface Stats {userId:string;displayName?:string;notes?:string;newLeads:number;junk:number;pta:number;newLeadPta:number|null;attended:number;closedDeals:number;salesAmount:number;commission:number|null;dealIncentive:number|null;warnings?:string[];rates?:Record<string,number|null>}
 interface Report {event:EventData;rows:Stats[];total:Omit<Stats,'userId'>;rates:Record<string,number|null>;submissions:{version:number;actor:string;createdAt:string}[];completeness:{pendingUserIds:string[];missingNewLeadPta:number;unapprovedCommission:number};attendanceSummary:{records:number;attended:number;unattributed:number}}
 interface Preview {rows:Stats[];errors:{line:number;message:string}[];matches:string[];warnings:{userId:string;message:string}[]}
@@ -36,7 +36,7 @@ function googleCall<T>(method:'hubLogin'|'hubStart'|'hubLogout'|'hubCall',args:u
 });}
 const money=(v:number|null|undefined)=>v===null||v===undefined?'Pending / N/A':v.toLocaleString('en-MY',{minimumFractionDigits:2,maximumFractionDigits:2});
 const rate=(v:number|null|undefined)=>v===null||v===undefined?'N/A':v.toFixed(1)+'%';
-const name=(id:string)=>users.find(u=>u.id===id)?.displayName||id;
+const name=(id:string)=>users.find(u=>u.id===id)?.displayName||reports.flatMap(r=>r.rows).find(row=>row.userId===id)?.displayName||id;
 const date=(iso:string)=>new Date(iso).toLocaleString('en-MY',{timeZone:'Asia/Kuala_Lumpur',hour12:false});
 function el(tag:string,text='',className='') {const node=document.createElement(tag);node.textContent=text;if(className)node.className=className;return node;}
 function message(text:string){$('message').textContent=englishMessage(text);}
@@ -64,7 +64,7 @@ function render(){
   const table=$('events');table.replaceChildren();
   for(const report of list.sort((a,b)=>a.event.eventDate.localeCompare(b.event.eventDate))){const e=report.event,tr=el('tr');
     const title=el('td');title.append(el('span',e.brand,'brand-label'),document.createTextNode(e.name));tr.append(title);
-    tr.append(el('td',e.eventDate+' / '+name(e.picUserId)),el('td',date(e.submissionDeadline)));
+    tr.append(el('td',e.eventDate+' / '+name(e.picUserId)),el('td',isPlaceholder(e)?'Not set':date(e.submissionDeadline)));
     const statusCell=el('td');statusCell.append(el('span',(stateLabels[e.displayStatus]||e.displayStatus)+(e.status!=='finalized'?' · Not final':''),'status-badge status-'+e.displayStatus));tr.append(statusCell);
     for(const text of [String(report.total.attended),String(report.total.closedDeals),money(report.total.salesAmount)])tr.append(el('td',text));
     const cell=el('td');cell.append(button('Open',async()=>{await openReport(e.id);}));tr.append(cell);table.append(tr);
@@ -76,6 +76,7 @@ function render(){
   if(!ranks.length)$('ranking').append(el('p','Team results will appear after the first submission.','rank-empty'));
 }
 async function refresh(){reports=await api<Report[]>('events');render();}
+function isPlaceholder(e:EventData){return Boolean(e.legacyPlaceholderDeadline&&e.legacyPlaceholderDeadline===e.submissionDeadline);}
 function controls(e:EventData){return me.role==='admin'||me.id===e.picUserId;}
 function editable(e:EventData){return controls(e)&&!e.archived&&['scheduled','draft','awaiting_data','needs_correction'].includes(e.status);}
 async function openReport(id:string){selected=await api<Report>('events/'+id);importPreview=null;renderDetail();$('detail').scrollIntoView({behavior:'smooth'});}
@@ -86,13 +87,15 @@ function table(rows:Stats[],total:Report['total'],rates:Record<string,number|nul
 }
 function renderDetail(){
   if(!selected)return;const r=selected,e=r.event,section=$('detail');section.hidden=false;section.replaceChildren();
-  section.append(el('h2',e.brand+' · '+e.name),el('p',`${e.eventDate} · PIC ${name(e.picUserId)} · ${stateLabels[e.displayStatus]} · v${e.reportVersion} · Revision ${e.revision}`),el('p',`Deadline ${date(e.submissionDeadline)} · Submitted by ${e.submittedBy?name(e.submittedBy):'Not submitted'} · ${e.submittedAt?date(e.submittedAt):''}`));
+  section.append(el('h2',e.brand+' · '+e.name),el('p',`${e.eventDate} · PIC ${name(e.picUserId)} · ${stateLabels[e.displayStatus]} · v${e.reportVersion} · Revision ${e.revision}`),el('p',`Deadline ${isPlaceholder(e)?'Not set':date(e.submissionDeadline)} · Submitted by ${e.submittedBy?name(e.submittedBy):'Not submitted'} · ${e.submittedAt?date(e.submittedAt):''}`));
   if(e.status!=='finalized')section.append(el('p','Draft / not final. Do not use for final settlement.','notice'));
+  if(e.legacySourceSection)section.append(el('p','Historical snapshot imported from Drive. Source values are preserved and have not been newly approved. Empty template rows were skipped.','notice'));
   section.append(el('p',`Commission or incentive pending: ${r.completeness.unapprovedCommission} member(s).`));
   section.append(el('p','Awaiting submission: '+(r.completeness.pendingUserIds.map(name).join(', ')||'Everyone has submitted')));
   section.append(el('p',`Attendance records: ${r.attendanceSummary.records}; attended: ${r.attendanceSummary.attended}; unassigned: ${r.attendanceSummary.unattributed}. Attendance lists are reviewed separately and do not overwrite performance counts.`));
   if(r.attendanceSummary.records && r.attendanceSummary.attended!==r.total.attended)section.append(el('p','Attendance list and performance counts differ. PIC review required.','warning'));
   if(e.correctionReason)section.append(el('p','Correction reason: '+e.correctionReason,'warning'));
+  if(isPlaceholder(e))section.append(el('p','Awaiting actual data. Zero totals are placeholders, not confirmed results. Use Edit event to assign a team and set a submission deadline.','notice'));
   section.append(table(r.rows,r.total,r.rates));if(e.notes)section.append(el('p','Event notes: '+e.notes));
   for(const row of r.rows){if(row.notes)section.append(el('p',name(row.userId)+': '+row.notes));for(const warning of row.warnings||[])section.append(el('p',name(row.userId)+': '+englishMessage(warning),'warning'));}
   const actions=el('div','','toolbar no-print');actions.append(button('Print / Save PDF',()=>window.print()),button('Export event CSV',()=>download(`events/${e.id}/export`,e.name+'.csv')));
@@ -103,14 +106,17 @@ function renderDetail(){
     if(['submitted','finalized'].includes(e.status))actions.append(button('Return for correction',async()=>{const reason=prompt('Enter the reason for correction');if(reason?.trim())await transition('return',{reason});}));
     if(e.status==='submitted')actions.append(button('Approve final report',async()=>{if(confirm('Confirm that results, commission and incentives have been reviewed?'))await transition('finalize');}));
   }
+  if(controls(e)&&e.legacySourceFileId&&/^[A-Za-z0-9_-]+$/.test(e.legacySourceFileId)){const source=el('a','Open original Drive report','source-report-link') as HTMLAnchorElement;source.href='https://docs.google.com/spreadsheets/d/'+e.legacySourceFileId+'/edit';source.target='_blank';source.rel='noopener';actions.append(source);}
   section.append(actions);
   if(controls(e))renderAttendance(section,r);
-  if(editable(e))renderInputs(section,r);
+  if(editable(e)&&e.assignedUserIds.length)renderInputs(section,r);
   else if(!e.archived&&['scheduled','draft','awaiting_data','needs_correction'].includes(e.status)&&e.assignedUserIds.includes(me.id)&&['telesales','pic'].includes(me.role))renderInputs(section,r,true);
   if(me.role==='admin'&&editable(e))renderImport(section,r);
 }
 function renderAttendance(section:HTMLElement,r:Report){
   const box=el('div','','no-print person');box.append(el('h3','Attendance list · Admin / event PIC only'),el('p','Deduplicated by external attendee ID within this event. Set attended=1 for actual attendance or 0 for absence. Registration is not proof of attendance. Imports do not change performance ownership.'));
+  box.append(el('p','Upload here: download the attendance template, paste the actual attendee records, save as CSV, then preview and save. Only assign a team member when you know who owns that attendee. Leave unknown ownership blank.'));
+  if(!editable(r.event))box.append(el('p','Uploads are available while the report is editable. Ask an Admin to return a submitted report for correction before changing its attendance list.','hint'));
   const output=el('pre');box.append(button('View restricted attendance',async()=>{output.textContent=JSON.stringify(await api(`events/${r.event.id}/attendance`),null,2);}));
   if(editable(r.event)){
     const file=el('input') as HTMLInputElement;file.type='file';file.accept='.csv';file.setAttribute('aria-label','Choose attendance CSV');
@@ -151,7 +157,7 @@ function showEvent(event:EventData|null=null,duplicate=false){
   editing=duplicate?null:event;const form=$<HTMLFormElement>('eventForm');form.reset();$('formTitle').textContent=duplicate?'Duplicate event · set a new date':event?'Edit event':'New event';
   const control=(key:string)=>form.elements.namedItem(key) as HTMLInputElement|HTMLSelectElement|HTMLTextAreaElement;
   const select=control('picUserId') as HTMLSelectElement;select.replaceChildren(...users.map(user=>{const option=el('option',user.displayName) as HTMLOptionElement;option.value=user.id;return option;}));
-  if(event){for(const key of ['name','brand','venue','notes','picUserId'] as const)control(key).value=event[key];if(!duplicate){control('eventDate').value=event.eventDate;control('deadline').value=new Date(Date.parse(event.submissionDeadline)+8*3600_000).toISOString().slice(0,16);}else control('name').value=event.name+' (new event)';}
+  if(event){for(const key of ['name','brand','venue','notes','picUserId'] as const)control(key).value=event[key];if(!duplicate){control('eventDate').value=event.eventDate;control('deadline').value=isPlaceholder(event)?'':new Date(Date.parse(event.submissionDeadline)+8*3600_000).toISOString().slice(0,16);}else control('name').value=event.name+' (new event)';}
   $('members').replaceChildren(...users.map(user=>{const label=el('label',user.displayName,'member'),checkbox=el('input') as HTMLInputElement;checkbox.type='checkbox';checkbox.name='assigned';checkbox.value=user.id;checkbox.checked=event?.assignedUserIds.includes(user.id)||false;label.prepend(checkbox);return label;}));
   $<HTMLDialogElement>('eventDialog').showModal();
 }
