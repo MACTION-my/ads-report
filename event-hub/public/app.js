@@ -17,7 +17,7 @@ let sessionToken = '';
 function showLogin() { document.body.classList.add('is-login'); sessionToken = ''; try {
     sessionStorage.removeItem('eventHubSession');
 }
-catch { } $('login').hidden = false; $('content').hidden = true; $('logout').hidden = true; $('identity').textContent = ''; $('detail').replaceChildren(); selected = null; reports = []; }
+catch { } $('teamPrivacy').hidden = true; $('manageVisibility').hidden = true; $('visibilityScope').hidden = true; $('login').hidden = false; $('content').hidden = true; $('logout').hidden = true; $('identity').textContent = ''; $('detail').replaceChildren(); selected = null; reports = []; }
 function googleCall(method, args) {
     return new Promise((resolve, reject) => {
         const receive = (reply) => { if (reply.ok)
@@ -133,7 +133,7 @@ function render() {
 async function refresh() { reports = await api('events'); render(); }
 function isPlaceholder(e) { return Boolean(e.legacyPlaceholderDeadline && e.legacyPlaceholderDeadline === e.submissionDeadline); }
 function controls(e) { return me.role === 'admin' || me.id === e.picUserId; }
-function editable(e) { return controls(e) && !e.archived && ['scheduled', 'draft', 'awaiting_data', 'needs_correction'].includes(e.status); }
+function editable(e) { return controls(e) && !e.readOnlyForTeam && !e.archived && ['scheduled', 'draft', 'awaiting_data', 'needs_correction'].includes(e.status); }
 async function openReport(id) { selected = await api('events/' + id); importPreview = null; renderDetail(); $('detail').scrollIntoView({ behavior: 'smooth' }); }
 function table(rows, total, rates) {
     const wrap = el('div', '', 'scroll'), tbl = el('table'), head = el('tr');
@@ -338,6 +338,41 @@ function renderImport(section, r) {
         throw new Error('CSV must be 2 MB or smaller'); const csv = await file.text(); const preview = await api(`events/${r.event.id}/preview`, { revision: r.event.revision, csv }); result.textContent = JSON.stringify(preview, (key, value) => key === 'message' && typeof value === 'string' ? englishMessage(value) : value, 2); importPreview = preview.errors.length ? null : { csv, revision: r.event.revision }; commit.disabled = !importPreview || !mode.value; }), result, mode, commit);
     section.append(box);
 }
+function renderTeamPrivacy(settings) {
+    const panel = $('teamPrivacy'), head = el('div', '', 'section-head'), heading = el('div');
+    heading.append(el('span', 'ADMIN ONLY', 'eyebrow'), el('h2', 'Team privacy'));
+    head.append(heading, button('Close', () => { panel.hidden = true; }, 'secondary'));
+    panel.replaceChildren(head, el('p', 'Hidden data stays in your Admin view. Team dashboards, reports, versions, attendance and CSV exports exclude it. Login access is managed separately.', 'privacy-intro'));
+    const wrap = el('div', '', 'scroll'), table = el('table'), thead = el('thead'), header = el('tr');
+    for (const label of ['Member', 'Login', 'Data visibility', 'Actions'])
+        header.append(el('th', label));
+    thead.append(header);
+    table.append(thead);
+    const tbody = el('tbody');
+    for (const member of settings.members) {
+        const tr = el('tr');
+        tr.append(el('td', member.displayName), el('td', member.active ? 'Enabled' : 'Disabled'), el('td', member.hiddenFromTeam ? 'Admin only' : 'Shared with team'));
+        const actions = el('td');
+        const update = async (change) => { const result = await api('team-visibility', { revision: settings.revision, userId: member.id, ...change }); renderTeamPrivacy(result); users = (await api('me')).users; await refresh(); if (selected) {
+            selected = await api('events/' + selected.event.id);
+            renderDetail();
+        } message('Team privacy settings saved.'); };
+        if (member.role === 'admin')
+            actions.append(el('span', 'Admin account'));
+        else {
+            actions.append(button(member.hiddenFromTeam ? 'Share data with team' : 'Hide data from team', async () => { if (!confirm(member.hiddenFromTeam ? `Allow team members to see ${member.displayName}'s historical data again?` : `Hide ${member.displayName}'s data from all non-admin users? Your full Admin view and original records are preserved.`))
+                return; await update({ hidden: !member.hiddenFromTeam }); }, 'secondary'));
+            if (member.canLogin)
+                actions.append(document.createTextNode(' '), button(member.active ? 'Disable login' : 'Enable login', async () => { if (!confirm(member.active ? `Disable ${member.displayName}'s login? Existing sessions will be rejected on the next request.` : `Enable the registered login for ${member.displayName}?`))
+                    return; await update({ active: !member.active }); }, 'secondary'));
+        }
+        tr.append(actions);
+        tbody.append(tr);
+    }
+    table.append(tbody);
+    wrap.append(table);
+    panel.append(wrap);
+}
 async function transition(action, extra = {}) { if (!selected)
     return; selected = await api(`events/${selected.event.id}/transition`, { revision: selected.event.revision, action, ...extra }); await refresh(); renderDetail(); message('Status updated.'); }
 async function download(path, fileName) { let blob; if (gasMode)
@@ -373,6 +408,7 @@ function showEvent(event = null, duplicate = false) {
 }
 $('eventForm').onsubmit = event => { event.preventDefault(); void run(async () => { const form = new FormData($('eventForm')); const body = { name: form.get('name'), brand: form.get('brand'), eventDate: form.get('eventDate'), submissionDeadline: form.get('deadline') + ':00+08:00', picUserId: form.get('picUserId'), assignedUserIds: form.getAll('assigned'), venue: form.get('venue'), notes: form.get('notes'), revision: editing?.revision }; const report = await api('events' + (editing ? '/' + editing.id : ''), body); $('eventDialog').close(); await refresh(); await openReport(report.event.id); message('Event saved.'); })(); };
 $('closeDialog').onclick = () => $('eventDialog').close();
+$('manageVisibility').onclick = run(async () => { const settings = await api('team-visibility'); renderTeamPrivacy(settings); $('teamPrivacy').hidden = false; $('teamPrivacy').scrollIntoView({ behavior: 'smooth' }); });
 $('create').onclick = () => showEvent();
 $('refresh').onclick = run(refresh);
 for (const id of ['month', 'brand', 'pic', 'state', 'search'])
@@ -401,6 +437,9 @@ async function initialize(initial) {
     }
     me = result.user;
     users = result.users;
+    $('manageVisibility').hidden = me.role !== 'admin' || !result.capabilities?.teamVisibility;
+    $('visibilityScope').hidden = false;
+    $('visibilityScope').textContent = me.role === 'admin' ? 'Admin view · Complete company data' : 'Team view · Shows only data shared with the team';
     $('identity').textContent = me.displayName + ' · ' + ({ admin: 'Admin', pic: 'Person in charge', telesales: 'Team member', viewer: 'Viewer' }[me.role]);
     $('create').hidden = me.role !== 'admin';
     const allPic = el('option', 'All PICs');

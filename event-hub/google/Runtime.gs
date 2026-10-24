@@ -47,7 +47,7 @@ function hubSession_(data){
 }
 function hubEnvelope_(operation){try{return {ok:true,data:operation()};}catch(error){if(!(error instanceof HubError))console.error(String(error.message||error));return {ok:false,error:error instanceof HubError?error.message:'服务处理失败，请管理员检查 Apps Script 执行记录',status:error instanceof HubError?error.status:500};}}
 function hubLogin(phone){return hubEnvelope_(function(){const lock=LockService.getScriptLock();lock.waitLock(20000);try{const data=hubLoad_(['Members']);return hubSession_(data).login(phone);}finally{lock.releaseLock();}});}
-function hubInitial_(hub,actor){const identity=hub.execute(actor,'me');return {user:identity.user,users:identity.users,reports:hub.execute(actor,'events'),inbox:hub.execute(actor,'inbox')};}
+function hubInitial_(hub,actor){const identity=hub.execute(actor,'me');return {user:identity.user,users:identity.users,capabilities:identity.capabilities,reports:hub.execute(actor,'events'),inbox:hub.execute(actor,'inbox')};}
 function hubInitialTables_(){return ['Members','Events','Stats','Attendance','Versions','Reminders'];}
 function hubStart(phone){return hubEnvelope_(function(){const lock=LockService.getScriptLock();lock.waitLock(20000);try{const data=hubLoad_(hubInitialTables_()),sessions=hubSession_(data),login=sessions.login(phone),actor=sessions.actor(login.token),hub=new SheetHub(data,new Date().toISOString(),function(){return Utilities.getUuid();});return {...login,initial:hubInitial_(hub,actor)};}finally{lock.releaseLock();}});}
 function hubLogout(token){return hubEnvelope_(function(){return hubSession_({Members:[]}).logout(token);});}

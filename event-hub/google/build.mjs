@@ -2,7 +2,7 @@ import fs from 'node:fs/promises';
 import {fileURLToPath} from 'node:url';
 import ts from 'typescript';
 const dir=new URL('./build/',import.meta.url);await fs.mkdir(dir,{recursive:true});
-const files=['../core.mjs','../phone.mjs','../attendance.mjs','sheet-schema.mjs','sheet-state.mjs','phone-sessions.mjs','sheet-service.mjs'];
+const files=['../core.mjs','../phone.mjs','../attendance.mjs','../visibility.mjs','sheet-schema.mjs','sheet-state.mjs','phone-sessions.mjs','sheet-service.mjs'];
 const code=[];
 for(const file of files){const source=await fs.readFile(new URL(file,import.meta.url),'utf8');code.push(source.replace(/^import .*?;\r?\n/gm,'').replace(/^export /gm,''));}
 code.push(await fs.readFile(new URL('./Runtime.gs',import.meta.url),'utf8'));

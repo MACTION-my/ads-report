@@ -17,8 +17,8 @@ state.Stats.push({eventId:'1',userId:'historical',newLeads:3,junk:0,pta:2,newLea
 server.listen(0,'127.0.0.1');await once(server,'listening');let browser;
 try{
   browser=await chromium.launch({channel:'msedge',headless:true});const context=await browser.newContext({viewport:{width:390,height:844}});
-  let loginRequests=0;
-  await context.exposeBinding('mockGoogleRpc',async(_source,method,args)=>{try{if(method==='hubStart'){loginRequests++;return {ok:true,data:{token:'mock-session-token-for-browser-tests',initial:{...domain.execute('staff','me'),reports:domain.execute('staff','events'),inbox:domain.execute('staff','inbox')}}};}if(method==='hubLogin')throw Error('Legacy login should not be called');if(method==='hubLogout')return {ok:true,data:{ok:true}};if(['me','events','inbox','bootstrap'].includes(args[1])&&args[2]===null&&domain.rows('1').length===0)throw Error('Redundant initialization request');return {ok:true,data:domain.execute('staff',args[1],args[2]===null?undefined:args[2])};}catch(error){return {ok:false,error:error.message,status:error.status};}});
+  let loginRequests=0,mockActor='staff';
+  await context.exposeBinding('mockGoogleRpc',async(_source,method,args)=>{try{if(method==='hubStart'){loginRequests++;mockActor=args[0]==='0000000000'?'owner':'staff';return {ok:true,data:{token:'mock-session-token-for-browser-tests',initial:{...domain.execute(mockActor,'me'),reports:domain.execute(mockActor,'events'),inbox:domain.execute(mockActor,'inbox')}}};}if(method==='hubLogin')throw Error('Legacy login should not be called');if(method==='hubLogout')return {ok:true,data:{ok:true}};if(['me','events','inbox','bootstrap'].includes(args[1])&&args[2]===null&&domain.rows('1').length===0)throw Error('Redundant initialization request');return {ok:true,data:domain.execute(mockActor,args[1],args[2]===null?undefined:args[2])};}catch(error){return {ok:false,error:error.message,status:error.status};}});
   await context.addInitScript(()=>{window.google={script:{get run(){let success,failure;return {withSuccessHandler(fn){success=fn;return this;},withFailureHandler(fn){failure=fn;return this;},hubStart(...args){window.mockGoogleRpc('hubStart',args).then(success,failure);},hubLogin(...args){window.mockGoogleRpc('hubLogin',args).then(success,failure);},hubLogout(...args){window.mockGoogleRpc('hubLogout',args).then(success,failure);},hubCall(...args){window.mockGoogleRpc('hubCall',args).then(success,failure);}};}}};});
   const page=await context.newPage(),errors=[];page.on('pageerror',error=>errors.push(error.message));page.on('dialog',dialog=>dialog.accept());
   await page.goto('http://127.0.0.1:'+server.address().port+'/report/');
@@ -43,5 +43,17 @@ try{
   if(!(await page.locator('#summary').innerText()).includes('99.00'))throw Error('Ranking exclusion changed event revenue');
   await page.getByRole('button',{name:'Sign out',exact:true}).click();await page.getByRole('button',{name:'Enter workspace',exact:true}).waitFor();
   if(await page.getByRole('link',{name:'← Back to Ads Report',exact:true}).count())throw Error('Ads link retained after logout');
+  await page.getByRole('textbox',{name:'Registered phone number'}).fill('0000000000');await page.getByRole('button',{name:'Enter workspace',exact:true}).click();
+  await page.getByRole('button',{name:'Team privacy',exact:true}).click();
+  const staffRow=page.locator('#teamPrivacy').getByRole('row').filter({hasText:'Test Staff'});
+  await staffRow.getByRole('button',{name:'Hide data from team',exact:true}).click();
+  await staffRow.getByText('Admin only',{exact:true}).waitFor();
+  if(!domain.hiddenIds().has('staff'))throw Error('Privacy button did not persist the server setting');
+  await page.screenshot({path:fileURLToPath(new URL('../qa/team-privacy-mobile.png',import.meta.url)),fullPage:true});
+  if(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth))throw Error('Privacy panel overflow');
+  await page.getByRole('button',{name:'Sign out',exact:true}).click();await page.getByRole('button',{name:'Enter workspace',exact:true}).waitFor();
+  await page.getByRole('textbox',{name:'Registered phone number'}).fill('0123456789');await page.getByRole('button',{name:'Enter workspace',exact:true}).click();
+  await page.getByRole('button',{name:'Open',exact:true}).waitFor();
+  if(await page.getByRole('button',{name:'Team privacy',exact:true}).count())throw Error('Privacy management exposed to staff');
   if(errors.length)throw new Error(errors.join(';'));console.log('Google transport mobile flow passed: phone login, own submission, logout; mock transport only.');
 }finally{await browser?.close();await new Promise(resolve=>server.close(resolve));sqlite.close();}
