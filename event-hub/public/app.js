@@ -131,7 +131,8 @@ async function refresh() { reports = await api('events'); render(); }
 function isPlaceholder(e) { return Boolean(e.legacyPlaceholderDeadline && e.legacyPlaceholderDeadline === e.submissionDeadline); }
 function controls(e) { return me.role === 'admin' || me.id === e.picUserId; }
 function editable(e) { return controls(e) && !e.readOnlyForTeam && !e.archived && ['scheduled', 'draft', 'awaiting_data', 'needs_correction'].includes(e.status); }
-async function openReport(id) { selected = await api('events/' + id); importPreview = null; renderDetail(); $('detail').scrollIntoView({ behavior: 'smooth' }); }
+async function openReport(id) { selected = await api('events/' + id); importPreview = null; renderDetail(); if (location.hash !== '#eventPanel')
+    history.pushState(null, '', '#eventPanel'); updateNavigation(); $('detail').scrollIntoView({ behavior: 'smooth' }); }
 function table(rows, total, rates) {
     const wrap = el('div', '', 'scroll'), tbl = el('table'), head = el('tr');
     for (const label of ['Telesales', ...fields.map(k => labels[k]), ...Object.values(rateLabels)])
@@ -158,7 +159,7 @@ function renderDetail() {
     if (!selected)
         return;
     const r = selected, e = r.event, section = $('detail');
-    section.hidden = false;
+    section.hidden = currentView() !== '#eventPanel';
     section.replaceChildren();
     section.append(el('h2', e.brand + ' · ' + e.name), el('p', `${e.eventDate} · PIC ${name(e.picUserId)} · ${stateLabels[e.displayStatus]} · v${e.reportVersion} · Revision ${e.revision}`), el('p', `Deadline ${isPlaceholder(e) ? 'Not set' : date(e.submissionDeadline)} · Submitted by ${e.submittedBy ? name(e.submittedBy) : 'Not submitted'} · ${e.submittedAt ? date(e.submittedAt) : ''}`));
     if (!['submitted', 'finalized'].includes(e.status))
@@ -343,7 +344,7 @@ function renderImport(section, r) {
 function renderTeamPrivacy(settings) {
     const panel = $('teamPrivacy'), head = el('div', '', 'section-head'), heading = el('div');
     heading.append(el('span', 'ADMIN ONLY', 'eyebrow'), el('h2', 'Team Member'));
-    head.append(heading, button('Close', () => { panel.hidden = true; }, 'secondary'));
+    head.append(heading);
     panel.replaceChildren(head, el('p', 'Hidden data stays in your Admin view. Team dashboards, reports, versions, attendance and CSV exports exclude it. Login access is managed separately.', 'privacy-intro'));
     if (canManageMembers) {
         const form = el('form', '', 'toolbar member-add'), nameLabel = el('label', 'Name'), phoneLabel = el('label', 'Phone number'), nameInput = el('input'), phoneInput = el('input');
@@ -405,6 +406,27 @@ function renderTeamPrivacy(settings) {
                 nameInput.focus();
             }, 'secondary'), button('Delete', async () => { if (confirm(`Delete ${member.displayName} from Team Member and revoke login? Historical reports remain unchanged. You can restore the member later.`))
                 await memberAction({ action: 'delete' }); }, 'secondary'));
+        if (canManageMembers && member.role !== 'admin' && member.phone)
+            actions.append(button('Transfer number', () => {
+                const editor = el('form', '', 'toolbar member-add member-editor'), label = el('label', 'New employee name'), input = el('input');
+                input.required = true;
+                input.maxLength = 200;
+                label.append(input);
+                const save = el('button', 'Transfer to new employee');
+                save.type = 'submit';
+                editor.append(el('p', `Transfer ${member.phone} from ${member.displayName}. Old reports keep the old employee name. New results use a new member ID.`), label, save, button('Cancel', () => editor.remove(), 'secondary'));
+                editor.onsubmit = event => { event.preventDefault(); if (!confirm(`Transfer this number to ${input.value.trim()} and disable ${member.displayName}'s login? Historical ownership stays unchanged.`))
+                    return; void run(async () => { save.disabled = true; try {
+                    await memberAction({ action: 'transfer', displayName: input.value });
+                }
+                finally {
+                    save.disabled = false;
+                } })(); };
+                panel.querySelector('.member-editor')?.remove();
+                panel.insertBefore(editor, wrap);
+                editor.scrollIntoView({ behavior: 'smooth' });
+                input.focus();
+            }, 'secondary'));
         if (member.role === 'admin')
             actions.append(el('span', 'Admin account'));
         else {
@@ -467,22 +489,66 @@ function showEvent(event = null, duplicate = false) {
 }
 $('eventForm').onsubmit = event => { event.preventDefault(); void run(async () => { const form = new FormData($('eventForm')); const body = { name: form.get('name'), brand: form.get('brand'), eventDate: form.get('eventDate'), submissionDeadline: form.get('deadline') + ':00+08:00', picUserId: form.get('picUserId'), assignedUserIds: form.getAll('assigned'), venue: form.get('venue'), notes: form.get('notes'), revision: editing?.revision }; const report = await api('events' + (editing ? '/' + editing.id : ''), body); $('eventDialog').close(); await refresh(); await openReport(report.event.id); message('Event saved.'); })(); };
 $('closeDialog').onclick = () => $('eventDialog').close();
-$('manageVisibility').onclick = run(async () => { const settings = await api(canManageMembers ? 'team-members' : 'team-visibility'); renderTeamPrivacy(settings); $('teamPrivacy').hidden = false; $('teamPrivacy').scrollIntoView({ behavior: 'smooth' }); });
-$('create').onclick = () => showEvent();
-$('refresh').onclick = run(refresh);
-for (const id of ['month', 'brand', 'pic', 'state', 'search'])
-    $(id).addEventListener('input', render);
-$('manageMembersMobile').onclick = $('manageVisibility').onclick;
 $('monthly').onclick = run(() => download('export?month=' + $('month').value, 'final-events-' + $('month').value + '.csv'));
-function updateNavigation() { for (const link of document.querySelectorAll('.nav-link')) {
-    const active = link.hash === (location.hash || '#overview');
-    link.classList.toggle('is-active', active);
-    if (active)
-        link.setAttribute('aria-current', 'location');
+const viewNames = { '#overview': 'Dashboard', '#eventPanel': 'Event Pipeline', '#rankingPanel': 'Team Performance', '#teamPrivacy': 'Team Member' };
+let teamPageLoading = null;
+function currentView() { return viewNames[location.hash] ? location.hash : '#overview'; }
+function updateNavigation() {
+    const view = currentView(), loggedIn = Boolean(me) && !$('content').hidden;
+    for (const link of document.querySelectorAll('.nav-link,.mobile-nav a')) {
+        const active = link.hash === view;
+        link.classList.toggle('is-active', active);
+        if (active)
+            link.setAttribute('aria-current', 'page');
+        else
+            link.removeAttribute('aria-current');
+    }
+    if (!loggedIn)
+        return;
+    if (view === '#teamPrivacy' && $('manageVisibility').hidden) {
+        location.hash = '#overview';
+        return;
+    }
+    $('workspaceTitle').textContent = viewNames[view];
+    document.title = viewNames[view] + ' · MACTION';
+    $('summary').hidden = view !== '#overview';
+    $('eventPanel').hidden = view !== '#eventPanel';
+    $('rankingPanel').hidden = view !== '#rankingPanel';
+    $('teamPrivacy').hidden = view !== '#teamPrivacy';
+    $('detail').hidden = view !== '#eventPanel' || !selected;
+    document.querySelectorAll('.section-kicker,[data-inbox]').forEach(node => node.hidden = view !== '#overview');
+    document.querySelectorAll('.filter-bar').forEach(node => node.hidden = view === '#teamPrivacy');
+    document.querySelectorAll('.connection-note').forEach(node => node.hidden = view !== '#eventPanel');
+    $('create').hidden = me.role !== 'admin' || view !== '#eventPanel';
+    $('monthly').hidden = view !== '#overview';
+}
+async function navigateView() {
+    updateNavigation();
+    if (!me || $('content').hidden)
+        return;
+    if (currentView() === '#teamPrivacy' && !$('manageVisibility').hidden) {
+        if (!teamPageLoading) {
+            $('teamPrivacy').replaceChildren(el('p', 'Loading members…', 'privacy-intro'));
+            teamPageLoading = (async () => { try {
+                const settings = await api(canManageMembers ? 'team-members' : 'team-visibility');
+                if (currentView() === '#teamPrivacy')
+                    renderTeamPrivacy(settings);
+            }
+            finally {
+                teamPageLoading = null;
+            } })();
+        }
+        await teamPageLoading;
+    }
+    $('overview').scrollIntoView({ behavior: 'instant' });
+}
+window.addEventListener('hashchange', run(navigateView));
+window.addEventListener('popstate', run(navigateView));
+for (const link of document.querySelectorAll('.nav-link,.mobile-nav a'))
+    link.onclick = event => { event.preventDefault(); if (location.hash === link.hash)
+        void run(navigateView)();
     else
-        link.removeAttribute('aria-current');
-} }
-window.addEventListener('hashchange', updateNavigation);
+        location.hash = link.hash; };
 updateNavigation();
 async function initialize(initial) {
     $('month').value = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kuala_Lumpur' }).slice(0, 7);
@@ -530,6 +596,7 @@ async function initialize(initial) {
     $('login').hidden = true;
     $('logout').hidden = !gasMode;
     document.body.classList.remove('is-login');
+    await navigateView();
 }
 $('phoneLogin').onsubmit = event => { event.preventDefault(); void run(async () => { const form = $('phoneLogin'), submit = form.querySelector('button'); submit.disabled = true; submit.setAttribute('aria-busy', 'true'); message('Signing in and loading your workspace…'); try {
     const result = await googleCall('hubStart', [String(new FormData(form).get('phone') || '')]);

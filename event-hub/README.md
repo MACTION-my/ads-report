@@ -79,3 +79,5 @@ Admin Team Member: sidebar entry (mobile action on small screens) lists register
 Event completion no longer needs approval: Admin/PIC uses Complete event after entering the assigned results, creating a locked final snapshot directly. Individual submissions do not lock teammates out. Legacy submitted records count and export as completed without rewriting immutable history.
 
 Team Member editing and recoverable deletion are Admin-only. Edit changes name/phone with a concurrency token. Delete revokes login and moves the identity into Deleted members; Restore retains the same ID and historical results, with login disabled until explicitly enabled. Admin identities are protected.
+
+Workspace navigation uses four exclusive hash views (overview, eventPanel, rankingPanel, teamPrivacy), with mobile links and browser history support. Admin Transfer number creates a new member ID while disabling the previous login and preserving all historical ownership. Dashboard reads no longer take the global writer lock; mutations still serialize and return a retryable 503 when busy.

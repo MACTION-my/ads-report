@@ -33,20 +33,23 @@ try{
   }
   await page.setViewportSize({width:390,height:844});
   await page.getByRole('textbox',{name:'Registered phone number'}).fill('0123456789');await page.getByRole('button',{name:'Enter workspace',exact:true}).click();
+  await page.getByRole('link',{name:'Event Pipeline',exact:true}).click();
   await page.getByRole('button',{name:'Open',exact:true}).waitFor();if(loginRequests!==1)throw Error('Expected one combined login request');
   if(await page.getByRole('link',{name:'← Back to Ads Report',exact:true}).count())throw Error('Ads link exposed to a team member');
   if(/[\p{Script=Han}]/u.test(await page.locator('body').innerText()))throw Error('Unexpected Chinese interface text');
   await page.getByRole('button',{name:'Open',exact:true}).click();await page.getByRole('button',{name:'Submit my results',exact:true}).click();
   await page.getByRole('status').filter({hasText:'Your results have been submitted'}).waitFor();
   if(domain.rows('1').length!==2)throw new Error('Submission not recorded or historical record lost');
-  if((await page.locator('#ranking').innerText()).includes('Hidden Historical Member'))throw Error('Excluded historical member still ranked');
-  if(!(await page.locator('#summary').innerText()).includes('99.00'))throw Error('Ranking exclusion changed event revenue');
+  if((await page.locator('#ranking').textContent()).includes('Hidden Historical Member'))throw Error('Excluded historical member still ranked');
+  if(!(await page.locator('#summary').textContent()).includes('99.00'))throw Error('Ranking exclusion changed event revenue');
   await page.getByRole('button',{name:'Sign out',exact:true}).click();await page.getByRole('button',{name:'Enter workspace',exact:true}).waitFor();
   if(await page.getByRole('link',{name:'← Back to Ads Report',exact:true}).count())throw Error('Ads link retained after logout');
   await page.getByRole('textbox',{name:'Registered phone number'}).fill('0000000000');await page.getByRole('button',{name:'Enter workspace',exact:true}).click();
   await page.getByRole('link',{name:'Team Member',exact:true}).click();
   await page.getByRole('textbox',{name:'Name',exact:true}).fill('New Test Member');await page.getByRole('textbox',{name:'Phone number',exact:true}).fill('01123456789');await page.getByRole('button',{name:'＋ Add member',exact:true}).click();await page.locator('#teamPrivacy').getByRole('cell',{name:'New Test Member',exact:true}).waitFor();
   const newRow=page.locator('#teamPrivacy').getByRole('row').filter({hasText:'New Test Member'});await newRow.getByRole('button',{name:'Edit',exact:true}).click();await page.getByRole('textbox',{name:'Member name',exact:true}).fill('Edited Test Member');await page.getByRole('button',{name:'Save changes',exact:true}).click();const editedRow=page.locator('#teamPrivacy').getByRole('row').filter({hasText:'Edited Test Member'});await editedRow.getByRole('button',{name:'Delete',exact:true}).click();await page.getByText('Deleted members (1)',{exact:true}).click();await page.getByRole('button',{name:'Restore member',exact:true}).click();await page.locator('#teamPrivacy').getByRole('row').filter({hasText:'Edited Test Member'}).getByText('Disabled',{exact:true}).waitFor();
+  const transferred=page.locator('#teamPrivacy').getByRole('row').filter({hasText:'Edited Test Member'});await transferred.getByRole('button',{name:'Transfer number',exact:true}).click();await page.getByRole('textbox',{name:'New employee name',exact:true}).fill('Replacement Test Member');await page.getByRole('button',{name:'Transfer to new employee',exact:true}).click();await page.locator('#teamPrivacy').getByRole('row').filter({hasText:'Replacement Test Member'}).getByText('Enabled',{exact:true}).waitFor();
+  for(const [view,visible]of [['Dashboard','summary'],['Event Pipeline','eventPanel'],['Team Performance','rankingPanel'],['Team Member','teamPrivacy']]){await page.getByRole('link',{name:view,exact:true}).click();await page.locator('#'+visible).waitFor({state:'visible'});for(const other of ['summary','eventPanel','rankingPanel','teamPrivacy'])if(other!==visible&&await page.locator('#'+other).isVisible())throw Error('Mixed workspace views: '+view);}
   const staffRow=page.locator('#teamPrivacy').getByRole('row').filter({hasText:'Test Staff'});
   await staffRow.getByRole('button',{name:'Hide data from team',exact:true}).click();
   await staffRow.getByText('Admin only',{exact:true}).waitFor();
@@ -55,6 +58,7 @@ try{
   if(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth))throw Error('Privacy panel overflow');
   await page.getByRole('button',{name:'Sign out',exact:true}).click();await page.getByRole('button',{name:'Enter workspace',exact:true}).waitFor();
   await page.getByRole('textbox',{name:'Registered phone number'}).fill('0123456789');await page.getByRole('button',{name:'Enter workspace',exact:true}).click();
+  await page.getByRole('link',{name:'Event Pipeline',exact:true}).click();
   await page.getByRole('button',{name:'Open',exact:true}).waitFor();
   if(await page.getByRole('link',{name:'Team Member',exact:true}).count())throw Error('Privacy management exposed to staff');
   if(errors.length)throw new Error(errors.join(';'));console.log('Google transport mobile flow passed: phone login, own submission, logout; mock transport only.');

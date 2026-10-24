@@ -21,6 +21,7 @@ try{
   const selfContext=await browser.newContext({viewport:{width:390,height:844},extraHTTPHeaders:{'X-Hub-User':'tele','X-Hub-Secret':secret}});
   const selfPage=await selfContext.newPage();selfPage.on('dialog',dialog=>dialog.accept());
   await selfPage.goto('http://127.0.0.1:'+server.address().port+'/report/');
+  await selfPage.getByRole('link',{name:'Event Pipeline',exact:true}).click();
   await selfPage.getByRole('button',{name:'Open',exact:true}).click();
   await selfPage.getByLabel('Commission (manual, RM)',{exact:true}).fill('12.34');
   await selfPage.getByRole('button',{name:'Submit my results',exact:true}).click();
@@ -32,6 +33,7 @@ try{
   const page=await context.newPage(),errors=[];page.on('pageerror',error=>errors.push(error.message));
   await page.goto('http://127.0.0.1:'+server.address().port+'/report/');
   if(await page.getByRole('link',{name:'← Back to Ads Report',exact:true}).count())throw Error('Ads link exposed to Admin');
+  await page.getByRole('link',{name:'Event Pipeline',exact:true}).click();
   await page.getByRole('button',{name:'Open',exact:true}).click();
   await page.getByRole('heading',{name:'Pinyu · 浏览器验收 · 测试数据'}).waitFor();
   for(const label of ['Commission (manual, RM)','Approved Incentive (RM)'])for(const input of await page.locator('label').filter({hasText:label}).locator('input').all())if(!await input.inputValue())await input.fill('0');

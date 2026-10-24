@@ -68,3 +68,5 @@ body,.is-login{background:#f7f3e9}
 .member-add{padding:4px 24px 16px}.member-add+.hint{padding:0 24px}#teamPrivacy td:nth-child(4)::before{font-weight:700}@media(max-width:760px){#teamPrivacy td:nth-child(4)::before{content:'Data: '}}
 
 .mobile-member-link{display:none}@media(max-width:760px){.mobile-member-link{display:block;border:1.5px solid var(--accent);border-radius:9px;padding:9px 13px;font-size:13px;font-weight:700;color:var(--accent)}}
+
+.mobile-nav{display:none}@media(max-width:760px){.mobile-nav{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:20px}.mobile-nav a{padding:10px;border:1.5px solid #c5d2e6;border-radius:9px;font-size:13px;font-weight:700;background:#fff}.mobile-nav a.is-active{background:#fff0df;color:var(--accent);border-color:var(--accent)}}

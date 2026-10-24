@@ -25,39 +25,42 @@ function hubLoad_(names){
     assert(JSON.stringify(header)===JSON.stringify(expected),'后台表头不匹配 '+name,503);
     assert(matrix.length<=20000,'数据量超过当前单表版本限制',503);
     tables[name]=matrix.slice(1).filter(function(row){return row.some(function(value){return value!=='';});}).map(function(row){return Object.fromEntries(expected.map(function(key,column){return [key,row[column]===undefined?'':row[column]];}));});
-  }return decodeSheetState(tables);
+  }const data=decodeSheetState(tables);data._rowCounts=Object.fromEntries(selected.map(function(name,index){return [name,(result.valueRanges[index].values||[]).length];}));return data;
 }
 function hubCommit_(hub){
   if(!hub.changed.size)return;
-  const book=hubBook_(),requests=[];
-  for(const name of hub.changed){const sheet=book.getSheetByName(name),matrix=encodeSheetTable(name,hub.data[name]);
+  const id=hubProperties_().getProperty('HUB_SPREADSHEET_ID'),requests=[];
+  const metadata=Sheets.Spreadsheets.get(id,{fields:'sheets.properties'}).sheets;
+  for(const name of hub.changed){const properties=metadata.find(function(sheet){return sheet.properties.title===name;})?.properties;assert(properties,'Unknown backend sheet: '+name,503);const matrix=encodeSheetTable(name,hub.data[name]);
     assert(matrix.length<=20000,'数据量超过当前版本限制');
     for(const row of matrix)for(const value of row)assert(typeof value!=='string'||value.length<=45000,'单格内容过长，未写入');
-    const requiredRows=Math.max(sheet.getLastRow(),matrix.length);
-    if(requiredRows>sheet.getMaxRows())requests.push({appendDimension:{sheetId:sheet.getSheetId(),dimension:'ROWS',length:requiredRows-sheet.getMaxRows()}});
+    const requiredRows=Math.max(hub.data._rowCounts?.[name]||properties.gridProperties.rowCount,matrix.length);
+    if(requiredRows>properties.gridProperties.rowCount)requests.push({appendDimension:{sheetId:properties.sheetId,dimension:'ROWS',length:requiredRows-properties.gridProperties.rowCount}});
     const rows=matrix.map(row=>({values:row.map(value=>({userEnteredValue:typeof value==='number'?{numberValue:value}:typeof value==='boolean'?{boolValue:value}:{stringValue:String(value)}}))}));
-    requests.push({updateCells:{range:{sheetId:sheet.getSheetId(),startRowIndex:0,endRowIndex:requiredRows,startColumnIndex:0,endColumnIndex:sheetSchema[name].length},rows:rows,fields:'userEnteredValue'}});
+    requests.push({updateCells:{range:{sheetId:properties.sheetId,startRowIndex:0,endRowIndex:requiredRows,startColumnIndex:0,endColumnIndex:sheetSchema[name].length},rows:rows,fields:'userEnteredValue'}});
   }
   // One Sheets batch is atomic. This must not be replaced with sequential setValues calls.
-  Sheets.Spreadsheets.batchUpdate({requests:requests},book.getId());
+  Sheets.Spreadsheets.batchUpdate({requests:requests},id);
 }
 function hubSession_(data){
   const cache=CacheService.getScriptCache();
   return new PhoneSessions({cache:cache,digest:function(value){return Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256,value,Utilities.Charset.UTF_8).map(function(byte){return ('0'+((byte+256)%256).toString(16)).slice(-2);}).join('');},randomToken:function(){return Utilities.getUuid().replace(/-/g,'')+Utilities.getUuid().replace(/-/g,'');},now:Date.now(),enabled:hubProperties_().getProperty('HUB_PHONE_ONLY_ENABLED')==='true',members:data.Members});
 }
 function hubEnvelope_(operation){try{return {ok:true,data:operation()};}catch(error){if(!(error instanceof HubError))console.error(String(error.message||error));return {ok:false,error:error instanceof HubError?error.message:'服务处理失败，请管理员检查 Apps Script 执行记录',status:error instanceof HubError?error.status:500};}}
-function hubLogin(phone){return hubEnvelope_(function(){const lock=LockService.getScriptLock();lock.waitLock(20000);try{const data=hubLoad_(['Members']);return hubSession_(data).login(phone);}finally{lock.releaseLock();}});}
+function hubWithLock_(operation){const lock=LockService.getScriptLock();assert(lock.tryLock(1000),'Another update is still saving. Please try again shortly.',503);try{return operation();}finally{lock.releaseLock();}}
+function hubLogin(phone){return hubEnvelope_(function(){const data=hubLoad_(['Members']);return hubSession_(data).login(phone);});}
 function hubInitial_(hub,actor){const identity=hub.execute(actor,'me');return {user:identity.user,users:identity.users,capabilities:identity.capabilities,reports:hub.execute(actor,'events'),inbox:hub.execute(actor,'inbox')};}
 function hubInitialTables_(){return ['Members','Events','Stats','Attendance','Versions','Reminders'];}
-function hubStart(phone){return hubEnvelope_(function(){const lock=LockService.getScriptLock();lock.waitLock(20000);try{const data=hubLoad_(hubInitialTables_()),sessions=hubSession_(data),login=sessions.login(phone),actor=sessions.actor(login.token),hub=new SheetHub(data,new Date().toISOString(),function(){return Utilities.getUuid();});return {...login,initial:hubInitial_(hub,actor)};}finally{lock.releaseLock();}});}
+function hubStart(phone){return hubEnvelope_(function(){const data=hubLoad_(hubInitialTables_()),sessions=hubSession_(data),login=sessions.login(phone),actor=sessions.actor(login.token),hub=new SheetHub(data,new Date().toISOString(),function(){return Utilities.getUuid();});return {...login,initial:hubInitial_(hub,actor)};});}
 function hubLogout(token){return hubEnvelope_(function(){return hubSession_({Members:[]}).logout(token);});}
 function hubCall(token,path,body){return hubEnvelope_(function(){
   assert(JSON.stringify(body||{}).length<=2500000,'数据过大');
-  const lock=LockService.getScriptLock();lock.waitLock(20000);
-  try{const data=hubLoad_(path==='bootstrap'?hubInitialTables_():undefined),actor=hubSession_(data).actor(token),hub=new SheetHub(data,new Date().toISOString(),function(){return Utilities.getUuid();});
+  const operation=function(){const data=hubLoad_(path==='bootstrap'?hubInitialTables_():undefined),actor=hubSession_(data).actor(token),hub=new SheetHub(data,new Date().toISOString(),function(){return Utilities.getUuid();});
     if(path==='bootstrap'){assert(body===null||body===undefined,'不接受写入数据');return hubInitial_(hub,actor);}
     const result=hub.execute(actor,path,body===null?undefined:body);hubCommit_(hub);return result;
-  }finally{lock.releaseLock();}
+  };
+  // Reads use one Sheets batch and never queue behind unrelated long-running writes.
+  return body===null||body===undefined?operation():hubWithLock_(operation);
 });}
 // Private functions ending in _ cannot be invoked through google.script.run.
 function runScheduledReminders_(){const lock=LockService.getScriptLock();lock.waitLock(20000);try{const data=hubLoad_(),hub=new SheetHub(data,new Date().toISOString(),function(){return Utilities.getUuid();}),result=hub.remind();hubCommit_(hub);console.log(JSON.stringify(result));return result;}finally{lock.releaseLock();}}

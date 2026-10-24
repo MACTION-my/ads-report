@@ -29,10 +29,16 @@ export class SheetHub {
     this.admin(actor);
     const version=m=>JSON.stringify([m.displayName,m.phone||'',m.loginStatus||'',m.role,m.active,m.updatedAt||'']);
     if(body!==undefined){
-      const action=body.action||'create';assert(['create','edit','delete','restore'].includes(action),'Invalid member action');
+      const action=body.action||'create';assert(['create','edit','delete','restore','transfer'].includes(action),'Invalid member action');
       const target=action==='create'?null:this.data.Members.find(m=>m.userId===body.userId);
       if(action!=='create'){assert(target,'Member not found',404);assert(target.role!=='admin','Admin accounts cannot be changed here',403);assert(body.memberVersion===version(target),'Member changed. Refresh and try again.',409);}
-      if(action==='delete'){assert(target.loginStatus!=='deleted','Member already deleted');target.active=false;target.loginStatus='deleted';}
+      if(action==='transfer'){
+        assert(target.phone,'This member has no registered number to transfer');assert(typeof body.displayName==='string'&&body.displayName.trim()&&body.displayName.trim().length<=200,'New employee name is required');const displayName=body.displayName.trim();
+        assert(!this.data.Members.some(m=>m.displayName.trim().toLowerCase()===displayName.toLowerCase()),'This name already exists. Use a distinct name for the new employee.',409);
+        assert(!this.data.Members.some(m=>m!==target&&m.phone===target.phone),'Phone is assigned to another member',409);
+        const phone=target.phone,newUserId=this.uuid();target.phone='';target.active=false;target.loginStatus='transferred';this.data.Members.push({userId:newUserId,displayName,phone,role:'telesales',active:true,loginStatus:'phone_only',updatedAt:this.now});this.audit(actor,'member.transfer.recipient',newUserId,{previousUserId:target.userId});
+      }
+      else if(action==='delete'){assert(target.loginStatus!=='deleted','Member already deleted');target.active=false;target.loginStatus='deleted';}
       else if(action==='restore'){assert(target.loginStatus==='deleted','Member is not deleted');target.loginStatus=target.phone?'phone_only':'historical';target.active=false;}
       else{
         assert(!target||target.loginStatus!=='deleted','Restore the member before editing');

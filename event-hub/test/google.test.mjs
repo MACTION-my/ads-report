@@ -56,10 +56,10 @@ test('Apps Script bundle has valid V8 syntax and public endpoints',()=>{
 test('Apps Script commit uses one atomic batch and treats user text as strings',()=>{
   const files=['../core.mjs','../phone.mjs','../attendance.mjs','sheet-schema.mjs','sheet-state.mjs','phone-sessions.mjs','sheet-service.mjs'];
   const source=files.map(file=>readFileSync(new URL('../google/'+file,import.meta.url),'utf8').replace(/^import .*?;\r?\n/gm,'').replace(/^export /gm,'')).join('\n')+'\n'+readFileSync(new URL('../google/Runtime.gs',import.meta.url),'utf8');
-  const calls=[],sheet={getLastRow:()=>5,getMaxRows:()=>1000,getSheetId:()=>123};
-  const context=vm.createContext({PropertiesService:{getScriptProperties:()=>({getProperty:()=> 'test-book'})},SpreadsheetApp:{openById:()=>({getSheetByName:()=>sheet,getId:()=> 'test-book'})},Sheets:{Spreadsheets:{batchUpdate:(body,id)=>calls.push({body,id})}}});
+  const calls=[];
+  const context=vm.createContext({PropertiesService:{getScriptProperties:()=>({getProperty:()=> 'test-book'})},Sheets:{Spreadsheets:{get:()=>({sheets:['Stats','Audit'].map(title=>({properties:{title,sheetId:123,gridProperties:{rowCount:1000}}}))}),batchUpdate:(body,id)=>calls.push({body,id})}}});
   vm.runInContext(source,context);
-  vm.runInContext("hubCommit_({changed:new Set(['Stats','Audit']),data:{Stats:[{eventId:'e',userId:'u',salesAmount:1.23,commission:null,dealIncentive:0,notes:'=not-a-formula'}],Audit:[]}})",context);
+  vm.runInContext("hubCommit_({changed:new Set(['Stats','Audit']),data:{_rowCounts:{Stats:5,Audit:1},Stats:[{eventId:'e',userId:'u',salesAmount:1.23,commission:null,dealIncentive:0,notes:'=not-a-formula'}],Audit:[]}})",context);
   assert.equal(calls.length,1);assert.equal(calls[0].body.requests.length,2);
   const update=calls[0].body.requests[0].updateCells;assert.equal(update.range.endRowIndex,5);assert.equal(update.rows[1].values[8].userEnteredValue.numberValue,123);assert.equal(update.rows[1].values[11].userEnteredValue.stringValue,'=not-a-formula');
 });
@@ -83,7 +83,7 @@ test('Combined login reads one Sheets batch, returns no phones, and rechecks dis
   const context=vm.createContext({console,PropertiesService:{getScriptProperties:()=>({getProperty:key=>key==='HUB_PHONE_ONLY_ENABLED'?'true':'test-book'})},CacheService:{getScriptCache:()=>({get:key=>cache.get(key),put:(key,value)=>cache.set(key,value),remove:key=>cache.delete(key)})},Utilities:{DigestAlgorithm:{SHA_256:'sha'},Charset:{UTF_8:'utf8'},computeDigest:(_algorithm,value)=>Array.from(createHash('sha256').update(value).digest()),getUuid:()=> 'a'.repeat(32)},LockService:{getScriptLock:()=>({waitLock(){},releaseLock(){released++;}})},Sheets:{Spreadsheets:{Values:{batchGet:(_id,options)=>{calls.push(options);return {valueRanges:options.ranges.map(range=>{const name=range.split("'")[1];return {values:encodeSheetTable(name,state[name])};})};}}}}});
   vm.runInContext(source,context);
   const start=JSON.parse(JSON.stringify(vm.runInContext("hubStart('0123456789')",context)));
-  assert.equal(start.ok,true);assert.equal(calls.length,1);assert.equal(calls[0].ranges.length,6);assert.equal(released,1);
+  assert.equal(start.ok,true);assert.equal(calls.length,1);assert.equal(calls[0].ranges.length,6);assert.equal(released,0);
   assert.equal(start.data.initial.user.id,'admin');assert.deepEqual(start.data.initial.reports,[]);
   assert.ok(!JSON.stringify(start.data.initial).includes('+601'));assert.ok(!Object.hasOwn(start.data.initial.user,'phone'));
   context.testToken=start.data.token;
@@ -91,4 +91,13 @@ test('Combined login reads one Sheets batch, returns no phones, and rechecks dis
   state.Members[0].active=false;
   const disabled=vm.runInContext("hubCall(testToken,'bootstrap',null)",context);assert.equal(disabled.ok,false);assert.equal(disabled.status,403);
   assert.equal(vm.runInContext("hubCall('invalid','bootstrap',null)",context).status,401);
+});
+
+test('Dashboard reads and sign-in bypass busy writer locks; mutations return a retryable busy response',()=>{
+ const source=readFileSync(new URL('../google/Runtime.gs',import.meta.url),'utf8');let locks=0,loads=0;
+ class TestError extends Error{constructor(message,status=400){super(message);this.status=status;}}
+ const context=vm.createContext({console,HubError:TestError,assert:(ok,message,status)=>{if(!ok)throw new TestError(message,status);},LockService:{getScriptLock:()=>({tryLock:()=>{locks++;return false;},releaseLock:()=>{throw Error('Unacquired lock');}})},SheetHub:class{constructor(){this.changed=new Set();}execute(_actor,path){return {path};}},Utilities:{getUuid:()=> 'test'}});
+ vm.runInContext(source,context);context.load=()=>{loads++;return {};};vm.runInContext("hubLoad_=load;hubSession_=function(){return {actor:function(){return 'owner';},login:function(){return {token:'test'};}}};",context);
+ assert.equal(vm.runInContext("hubCall('token','events',null)",context).ok,true);assert.equal(vm.runInContext("hubLogin('0123456789')",context).ok,true);assert.equal(locks,0);
+ const busy=vm.runInContext("hubCall('token','team-members',{action:'edit'})",context);assert.equal(busy.ok,false);assert.equal(busy.status,503);assert.match(busy.error,/still saving/);assert.equal(locks,1);assert.equal(loads,2);
 });

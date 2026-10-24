@@ -1,5 +1,9 @@
 # 验证记录 — 2026-10-23（马来西亚）
 
+2026-10-24 Dashboard 阻塞修复、号码转交和分屏导航：生产执行列表观察到长请求及约 20.7 秒请求；只读复现 hubStart 返回通用500。旧实现把登录、Dashboard读取与所有写入放同一 ScriptLock，可能被长写入阻塞。读取和登录不再等待写锁，写操作保留 1 秒 tryLock、503 繁忙提示及原子批量提交；写入元数据改为 Sheets API 单次读取，避免 SpreadsheetApp 多次同步调用，原表尾行清理保留。新增阻塞锁回归测试。
+
+Admin Transfer number 在同一次 Members 原子提交中保留旧ID/姓名、清空其号码并停用，创建新 telesales ID 接同号码；旧统计、历史快照和活动分配不转移，不修改真实员工。Dashboard、Event Pipeline、Team Performance、Team Member 现在是按 hash 路由互斥显示的四个视图，手机有全部导航，成员页只给 Admin；支持直达及前进/后退。没有建立新后端或改变 OAuth scope。38 项 Node 测试、TypeScript strict、Build、语法及桌面/手机流程通过；模拟 Google 浏览器验证号码转交和四页互斥。外部通知、自动 Drive 报表等未接通项不变。
+
 2026-10-24 成员编辑和可恢复删除（b762a83，Google v12，Pages 40080533906 发布成功）：Admin Team Member 新增 Edit / Delete，可改名、手机号；不开放角色升级。删除使用既有 Members loginStatus=deleted 标记并 active=false，不删原始表行或历史绩效；主列表排除，Deleted members 可恢复，恢复后默认禁用登录。删除成员不可通过旧启用接口绕过恢复。保留手机号和姓名唯一性，历史身份不重新分配；Admin 受服务端保护。编辑、删除、恢复请求校验 memberVersion 防并发覆盖，审计不记录手机号。历史快照不重写，当前报表姓名随成员资料更新。36 项 Node 测试、2 项 Python、TypeScript strict、Build、语法、桌面/手机流程通过；模拟 Google 浏览器实际执行新增→编辑→删除→恢复。真实接口只读核对 24 场历史记录、68 条绩效、6 个活跃账号和原金额均保留。未编辑或删除真实成员；外部通知和自动 Drive 报表等接入范围不变。
 
 2026-10-24 取消审批（d5cd709，Google v11，Pages 40080199887 发布成功）：移除 Submitted incl. finals 卡片。Admin/PIC 完成整场提交后直接 finalized，记录完成者/时间并生成最终版快照；无单独批准步骤。保留分配人员完整性、异常确认、版本冲突、锁定和退回更正；个人填报仍为 draft，避免提前锁定同事。未知佣金/奖励保留空值，不再等待批准。旧 submitted 记录在页面、Final 筛选/计数和月度导出中按完成记录兼容处理，不重写历史快照及原始金额。35 项 Node 测试、2 项 Python 生成测试、TypeScript strict、Build、语法和桌面/手机及 Google 模拟流程通过；发布后只读核对 24 场/68 条历史明细/6 个活跃账号及金额未变。首次沙箱 HTTP 回环 EACCES，获准重跑通过。外部通知、自动 Drive 报表等接入范围不变。

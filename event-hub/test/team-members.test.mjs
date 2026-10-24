@@ -29,3 +29,12 @@ test('member edits and recoverable deletion preserve history, enforce concurrenc
  hub.execute('admin','team-visibility',{revision:0,userId:member.id,active:true});assert.equal(hub.execute(member.id,'me').user.displayName,'Updated');assert.equal(data.Stats[0].salesAmount,100);
  assert.ok(data.Audit.some(r=>r.action==='member.delete'));
 });
+
+test('transferring a phone creates a new identity and preserves old names, statistics and snapshots',()=>{
+ const data=Object.fromEntries(Object.keys(sheetSchema).map(k=>[k,[]]));data.Members=[{userId:'admin',displayName:'Owner',role:'admin',active:true}];let id=0;const hub=new SheetHub(data,'2026-10-24T00:00:00Z',()=>String(++id));
+ let result=hub.execute('admin','team-members',{displayName:'Old Employee',phone:'0123456789'}),old=result.members.find(m=>m.displayName==='Old Employee');data.Stats.push({eventId:'history',userId:old.id,salesAmount:123});data.VersionStats.push({statsSnapshotJson:JSON.stringify({userId:old.id,displayName:'Old Employee',salesAmount:123})});const snapshot=JSON.stringify(data.VersionStats);
+ const cache=new Map(),sessions=new PhoneSessions({cache:{get:k=>cache.get(k),put:(k,v)=>cache.set(k,v),remove:k=>cache.delete(k)},digest:x=>x,randomToken:()=>String(++id).padEnd(40,'x'),now:0,enabled:true,members:data.Members});const oldLogin=sessions.login('0123456789');
+ assert.throws(()=>hub.execute('admin','team-members',{action:'transfer',userId:old.id,memberVersion:old.memberVersion,displayName:'Old Employee'}),/already exists/);
+ result=hub.execute('admin','team-members',{action:'transfer',userId:old.id,memberVersion:old.memberVersion,displayName:'New Employee'});const next=result.members.find(m=>m.displayName==='New Employee');assert.notEqual(next.id,old.id);assert.equal(next.phone,'+60123456789');assert.equal(next.active,true);assert.equal(next.role,'telesales');assert.equal(result.members.find(m=>m.id===old.id).phone,'');
+ assert.throws(()=>sessions.actor(oldLogin.token));assert.equal(sessions.actor(sessions.login('0123456789').token),next.id);assert.equal(hub.rows('history')[0].displayName,'Old Employee');assert.equal(hub.rows('history')[0].salesAmount,123);assert.equal(JSON.stringify(data.VersionStats),snapshot);assert.throws(()=>hub.execute('admin','team-members',{action:'transfer',userId:old.id,memberVersion:old.memberVersion,displayName:'Another'}),/changed/);
+});

@@ -81,14 +81,14 @@ async function refresh(){reports=await api<Report[]>('events');render();}
 function isPlaceholder(e:EventData){return Boolean(e.legacyPlaceholderDeadline&&e.legacyPlaceholderDeadline===e.submissionDeadline);}
 function controls(e:EventData){return me.role==='admin'||me.id===e.picUserId;}
 function editable(e:EventData){return controls(e)&&!e.readOnlyForTeam&&!e.archived&&['scheduled','draft','awaiting_data','needs_correction'].includes(e.status);}
-async function openReport(id:string){selected=await api<Report>('events/'+id);importPreview=null;renderDetail();$('detail').scrollIntoView({behavior:'smooth'});}
+async function openReport(id:string){selected=await api<Report>('events/'+id);importPreview=null;renderDetail();if(location.hash!=='#eventPanel')history.pushState(null,'','#eventPanel');updateNavigation();$('detail').scrollIntoView({behavior:'smooth'});}
 function table(rows:Stats[],total:Report['total'],rates:Record<string,number|null>){
   const wrap=el('div','','scroll'),tbl=el('table'),head=el('tr');
   for(const label of ['Telesales',...fields.map(k=>labels[k]),...Object.values(rateLabels)])head.append(el('th',label));const thead=el('thead');thead.append(head);tbl.append(thead);const body=el('tbody');
   for(const row of [...rows,{...total,userId:'',displayName:'Total',rates}]){const tr=el('tr');tr.append(el('td',row.displayName||name(row.userId)));for(const key of fields)tr.append(el('td',row[key]==null?'N/A':key==='salesAmount'||key==='commission'||key==='dealIncentive'?money(row[key]):String(row[key])));const rowRates=row.rates||aggregate([row]).rates;for(const key of Object.keys(rateLabels))tr.append(el('td',rate(rowRates[key])));body.append(tr);}tbl.append(body);wrap.append(tbl);return wrap;
 }
 function renderDetail(){
-  if(!selected)return;const r=selected,e=r.event,section=$('detail');section.hidden=false;section.replaceChildren();
+  if(!selected)return;const r=selected,e=r.event,section=$('detail');section.hidden=currentView()!=='#eventPanel';section.replaceChildren();
   section.append(el('h2',e.brand+' · '+e.name),el('p',`${e.eventDate} · PIC ${name(e.picUserId)} · ${stateLabels[e.displayStatus]} · v${e.reportVersion} · Revision ${e.revision}`),el('p',`Deadline ${isPlaceholder(e)?'Not set':date(e.submissionDeadline)} · Submitted by ${e.submittedBy?name(e.submittedBy):'Not submitted'} · ${e.submittedAt?date(e.submittedAt):''}`));
   if(!['submitted','finalized'].includes(e.status))section.append(el('p','Draft / not final. Do not use for final settlement.','notice'));
   if(e.legacySourceSection)section.append(el('p','Historical snapshot imported from Drive. Source values are preserved. Empty template rows were skipped.','notice'));
@@ -154,7 +154,7 @@ function renderImport(section:HTMLElement,r:Report){
   box.append(button('Download CSV template',()=>download('template','event-performance-template.csv')),input,button('Preview & validate',async()=>{const file=input.files?.[0];if(!file)throw new Error('Choose a file first');if(file.size>2_000_000)throw new Error('CSV must be 2 MB or smaller');const csv=await file.text();const preview=await api<Preview>(`events/${r.event.id}/preview`,{revision:r.event.revision,csv});result.textContent=JSON.stringify(preview,(key,value)=>key==='message'&&typeof value==='string'?englishMessage(value):value,2);importPreview=preview.errors.length?null:{csv,revision:r.event.revision};commit.disabled=!importPreview||!mode.value;}),result,mode,commit);section.append(box);
 }
 function renderTeamPrivacy(settings:TeamPrivacySettings){
-  const panel=$('teamPrivacy'),head=el('div','','section-head'),heading=el('div');heading.append(el('span','ADMIN ONLY','eyebrow'),el('h2','Team Member'));head.append(heading,button('Close',()=>{panel.hidden=true;},'secondary'));panel.replaceChildren(head,el('p','Hidden data stays in your Admin view. Team dashboards, reports, versions, attendance and CSV exports exclude it. Login access is managed separately.','privacy-intro'));
+  const panel=$('teamPrivacy'),head=el('div','','section-head'),heading=el('div');heading.append(el('span','ADMIN ONLY','eyebrow'),el('h2','Team Member'));head.append(heading);panel.replaceChildren(head,el('p','Hidden data stays in your Admin view. Team dashboards, reports, versions, attendance and CSV exports exclude it. Login access is managed separately.','privacy-intro'));
   if(canManageMembers){
     const form=el('form','','toolbar member-add'),nameLabel=el('label','Name'),phoneLabel=el('label','Phone number'),nameInput=el('input') as HTMLInputElement,phoneInput=el('input') as HTMLInputElement;
     nameInput.required=true;nameInput.maxLength=200;phoneInput.required=true;phoneInput.type='tel';phoneInput.placeholder='e.g. 0123456789';nameLabel.append(nameInput);phoneLabel.append(phoneInput);const add=el('button','＋ Add member') as HTMLButtonElement;add.type='submit';form.append(nameLabel,phoneLabel,add);
@@ -167,6 +167,9 @@ function renderTeamPrivacy(settings:TeamPrivacySettings){
     if(canManageMembers&&member.role!=='admin')actions.append(button('Edit',()=>{
       const editor=el('form','','toolbar member-add'),nameLabel=el('label','Member name'),phoneLabel=el('label','Member phone'),nameInput=el('input') as HTMLInputElement,phoneInput=el('input') as HTMLInputElement;nameInput.value=member.displayName;nameInput.required=true;nameInput.maxLength=200;phoneInput.type='tel';phoneInput.value=member.phone||'';phoneInput.required=Boolean(member.phone);nameLabel.append(nameInput);phoneLabel.append(phoneInput);const save=el('button','Save changes') as HTMLButtonElement;save.type='submit';editor.append(nameLabel,phoneLabel,save,button('Cancel',()=>editor.remove(),'secondary'));editor.onsubmit=event=>{event.preventDefault();void run(async()=>{save.disabled=true;try{await memberAction({action:'edit',displayName:nameInput.value,phone:phoneInput.value});}finally{save.disabled=false;}})();};panel.querySelector('.member-editor')?.remove();editor.classList.add('member-editor');panel.insertBefore(editor,wrap);editor.scrollIntoView({behavior:'smooth'});nameInput.focus();
     },'secondary'),button('Delete',async()=>{if(confirm(`Delete ${member.displayName} from Team Member and revoke login? Historical reports remain unchanged. You can restore the member later.`))await memberAction({action:'delete'});},'secondary'));
+    if(canManageMembers&&member.role!=='admin'&&member.phone)actions.append(button('Transfer number',()=>{
+      const editor=el('form','','toolbar member-add member-editor'),label=el('label','New employee name'),input=el('input') as HTMLInputElement;input.required=true;input.maxLength=200;label.append(input);const save=el('button','Transfer to new employee') as HTMLButtonElement;save.type='submit';editor.append(el('p',`Transfer ${member.phone} from ${member.displayName}. Old reports keep the old employee name. New results use a new member ID.`),label,save,button('Cancel',()=>editor.remove(),'secondary'));editor.onsubmit=event=>{event.preventDefault();if(!confirm(`Transfer this number to ${input.value.trim()} and disable ${member.displayName}'s login? Historical ownership stays unchanged.`))return;void run(async()=>{save.disabled=true;try{await memberAction({action:'transfer',displayName:input.value});}finally{save.disabled=false;}})();};panel.querySelector('.member-editor')?.remove();panel.insertBefore(editor,wrap);editor.scrollIntoView({behavior:'smooth'});input.focus();
+    },'secondary'));
     if(member.role==='admin')actions.append(el('span','Admin account'));
     else{actions.append(button(member.hiddenFromTeam?'Share data with team':'Hide data from team',async()=>{if(!confirm(member.hiddenFromTeam?`Allow team members to see ${member.displayName}'s historical data again?`:`Hide ${member.displayName}'s data from all non-admin users? Your full Admin view and original records are preserved.`))return;await update({hidden:!member.hiddenFromTeam});},'secondary'));
       if(member.canLogin)actions.append(document.createTextNode(' '),button(member.active?'Disable login':'Enable login',async()=>{if(!confirm(member.active?`Disable ${member.displayName}'s login? Existing sessions will be rejected on the next request.`:`Enable the registered login for ${member.displayName}?`))return;await update({active:!member.active});},'secondary'));}
@@ -186,13 +189,33 @@ function showEvent(event:EventData|null=null,duplicate=false){
 }
 $<HTMLFormElement>('eventForm').onsubmit=event=>{event.preventDefault();void run(async()=>{const form=new FormData($<HTMLFormElement>('eventForm'));const body={name:form.get('name'),brand:form.get('brand'),eventDate:form.get('eventDate'),submissionDeadline:form.get('deadline')+':00+08:00',picUserId:form.get('picUserId'),assignedUserIds:form.getAll('assigned'),venue:form.get('venue'),notes:form.get('notes'),revision:editing?.revision};const report=await api<Report>('events'+(editing?'/'+editing.id:''),body);$<HTMLDialogElement>('eventDialog').close();await refresh();await openReport(report.event.id);message('Event saved.');})();};
 $('closeDialog').onclick=()=>$<HTMLDialogElement>('eventDialog').close();
-$('manageVisibility').onclick=run(async()=>{const settings=await api<TeamPrivacySettings>(canManageMembers?'team-members':'team-visibility');renderTeamPrivacy(settings);$('teamPrivacy').hidden=false;$('teamPrivacy').scrollIntoView({behavior:'smooth'});});
-$('create').onclick=()=>showEvent();$('refresh').onclick=run(refresh);
-for(const id of ['month','brand','pic','state','search'])$(id).addEventListener('input',render);
-$('manageMembersMobile').onclick=$('manageVisibility').onclick;
 $('monthly').onclick=run(()=>download('export?month='+$<HTMLInputElement>('month').value,'final-events-'+$<HTMLInputElement>('month').value+'.csv'));
-function updateNavigation(){for(const link of document.querySelectorAll<HTMLAnchorElement>('.nav-link')){const active=link.hash===(location.hash||'#overview');link.classList.toggle('is-active',active);if(active)link.setAttribute('aria-current','location');else link.removeAttribute('aria-current');}}
-window.addEventListener('hashchange',updateNavigation);updateNavigation();
+const viewNames:Record<string,string>={'#overview':'Dashboard','#eventPanel':'Event Pipeline','#rankingPanel':'Team Performance','#teamPrivacy':'Team Member'};
+let teamPageLoading:Promise<void>|null=null;
+function currentView(){return viewNames[location.hash]?location.hash:'#overview';}
+function updateNavigation(){
+  const view=currentView(),loggedIn=Boolean(me)&&!$('content').hidden;
+  for(const link of document.querySelectorAll<HTMLAnchorElement>('.nav-link,.mobile-nav a')){const active=link.hash===view;link.classList.toggle('is-active',active);if(active)link.setAttribute('aria-current','page');else link.removeAttribute('aria-current');}
+  if(!loggedIn)return;
+  if(view==='#teamPrivacy'&&$('manageVisibility').hidden){location.hash='#overview';return;}
+  $('workspaceTitle').textContent=viewNames[view];document.title=viewNames[view]+' · MACTION';
+  $('summary').hidden=view!=='#overview';$('eventPanel').hidden=view!=='#eventPanel';$('rankingPanel').hidden=view!=='#rankingPanel';$('teamPrivacy').hidden=view!=='#teamPrivacy';$('detail').hidden=view!=='#eventPanel'||!selected;
+  document.querySelectorAll<HTMLElement>('.section-kicker,[data-inbox]').forEach(node=>node.hidden=view!=='#overview');
+  document.querySelectorAll<HTMLElement>('.filter-bar').forEach(node=>node.hidden=view==='#teamPrivacy');
+  document.querySelectorAll<HTMLElement>('.connection-note').forEach(node=>node.hidden=view!=='#eventPanel');
+  $('create').hidden=me.role!=='admin'||view!=='#eventPanel';$('monthly').hidden=view!=='#overview';
+}
+async function navigateView(){
+  updateNavigation();if(!me||$('content').hidden)return;
+  if(currentView()==='#teamPrivacy'&&!$('manageVisibility').hidden){
+    if(!teamPageLoading){$('teamPrivacy').replaceChildren(el('p','Loading members…','privacy-intro'));teamPageLoading=(async()=>{try{const settings=await api<TeamPrivacySettings>(canManageMembers?'team-members':'team-visibility');if(currentView()==='#teamPrivacy')renderTeamPrivacy(settings);}finally{teamPageLoading=null;}})();}
+    await teamPageLoading;
+  }
+  $('overview').scrollIntoView({behavior:'instant'});
+}
+window.addEventListener('hashchange',run(navigateView));window.addEventListener('popstate',run(navigateView));
+for(const link of document.querySelectorAll<HTMLAnchorElement>('.nav-link,.mobile-nav a'))link.onclick=event=>{event.preventDefault();if(location.hash===link.hash)void run(navigateView)();else location.hash=link.hash;};
+updateNavigation();
 async function initialize(initial?:InitialData){
   $<HTMLInputElement>('month').value=new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Kuala_Lumpur'}).slice(0,7);
   let result=initial;
@@ -203,7 +226,7 @@ async function initialize(initial?:InitialData){
   reports=result.reports;render();$('content').hidden=false;message('');
   const pending=result.inbox.filter(item=>!['submitted','finalized','cancelled'].includes(item.status));
   if(pending.length){const box=el('section','','notice no-print');box.dataset.inbox='true';box.append(el('h2','My submission reminders'));for(const item of pending)box.append(button(item.eventName+' · '+item.type,async()=>{await openReport(item.eventId);}));$('content').prepend(box);}
-  $('login').hidden=true;$('logout').hidden=!gasMode;document.body.classList.remove('is-login');
+  $('login').hidden=true;$('logout').hidden=!gasMode;document.body.classList.remove('is-login');await navigateView();
 }
 $<HTMLFormElement>('phoneLogin').onsubmit=event=>{event.preventDefault();void run(async()=>{const form=$<HTMLFormElement>('phoneLogin'),submit=form.querySelector('button') as HTMLButtonElement;submit.disabled=true;submit.setAttribute('aria-busy','true');message('Signing in and loading your workspace…');try{const result=await googleCall<{token:string;initial:InitialData}>('hubStart',[String(new FormData(form).get('phone')||'')]);sessionToken=result.token;try{sessionStorage.setItem('eventHubSession',sessionToken);}catch{}form.reset();await initialize(result.initial);}finally{submit.disabled=false;submit.removeAttribute('aria-busy');}})();};
 $('logout').onclick=run(async()=>{try{await googleCall('hubLogout',[sessionToken]);}finally{showLogin();message('You have signed out.');}});
