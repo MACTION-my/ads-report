@@ -1,12 +1,16 @@
 # Event Performance Hub
 
+## 当前业务定义（用户于 2026-10-24 确认）
+
+New Lead = 广告收到的线索；Junk = 无效或假线索；PTA = 答应出席人数；Attended = 最终出席人数；Closed Deal = 成交单数；Amount = 成交额。Commission 由成员手填本人的金额，不按固定比例计算，Admin 保留全场最终确认权限。七项转化率均为对应人数相除 × 100%，Lead→PTA 使用总 PTA / New Lead；零分母为 N/A。额外 newLeadPta 已退出页面和新 CSV 模板，仅保留历史数据与旧 CSV 兼容，不参与当前转换率。
+
 当前主用部署方案见 [google/README.md](google/README.md)：Google Sheets / Apps Script，无需自管服务器，按用户选择支持已登记手机号直接进入。下文 Node/SQLite 方式保留作本地参考。两种实现均经过本地验证；Google 版本仍须实际授权、发布及云端测试，后台总表建立不代表已经上线。
 
 线上入口：`https://ads.aikpi.my/report/`。GitHub Pages 托管原生页面、CSS 和 JS，通过无 Cookie 的 text/plain POST 请求连接 Google Apps Script，业务逻辑和私有总表仍在 Google。地址栏不会跳转，不依赖 iframe 或第三方会话存储；手机会话令牌只存当前站点 sessionStorage。接口仅分发登录、退出和已认证业务请求，权限继续由服务端验证。下文 Node 网关部署说明仅适用于可选的自管后端。
 
 更新后的主流程：Admin 建活动并分配 telesales → 每位 telesales 登录后填写并提交本人数据 → 系统实时核算、显示缺报及催交 → PIC 汇总提交 → Admin 核准最终版。数据由团队直接填报，Google Sheets / GHL / Zoom 同步不是上线前提。PIC/Admin 保留补录及代填，记录操作人；代填也视为该成员已有数据。出席名单仍由 PIC/Admin 上传。
 
-本人填报接口只更新本人一行，使用活动 revision 检测并发；同事先提交时需刷新再提交，防止覆盖。提交个人数据后，在全场提交锁定前可再次修改本人记录；全场已提交/最终版则锁定，须走退回更正。成员不能核准佣金/奖励。只读成员不能分配为填报人员。
+本人填报接口只更新本人一行，使用活动 revision 检测并发；同事先提交时需刷新再提交，防止覆盖。提交个人数据后，在全场提交锁定前可再次修改本人记录；全场已提交/最终版则锁定，须走退回更正。成员可手填本人佣金，不可改他人佣金；奖励仍由 Admin 核准，最终报告仍须 Admin 确认。只读成员不能分配为填报人员。
 
 同站增量模块，保留原 Ads Report；不是已上线服务。先读 [IMPLEMENTATION.md](IMPLEMENTATION.md)。
 
@@ -45,9 +49,9 @@ node admin.mjs 'D:\private-data\hub.sqlite' 'actual-company-sso-id' '姓名' adm
 
 ## CSV
 
-绩效模板：`eventId,userId,newLeads,junk,pta,newLeadPta,attended,closedDeals,salesAmount,commission,dealIncentive,notes`。
+绩效模板：`eventId,userId,newLeads,junk,pta,attended,closedDeals,salesAmount,commission,dealIncentive,notes`。
 
-从界面下载模板，ID 在活动详情和成员登记中获取。第一阶段固定表头，可调整列顺序，不支持任意 Excel 表头映射。一次导入一个活动。预览列出错误、警告、匹配人员。merge 更新 CSV 中匹配人员整行，保留其他人；replace 替换本场全部行。提交前必须补齐分配人员。PIC 不可改佣金/奖励；Admin 填 0 也代表明确核准。提交后如佣金未确认，需要退回由 Admin 核准再提交。
+从界面下载模板，ID 在活动详情和成员登记中获取。第一阶段固定表头，可调整列顺序，不支持任意 Excel 表头映射。一次导入一个活动。预览列出错误、警告、匹配人员。merge 更新 CSV 中匹配人员整行，保留其他人；replace 替换本场全部行。提交前必须补齐分配人员。PIC 可填本人佣金，不可改他人佣金或核准奖励；Admin 填 0 也代表明确核准。提交后如佣金未确认，需要退回由 Admin 核准再提交。
 
 名单模板：`externalId,name,email,attended,userId`。externalId 必须是本场稳定唯一人员 ID，不是会议 ID；attended 用 0/1，userId 未确认归属可空。merge 按 externalId 更新，replace 替换名单。不同外部 ID 即使姓名相同也不会擅自合并，避免同名误匹配；换来源前需要统一 ID 映射。名单出席总数与填报出席不一致会提示，不自动覆盖。
 

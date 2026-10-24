@@ -1,5 +1,11 @@
 # 验证记录 — 2026-10-23（马来西亚）
 
+2026-10-24 业务定义更新：按用户新说明，New Lead 为广告线索、Junk 为无效/假线索、PTA 为答应出席、Attended 为最终出席、Closed Deal 为成交单数、Amount 为成交额。Lead→PTA 改为总 PTA / New Lead，另补 Lead→Attended；七项转化率自动计算，零分母保持 N/A。页面、报表、新 CSV 模板移除额外 newLeadPta，历史字段及旧 CSV 仍兼容。成员可手填本人 Commission；他人佣金及奖励权限仍受服务端保护，最终版仍须 Admin 确认。旧库未重建，未写入生产测试数据。
+
+Google Web App v6 和独立前端部署 40052575746 已成功。真实 Google API 只读验证三项新分母通过。25 项自动测试、2 项 Python 生成测试、TypeScript strict、语法与 Build 通过；桌面/手机流程实际输入本人佣金、保存、提交和最终确认通过，Google 模拟通讯手机流程通过。首轮浏览器检查因仍使用旧佣金标签而未补齐空佣金导致最终确认失败，更新选择器并加入本人佣金保存断言后完整通过。历史迁移、GHL/Zoom 自动采集、邮件/WhatsApp 未新增连接。
+
+以下为此前阶段记录；业务口径以本节用户最新确认定义为准。
+
 框线与 Excel 对照更新：按用户反馈加深区块、指标卡、筛选栏、输入框边界；表格增加竖线和合计底色；成员填报分成线索与预约、出席与成交、佣金与奖励三个 fieldset。业务公式、权限和后台未修改。独立部署 39963110353 成功；25 项测试、2 项 Python 生成测试、TypeScript、语法与 Build 通过，桌面/手机保存提交审核、Google 模拟登录本人填报退出、空状态和弹窗检查通过。另用测试数据确认 fieldset 组的可访问名称和保存行为。
 
 重新只读检查用户原始 Excel 的 Conversion 页：H 列采用总 PTA / New Leads，O 列标记 PTA to Won 却采用 Closed Deal / Attended。当前系统分别采用新线索 PTA / New Leads、Closed Deal / PTA，并另外提供 Closed Deal / Attended；旧表零分母有 IFERROR 0 和 DIV/0，当前用 N/A。主数值字段保留，佣金奖励仍由管理员核准；来源区块与历史数据尚未完整迁移。因此不能声称与原 Excel 完全相同。本次没有改变上述计算口径或原始工作簿。
