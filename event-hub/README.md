@@ -1,5 +1,7 @@
 # Event Performance Hub
 
+Google 生产部署支持 **Team privacy**（仅 Admin）：按人隐藏团队可见数据，以及独立停用/恢复已登记登录。隐藏在服务端覆盖报表、旧版本、名单、汇总与 CSV；Admin 保留完整数据。默认团队可看未隐藏的数据。此权限不改变原 Drive 文件的共享。可选 Node 参考后端暂不提供此管理接口。
+
 ## 当前业务定义（用户于 2026-10-24 确认）
 
 New Lead = 广告收到的线索；Junk = 无效或假线索；PTA = 答应出席人数；Attended = 最终出席人数；Closed Deal = 成交单数；Amount = 成交额。Commission 由成员手填本人的金额，不按固定比例计算，Admin 保留全场最终确认权限。七项转化率均为对应人数相除 × 100%，Lead→PTA 使用总 PTA / New Lead；零分母为 N/A。额外 newLeadPta 已退出页面和新 CSV 模板，仅保留历史数据与旧 CSV 兼容，不参与当前转换率。
