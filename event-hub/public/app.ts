@@ -4,7 +4,7 @@ interface GoogleRunner {withSuccessHandler(callback:(reply:GoogleReply)=>void):G
 declare global {interface Window {google?:{script?:{run:GoogleRunner}}}}
 type Role='admin'|'pic'|'telesales'|'viewer';
 interface Member {id:string;displayName:string;role:Role}
-interface EventData {id:string;name:string;brand:string;eventDate:string;submissionDeadline:string;picUserId:string;assignedUserIds:string[];status:string;displayStatus:string;revision:number;reportVersion:number;venue:string;notes:string;archived:boolean;correctionReason?:string;submittedBy?:string;submittedAt?:string;legacySourceFileId?:string;legacySourceSection?:string;legacyPlaceholderDeadline?:string}
+interface EventData {id:string;name:string;brand:string;eventDate:string;submissionDeadline:string;picUserId:string;assignedUserIds:string[];status:string;displayStatus:string;revision:number;reportVersion:number;venue:string;notes:string;archived:boolean;correctionReason?:string;submittedBy?:string;submittedAt?:string;legacySourceFileId?:string;legacySourceSection?:string;legacyPlaceholderDeadline?:string;rankingExcludedUserIds?:string[]}
 interface Stats {userId:string;displayName?:string;notes?:string;newLeads:number;junk:number;pta:number;newLeadPta:number|null;attended:number;closedDeals:number;salesAmount:number;commission:number|null;dealIncentive:number|null;warnings?:string[];rates?:Record<string,number|null>}
 interface Report {event:EventData;rows:Stats[];total:Omit<Stats,'userId'>;rates:Record<string,number|null>;submissions:{version:number;actor:string;createdAt:string}[];completeness:{pendingUserIds:string[];missingNewLeadPta:number;unapprovedCommission:number};attendanceSummary:{records:number;attended:number;unattributed:number}}
 interface Preview {rows:Stats[];errors:{line:number;message:string}[];matches:string[];warnings:{userId:string;message:string}[]}
@@ -70,7 +70,8 @@ function render(){
     const cell=el('td');cell.append(button('Open',async()=>{await openReport(e.id);}));tr.append(cell);table.append(tr);
   }
   if(!list.length){const tr=el('tr'),td=el('td','','empty-cell') as HTMLTableCellElement;td.colSpan=8;const icon=el('span','▤','empty-icon');icon.setAttribute('aria-hidden','true');td.append(icon,el('strong','Your next event starts here'),el('small',reports.some(r=>!r.event.archived)?'Try a different month or filter.':'An admin can create an event to get the team started.'));tr.append(td);table.append(tr);}
-  const groups=new Map<string,Stats[]>();for(const row of rows)groups.set(row.userId,[...(groups.get(row.userId)||[]),row]);
+  const rankingRows=active.flatMap(report=>report.rows.filter(row=>!report.event.rankingExcludedUserIds?.includes(row.userId)));
+  const groups=new Map<string,Stats[]>();for(const row of rankingRows)groups.set(row.userId,[...(groups.get(row.userId)||[]),row]);
   const ranks=[...groups].map(([id,values])=>({id,...aggregate(values).total})).sort((a,b)=>b.salesAmount-a.salesAmount);
   $('ranking').replaceChildren(...ranks.map((item,i)=>{const node=el('div','','rankrow');node.append(el('span',`${i+1}. ${name(item.id)}`),el('span',`${item.closedDeals} deals · RM ${money(item.salesAmount)}`));return node;}));
   if(!ranks.length)$('ranking').append(el('p','Team results will appear after the first submission.','rank-empty'));

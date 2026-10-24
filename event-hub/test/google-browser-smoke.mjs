@@ -11,6 +11,9 @@ const require=createRequire(import.meta.url),{chromium}=require(process.env.PLAY
 const state={...Object.fromEntries(Object.keys(sheetSchema).map(key=>[key,[]])),Members:[{userId:'owner',displayName:'Test Owner',role:'admin',active:true},{userId:'staff',displayName:'Test Staff',role:'telesales',active:true}]};
 let id=0;const domain=new SheetHub(state,new Date().toISOString(),()=>String(++id)),sqlite=new Hub(),server=createServer(sqlite,undefined);
 domain.execute('owner','events',{brand:'Chain',name:'Google transport test',eventDate:new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Kuala_Lumpur'}),submissionDeadline:'2030-10-24T18:00:00+08:00',picUserId:'owner',assignedUserIds:['staff']});
+state.Members.push({userId:'historical',displayName:'Hidden Historical Member',role:'viewer',active:false});
+state.Events[0].rankingExcludedUserIds=['historical'];
+state.Stats.push({eventId:'1',userId:'historical',newLeads:3,junk:0,pta:2,newLeadPta:null,attended:1,closedDeals:1,salesAmount:99,commission:0,dealIncentive:0});
 server.listen(0,'127.0.0.1');await once(server,'listening');let browser;
 try{
   browser=await chromium.launch({channel:'msedge',headless:true});const context=await browser.newContext({viewport:{width:390,height:844}});
@@ -35,7 +38,9 @@ try{
   if(/[\p{Script=Han}]/u.test(await page.locator('body').innerText()))throw Error('Unexpected Chinese interface text');
   await page.getByRole('button',{name:'Open',exact:true}).click();await page.getByRole('button',{name:'Submit my results',exact:true}).click();
   await page.getByRole('status').filter({hasText:'Your results have been submitted'}).waitFor();
-  if(domain.rows('1').length!==1)throw new Error('Submission not recorded');
+  if(domain.rows('1').length!==2)throw new Error('Submission not recorded or historical record lost');
+  if((await page.locator('#ranking').innerText()).includes('Hidden Historical Member'))throw Error('Excluded historical member still ranked');
+  if(!(await page.locator('#summary').innerText()).includes('99.00'))throw Error('Ranking exclusion changed event revenue');
   await page.getByRole('button',{name:'Sign out',exact:true}).click();await page.getByRole('button',{name:'Enter workspace',exact:true}).waitFor();
   if(await page.getByRole('link',{name:'← Back to Ads Report',exact:true}).count())throw Error('Ads link retained after logout');
   if(errors.length)throw new Error(errors.join(';'));console.log('Google transport mobile flow passed: phone login, own submission, logout; mock transport only.');

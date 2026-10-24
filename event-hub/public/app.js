@@ -121,8 +121,9 @@ function render() {
         tr.append(td);
         table.append(tr);
     }
+    const rankingRows = active.flatMap(report => report.rows.filter(row => !report.event.rankingExcludedUserIds?.includes(row.userId)));
     const groups = new Map();
-    for (const row of rows)
+    for (const row of rankingRows)
         groups.set(row.userId, [...(groups.get(row.userId) || []), row]);
     const ranks = [...groups].map(([id, values]) => ({ id, ...aggregate(values).total })).sort((a, b) => b.salesAmount - a.salesAmount);
     $('ranking').replaceChildren(...ranks.map((item, i) => { const node = el('div', '', 'rankrow'); node.append(el('span', `${i + 1}. ${name(item.id)}`), el('span', `${item.closedDeals} deals · RM ${money(item.salesAmount)}`)); return node; }));
