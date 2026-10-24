@@ -16,7 +16,7 @@ Google 版本已实现并可独立构建，Node/SQLite 版保留作本地参考�
 
 ## 已检查的历史结构
 
-- Pinyu / Franchise（Chain）都有 Conversion 和 Zoom Attendance List；旧版还含佣金说明。
+- Pinyu / Franchise都有 Conversion 和 Zoom Attendance List；旧版还含佣金说明。
 - 一张 Conversion 可能有多个 GHL/Zoho 区块，相同人员可能出现多次。
 - 同品牌同日期可能有多个文件；只有候选重复，不能按修改时间自动选最新版。
 - 人员名称和 Manager 后缀不能作为登录身份，必须人工映射稳定 userId / 授权账号。

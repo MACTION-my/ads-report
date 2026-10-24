@@ -1,6 +1,7 @@
 import {assert,validateRow,totals,rates,warnings,status,parseCsv,csvExport,csvHeaders} from '../core.mjs';
 import {parseAttendance,attendanceHeaders} from '../attendance.mjs';
 import {visibilitySettingsId,hiddenTeamIds,eventHasHiddenData,projectTeamReport} from '../visibility.mjs';
+import {canonicalBrand,canonicalEvent} from '../brands.mjs';
 
 // Pure domain service shared by Apps Script and tests. The adapter commits all changed
 // tables in one atomic Sheets batch under a script lock; no SQL emulator is involved.
@@ -26,7 +27,7 @@ export class SheetHub {
   event(id){const event=this.data.Events.find(row=>row.id===id);assert(event,'活动不存在',404);return event;}
   rows(id){return this.data.Stats.filter(row=>row.eventId===id).map(row=>({...row,displayName:this.data.Members.find(u=>u.userId===row.userId)?.displayName||row.userId}));}
   report(id){const event=this.event(id),rows=this.rows(id),total=totals(rows),attendance=this.data.Attendance.filter(row=>row.eventId===id);
-    return {event:{...event,displayStatus:status(event,new Date(this.now))},rows:rows.map(row=>({...row,rates:rates(row),warnings:warnings(row)})),total,rates:rates(total),
+    return {event:{...canonicalEvent(event),displayStatus:status(event,new Date(this.now))},rows:rows.map(row=>({...row,rates:rates(row),warnings:warnings(row)})),total,rates:rates(total),
       submissions:this.data.Versions.filter(row=>row.eventId===id).map(row=>({version:row.version,actor:row.actorUserId,createdAt:row.createdAt})),
       completeness:{pendingUserIds:event.assignedUserIds.filter(userId=>!rows.some(row=>row.userId===userId)),missingNewLeadPta:rows.filter(row=>row.newLeadPta===null).length,unapprovedCommission:rows.filter(row=>row.commission===null||row.dealIncentive===null).length},
       attendanceSummary:{records:attendance.length,attended:attendance.filter(row=>row.attended===1).length,unattributed:attendance.filter(row=>!row.userId).length}};
@@ -36,8 +37,8 @@ export class SheetHub {
   touch(event){event.revision++;event.updatedAt=this.now;this.changed.add('Events');}
   prepare(actor,event,inputs){assert(Array.isArray(inputs)&&inputs.length<=500,'无效数据行');const seen=new Set();return inputs.map(input=>{const row=validateRow(input);this.user(row.userId);assert(event.assignedUserIds.includes(row.userId),'成员未分配到活动');assert(!seen.has(row.userId),'同场同人重复');seen.add(row.userId);const old=this.rows(event.id).find(item=>item.userId===row.userId);if(this.user(actor).role!=='admin')for(const key of ['commission','dealIncentive']){if(key==='commission'&&row.userId===actor)continue;assert(row[key]===(old?.[key]??null),'只能填写本人佣金；奖励由 Admin 核准',403);}return {...row,eventId:event.id,updatedBy:actor,updatedAt:this.now};});}
   replaceStats(id,rows){this.data.Stats=this.data.Stats.filter(row=>row.eventId!==id).concat(rows);this.changed.add('Stats');}
-  saveEvent(actor,input,id){this.admin(actor);let event=id?this.event(id):null;if(event){this.edit(actor,event,input.revision);}
-    assert(['Pinyu','Chain'].includes(input.brand),'品牌无效');assert(typeof input.name==='string'&&input.name.trim()&&input.name.length<=200,'活动名必填');
+  saveEvent(actor,input,id){this.admin(actor);input={...input,brand:canonicalBrand(input.brand)};let event=id?this.event(id):null;if(event){this.edit(actor,event,input.revision);}
+    assert(['Pinyu','Franchise'].includes(input.brand),'品牌无效');assert(typeof input.name==='string'&&input.name.trim()&&input.name.length<=200,'活动名必填');
     assert(typeof input.eventDate==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(input.eventDate)&&Number.isFinite(Date.parse(input.eventDate))&&new Date(input.eventDate).toISOString().slice(0,10)===input.eventDate,'活动日期无效');
     assert(typeof input.submissionDeadline==='string'&&/(?:Z|[+-]\d\d:\d\d)$/.test(input.submissionDeadline)&&Number.isFinite(Date.parse(input.submissionDeadline)),'截止日期须含时区');
     this.user(input.picUserId);assert(Array.isArray(input.assignedUserIds)&&input.assignedUserIds.length,'请选择团队成员');const ids=[...new Set(input.assignedUserIds)];ids.forEach(userId=>assert(this.user(userId).role!=='viewer','只读成员不可指定填报'));if(event)assert(this.rows(id).every(row=>ids.includes(row.userId)),'先清理被移除人员数据');
@@ -66,7 +67,7 @@ export class SheetHub {
     if(path==='team-visibility')return this.teamVisibility(actor,body);
     if(path==='me'&&body===undefined){const me=this.members().find(row=>row.id===actor);return {user:me,users:this.members().filter(m=>me.role==='admin'||!this.hiddenIds().has(m.id)),capabilities:{teamVisibility:true}};}
     if(path==='events')return body===undefined?this.data.Events.filter(e=>e.id!==visibilitySettingsId).map(event=>this.report(event.id)):this.saveEvent(actor,body,null);
-    if(path==='inbox')return this.data.Reminders.filter(row=>row.recipientUserId===actor&&row.deliveryStatus==='delivered_in_app').filter(row=>{const e=this.event(row.eventId);return !e.archived&&!['submitted','finalized','cancelled'].includes(e.status)&&(e.picUserId===actor||this.user(actor).role==='admin'||!this.rows(e.id).some(item=>item.userId===actor));}).map(row=>({...row,eventName:this.event(row.eventId).name,status:this.event(row.eventId).status}));
+    if(path==='inbox')return this.data.Reminders.filter(row=>row.recipientUserId===actor&&row.deliveryStatus==='delivered_in_app').filter(row=>{const e=this.event(row.eventId);return !e.archived&&!['submitted','finalized','cancelled'].includes(e.status)&&(e.picUserId===actor||this.user(actor).role==='admin'||!this.rows(e.id).some(item=>item.userId===actor));}).map(row=>({...row,eventName:canonicalEvent(this.event(row.eventId)).name,status:this.event(row.eventId).status}));
     if(path==='template')return '\uFEFF'+csvHeaders.join(',')+'\r\n';
     if(path==='attendance-template')return '\uFEFF'+attendanceHeaders.join(',')+'\r\n';
     if(path==='audit'){this.admin(actor);return this.data.Audit.slice(-200).reverse();}
@@ -75,7 +76,7 @@ export class SheetHub {
     const [,id,action,version]=match,event=this.event(id);
     assert(id!==visibilitySettingsId,'接口不存在',404);
     if(!action)return body===undefined?this.report(id):this.saveEvent(actor,body,id);
-    if(action==='history'){const stored=this.data.Versions.find(row=>row.eventId===id&&row.version===Number(version));assert(stored,'版本不存在',404);const rows=this.data.VersionStats.filter(row=>row.eventId===id&&row.version===Number(version)).map(row=>JSON.parse(row.statsSnapshotJson));return {event:JSON.parse(stored.eventSnapshotJson),rows,total:totals(rows),rates:rates(totals(rows))};}
+    if(action==='history'){const stored=this.data.Versions.find(row=>row.eventId===id&&row.version===Number(version));assert(stored,'版本不存在',404);const rows=this.data.VersionStats.filter(row=>row.eventId===id&&row.version===Number(version)).map(row=>JSON.parse(row.statsSnapshotJson));return {event:canonicalEvent(JSON.parse(stored.eventSnapshotJson)),rows,total:totals(rows),rates:rates(totals(rows))};}
     if(action==='export')return csvExport(this.visibleReport(actor,this.report(id)).rows);
     if(action==='attendance'){this.attendanceAccess(actor,event);return this.data.Attendance.filter(row=>row.eventId===id&&(this.user(actor).role==='admin'||!this.hiddenIds().has(row.userId)));}
     assert(body&&typeof body==='object','缺少操作数据');

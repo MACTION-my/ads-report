@@ -6,7 +6,7 @@ const record=(...values)=>({values:values.map(cell)});
 const header=()=>record('Telesales Name','# New Leads','Junk','# PTA (Old + New Leads)','# Attended','# Closed Deal','Amount (RM)');
 test('source date parsing and duplicate candidates never silently deduplicated',()=>{
   assert.deepEqual(sourceIdentity('[Pinyu] Telesales Performance Tracker - 09July 2026'),{brand:'Pinyu',eventDate:'2026-07-09'});
-  assert.equal(sourceIdentity('[Franchise A-Z] Report - 25 SEPT 2026').brand,'Chain');
+  assert.equal(sourceIdentity('[Franchise A-Z] Report - 25 SEPT 2026').brand,'Franchise');
   assert.equal(sourceIdentity('[Pinyu] Report - 31 FEB 2026').eventDate,null);
   const list=inventorySources([{id:'a',title:'[Pinyu] Report - 14 OCT 2026'},{id:'b',title:'[Pinyu] Report - 14 OCT 2026'},{id:'c',title:'Commission 2026'}]);
   assert.equal(list.filter(source=>source.status==='duplicate_candidate').length,2);assert.equal(list[2].status,'reference_only');

@@ -6,7 +6,7 @@ import {parseAttendance} from '../attendance.mjs';
 import {mkdtempSync,rmSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
-function setup(path){const hub=new Hub(path);for(const [id,role]of[['admin','admin'],['pic','pic'],['viewer','viewer']])hub.db.prepare('INSERT INTO users(id,displayName,role) VALUES(?,?,?)').run(id,id,role);const report=hub.saveEvent('admin',{name:'test',brand:'Chain',eventDate:'2026-10-21',submissionDeadline:'2026-10-24T18:00:00+08:00',picUserId:'pic',assignedUserIds:['pic']});return {hub,id:report.event.id};}
+function setup(path){const hub=new Hub(path);for(const [id,role]of[['admin','admin'],['pic','pic'],['viewer','viewer']])hub.db.prepare('INSERT INTO users(id,displayName,role) VALUES(?,?,?)').run(id,id,role);const report=hub.saveEvent('admin',{name:'test',brand:'Franchise',eventDate:'2026-10-21',submissionDeadline:'2026-10-24T18:00:00+08:00',picUserId:'pic',assignedUserIds:['pic']});return {hub,id:report.event.id};}
 const csv='externalId,name,email,attended,userId\r\np1,Example,test@example.test,1,pic\r\np2,Other,,0,';
 test('attendance validation, restricted PII, deduplication and no inferred statistics',()=>{
   const {hub,id}=setup();try{

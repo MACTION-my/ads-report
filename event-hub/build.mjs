@@ -8,7 +8,7 @@ execFileSync(process.execPath,[fileURLToPath(tsc),'-p','tsconfig.json'],{cwd:roo
 copyFileSync(new URL('./compiled/app.js',import.meta.url),new URL('./public/app.js',import.meta.url));
 mkdirSync(new URL('./dist/public',import.meta.url),{recursive:true});
 for(const file of ['index.html','styles.css','app.js'])copyFileSync(new URL('./public/'+file,import.meta.url),new URL('./dist/public/'+file,import.meta.url));
-for(const file of ['server.mjs','service.mjs','core.mjs','schema.sql','admin.mjs','attendance.mjs','reminders.mjs'])copyFileSync(new URL('./'+file,import.meta.url),new URL('./dist/'+file,import.meta.url));
+for(const file of ['server.mjs','service.mjs','core.mjs','brands.mjs','schema.sql','admin.mjs','attendance.mjs','reminders.mjs'])copyFileSync(new URL('./'+file,import.meta.url),new URL('./dist/'+file,import.meta.url));
 const html=readFileSync(new URL('./dist/public/index.html',import.meta.url),'utf8');
 if(!html.includes('/report/app.js')||!html.includes('viewport'))throw new Error('Missing application entry or mobile viewport');
 console.log('Build complete: dist/ (no identities, database or secrets bundled).');

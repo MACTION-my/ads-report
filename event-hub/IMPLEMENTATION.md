@@ -39,7 +39,7 @@ users(id,displayName,role,active)；events(id,data JSON,revision)；stats(eventI
 3. 受限出席名单、导入映射，后台 cron + 真实通知供应商；记录失败/未配置，幂等重试，不能假报已发送。
 4. Google Sheets OAuth/服务账号、Excel 历史导入、GHL/Zoom 接口、正式佣金规则后再自动同步。
 
-每月 5 Pinyu + 4 Chain 是排期参考，不是硬性校验。业务日期使用 Malaysia +08:00；时间保存带时区 ISO。自动按月生成活动需要实际日期、默认 PIC 和截止规则，未确认前不自动虚构场次。
+每月 5 Pinyu + 4 Franchise 是排期参考，不是硬性校验。业务日期使用 Malaysia +08:00；时间保存带时区 ISO。自动按月生成活动需要实际日期、默认 PIC 和截止规则，未确认前不自动虚构场次。
 
 ## 尚需接通
 

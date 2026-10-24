@@ -3,6 +3,7 @@ import {readFileSync} from 'node:fs';
 import {randomUUID} from 'node:crypto';
 import {assert,validateRow,warnings,totals,rates,status,parseCsv,money} from './core.mjs';
 import {parseAttendance} from './attendance.mjs';
+import {canonicalBrand,canonicalEvent} from './brands.mjs';
 
 export class Hub {
   constructor(path=':memory:') {
@@ -27,7 +28,7 @@ export class Hub {
   }
   event(id) {
     const record=this.db.prepare('SELECT * FROM events WHERE id=?').get(id);
-    assert(record,'活动不存在',404);return {...JSON.parse(record.data),revision:record.revision};
+    assert(record,'活动不存在',404);return {...canonicalEvent(JSON.parse(record.data)),revision:record.revision};
   }
   rows(id) {
     return this.db.prepare('SELECT s.*,u.displayName FROM stats s JOIN users u ON s.userId=u.id WHERE eventId=? ORDER BY u.displayName').all(id)
@@ -45,13 +46,14 @@ export class Hub {
   }
   saveEvent(actor,input,id=null) {
     this.admin(actor);
+    input={...input,brand:canonicalBrand(input.brand)};
     return this.transaction(()=>{
       const previous=id?this.event(id):null;
       if(previous) {
         assert(input.revision===previous.revision,'活动已被修改，请刷新',409);
         assert(!['submitted','finalized','cancelled'].includes(previous.status),'已锁定活动不可修改');
       }
-      assert(['Pinyu','Chain'].includes(input.brand),'品牌只能是 Pinyu / Chain');
+      assert(['Pinyu','Franchise'].includes(input.brand),'品牌只能是 Pinyu / Franchise');
       assert(typeof input.name==='string' && input.name.trim() && input.name.length<=200,'活动名称必填且最多 200 字');
       assert(typeof input.eventDate==='string' && /^\d{4}-\d{2}-\d{2}$/.test(input.eventDate) && Number.isFinite(Date.parse(input.eventDate)) && new Date(input.eventDate).toISOString().slice(0,10)===input.eventDate,'活动日期无效');
       assert(typeof input.submissionDeadline==='string' && /(?:Z|[+-]\d{2}:\d{2})$/.test(input.submissionDeadline) && Number.isFinite(Date.parse(input.submissionDeadline)),'截止日期须包含时区');
@@ -181,7 +183,7 @@ export class Hub {
   }
   history(actor,id,version) {
     this.user(actor);const result=this.db.prepare('SELECT snapshot FROM submissions WHERE eventId=? AND version=?').get(id,version);
-    assert(result,'版本不存在',404);return JSON.parse(result.snapshot);
+    assert(result,'版本不存在',404);const snapshot=JSON.parse(result.snapshot);return {...snapshot,event:canonicalEvent(snapshot.event)};
   }
   logs(actor) {this.admin(actor);return this.db.prepare('SELECT * FROM auditLogs ORDER BY id DESC LIMIT 200').all();}
   attendanceAccess(actor,id) {
@@ -220,6 +222,6 @@ export class Hub {
   inbox(actor) {
     this.user(actor);return this.db.prepare("SELECT r.id,r.eventId,r.type,r.sentAt,e.data FROM reminderLogs r JOIN events e ON r.eventId=e.id WHERE recipient=? AND deliveryStatus='delivered_in_app' ORDER BY r.id DESC LIMIT 100").all(actor)
       .filter(row=>{const event=JSON.parse(row.data);return !event.archived&&(event.picUserId===actor||this.user(actor).role==='admin'||!this.rows(row.eventId).some(item=>item.userId===actor));})
-      .map(row=>({id:row.id,eventId:row.eventId,type:row.type,sentAt:row.sentAt,eventName:JSON.parse(row.data).name,status:JSON.parse(row.data).status}));
+      .map(row=>({id:row.id,eventId:row.eventId,type:row.type,sentAt:row.sentAt,eventName:canonicalEvent(JSON.parse(row.data)).name,status:JSON.parse(row.data).status}));
   }
 }

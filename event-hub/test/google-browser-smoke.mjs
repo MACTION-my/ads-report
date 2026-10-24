@@ -10,7 +10,7 @@ import {sheetSchema} from '../google/sheet-schema.mjs';
 const require=createRequire(import.meta.url),{chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
 const state={...Object.fromEntries(Object.keys(sheetSchema).map(key=>[key,[]])),Members:[{userId:'owner',displayName:'Test Owner',role:'admin',active:true},{userId:'staff',displayName:'Test Staff',role:'telesales',active:true}]};
 let id=0;const domain=new SheetHub(state,new Date().toISOString(),()=>String(++id)),sqlite=new Hub(),server=createServer(sqlite,undefined);
-domain.execute('owner','events',{brand:'Chain',name:'Google transport test',eventDate:new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Kuala_Lumpur'}),submissionDeadline:'2030-10-24T18:00:00+08:00',picUserId:'owner',assignedUserIds:['staff']});
+domain.execute('owner','events',{brand:'Franchise',name:'Google transport test',eventDate:new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Kuala_Lumpur'}),submissionDeadline:'2030-10-24T18:00:00+08:00',picUserId:'owner',assignedUserIds:['staff']});
 state.Members.push({userId:'historical',displayName:'Hidden Historical Member',role:'viewer',active:false});
 state.Events[0].rankingExcludedUserIds=['historical'];
 state.Stats.push({eventId:'1',userId:'historical',newLeads:3,junk:0,pta:2,newLeadPta:null,attended:1,closedDeals:1,salesAmount:99,commission:0,dealIncentive:0});

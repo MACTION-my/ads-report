@@ -44,7 +44,7 @@ test('Google state codec preserves cents, nulls and complete metadata',()=>{
   assert.equal(tables.Stats[0].salesAmountCents,10);const decoded=decodeSheetState(tables);assert.equal(decoded.Stats[0].salesAmount,.1);assert.equal(decoded.Stats[0].commission,null);assert.equal(decoded.Events[0].submittedBy,'admin');
 });
 test('Google reminders persist once and exclude completed members',()=>{
-  let id=0;const hub=new SheetHub(data(),'2026-10-23T09:00:00Z',()=>String(++id));const event=hub.execute('admin','events',{brand:'Chain',name:'Test',eventDate:'2026-10-21',submissionDeadline:'2026-10-24T18:00:00+08:00',picUserId:'admin',assignedUserIds:['a','b']}).event;
+  let id=0;const hub=new SheetHub(data(),'2026-10-23T09:00:00Z',()=>String(++id));const event=hub.execute('admin','events',{brand:'Franchise',name:'Test',eventDate:'2026-10-21',submissionDeadline:'2026-10-24T18:00:00+08:00',picUserId:'admin',assignedUserIds:['a','b']}).event;
   hub.execute('a',`events/${event.id}/own-row`,{revision:1,row:row('a')});assert.equal(hub.remind().deliveredInApp,2);assert.equal(hub.remind().deliveredInApp,0);assert.equal(hub.execute('a','inbox').length,0);assert.equal(hub.execute('b','inbox').length,1);
 });
 test('Apps Script bundle has valid V8 syntax and public endpoints',()=>{
