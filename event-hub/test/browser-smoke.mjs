@@ -31,6 +31,7 @@ try{
   const context=await browser.newContext({extraHTTPHeaders:{'X-Hub-User':'admin','X-Hub-Secret':secret}});
   const page=await context.newPage(),errors=[];page.on('pageerror',error=>errors.push(error.message));
   await page.goto('http://127.0.0.1:'+server.address().port+'/report/');
+  if(await page.getByRole('link',{name:'← Back to Ads Report',exact:true}).getAttribute('href')!=='https://ads.aikpi.my/')throw Error('Admin Ads link missing');
   await page.getByRole('button',{name:'Open',exact:true}).click();
   await page.getByRole('heading',{name:'Pinyu · 浏览器验收 · 测试数据'}).waitFor();
   for(const label of ['Commission (manual, RM)','Approved Incentive (RM)'])for(const input of await page.locator('label').filter({hasText:label}).locator('input').all())if(!await input.inputValue())await input.fill('0');

@@ -19,6 +19,8 @@ try{
   await context.addInitScript(()=>{window.google={script:{get run(){let success,failure;return {withSuccessHandler(fn){success=fn;return this;},withFailureHandler(fn){failure=fn;return this;},hubStart(...args){window.mockGoogleRpc('hubStart',args).then(success,failure);},hubLogin(...args){window.mockGoogleRpc('hubLogin',args).then(success,failure);},hubLogout(...args){window.mockGoogleRpc('hubLogout',args).then(success,failure);},hubCall(...args){window.mockGoogleRpc('hubCall',args).then(success,failure);}};}}};});
   const page=await context.newPage(),errors=[];page.on('pageerror',error=>errors.push(error.message));page.on('dialog',dialog=>dialog.accept());
   await page.goto('http://127.0.0.1:'+server.address().port+'/report/');
+  if(await page.getByRole('link',{name:'← Back to Ads Report',exact:true}).count())throw Error('Ads link exposed before login');
+  if(await page.locator('a[href="/"],a[href="https://ads.aikpi.my/"]').count())throw Error('Logo links to Ads before login');
   mkdirSync(new URL('../qa/',import.meta.url),{recursive:true});
   if(await page.locator('html').getAttribute('lang')!=='en')throw Error('Expected English document language');
   for(const width of [390,1366]){
@@ -29,10 +31,12 @@ try{
   await page.setViewportSize({width:390,height:844});
   await page.getByRole('textbox',{name:'Registered phone number'}).fill('0123456789');await page.getByRole('button',{name:'Enter workspace',exact:true}).click();
   await page.getByRole('button',{name:'Open',exact:true}).waitFor();if(loginRequests!==1)throw Error('Expected one combined login request');
+  if(await page.getByRole('link',{name:'← Back to Ads Report',exact:true}).count())throw Error('Ads link exposed to a team member');
   if(/[\p{Script=Han}]/u.test(await page.locator('body').innerText()))throw Error('Unexpected Chinese interface text');
   await page.getByRole('button',{name:'Open',exact:true}).click();await page.getByRole('button',{name:'Submit my results',exact:true}).click();
   await page.getByRole('status').filter({hasText:'Your results have been submitted'}).waitFor();
   if(domain.rows('1').length!==1)throw new Error('Submission not recorded');
   await page.getByRole('button',{name:'Sign out',exact:true}).click();await page.getByRole('button',{name:'Enter workspace',exact:true}).waitFor();
+  if(await page.locator('#adsReportLink').getAttribute('href'))throw Error('Ads link retained after logout');
   if(errors.length)throw new Error(errors.join(';'));console.log('Google transport mobile flow passed: phone login, own submission, logout; mock transport only.');
 }finally{await browser?.close();await new Promise(resolve=>server.close(resolve));sqlite.close();}

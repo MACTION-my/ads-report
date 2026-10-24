@@ -14,7 +14,11 @@ function englishMessage(text) { for (const [original, translated] of Object.entr
     text = text.replaceAll(original, translated); return text; }
 const gasMode = Boolean(window.google?.script?.run || endpoint);
 let sessionToken = '';
-function showLogin() { document.body.classList.add('is-login'); sessionToken = ''; try {
+function setAdsReportLink(admin = false) { const link = $('adsReportLink'); link.hidden = !admin; if (admin)
+    link.href = 'https://ads.aikpi.my/';
+else
+    link.removeAttribute('href'); }
+function showLogin() { setAdsReportLink(); document.body.classList.add('is-login'); sessionToken = ''; try {
     sessionStorage.removeItem('eventHubSession');
 }
 catch { } $('login').hidden = false; $('content').hidden = true; $('logout').hidden = true; $('identity').textContent = ''; $('detail').replaceChildren(); selected = null; reports = []; }
@@ -385,6 +389,7 @@ async function initialize(initial) {
     }
     me = result.user;
     users = result.users;
+    setAdsReportLink(me.role === 'admin');
     $('identity').textContent = me.displayName + ' · ' + ({ admin: 'Admin', pic: 'Person in charge', telesales: 'Team member', viewer: 'Viewer' }[me.role]);
     $('create').hidden = me.role !== 'admin';
     const allPic = el('option', 'All PICs');
