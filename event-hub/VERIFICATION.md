@@ -1,5 +1,9 @@
 # 验证记录 — 2026-10-23（马来西亚）
 
+2026-10-24 Calendar 正式导入及每日任务：实现 ead8d1d/4c17600，Google 稳定部署 v18 成功，Pages 40094108033 成功。未改变线上 appsscript.json、OAuth scope、Anyone/执行身份或 Google 定时触发器；没有授权 Calendar 高级服务。通过已连接的 Maction Calendar 只读取得今天至未来180天排期，过滤私人/Gmail行程，仅提交15场课程的必要排期字段。真实 Admin RPC 成功新建15场 scheduled 活动，无团队分配、无业绩和名单。写前/写后核对所有原有 rows/total/rates/submissions/attendanceSummary 以及完整成员状态一致。当前非归档45场、绩效77行（写入前已有77行，未强制使用早前76行快照）；再次执行返回15场 unchanged，未重复建立。运行备份、配置与源快照只存忽略的 qa。
+
+已通过 Codex automation_update 创建并读回 ACTIVE 的 maction 线程任务，每天09:00（Asia/Kuala_Lumpur），使用现有 Calendar 连接器和本地客户端；需要电脑及 Codex 在运行。尚未等到首次定时触发，当前实际手动完整导入/幂等复验成功，不声称定时执行已经发生。任务仅在有变化、人工核对或失败时通知。49项自动测试、TypeScript strict、Build、语法与Google模拟手机流程通过，原桌面/手机回归通过。无每日 Apps Script Calendar 直接接入、无 Drive 自动复制/报表写回。
+
 2026-10-24 Calendar 频率调整：用户选择每天一次，暂不新增 Google Calendar 授权。生产清单恢复既有 scopes，仅把可选 Calendar 清单留独立文件；不设置 HUB_CALENDAR_ENABLED。新增已有 Admin 会话 calendar-import RPC 与本地无密钥源码客户端，由既有 Calendar 连接器提供快照，准备通过 Codex 每日任务运行。前端 Calendar 手动读取入口依赖显式 capability，默认隐藏，避免显示未接通服务。49 项自动测试、TypeScript strict、Build 与语法检查通过。当前尚未完成真实导入及每日任务创建，须以后续实测记录为准。
 
 2026-10-24 Calendar 同步准备（尚未上线）：用户确认所有课程均同步，Online 绩效对应 Pinyu。新增纯排期同步模块、Calendar v3 分页读取适配、小时任务可选调用、Admin 连接状态/手动同步按钮，AI/Other Courses 分类及表单支持。按稳定实例ID去重；取消不删除、归档不恢复、现有业绩/名单/最终版和手工排期不覆盖。支持整日及 Malaysia 时区，私人标记/旅行/非课程过滤，仅读取需要的排期字段进入系统。48 项自动测试、TypeScript strict、Build、语法与桌面/手机流程通过；Google 浏览器模拟验证未配置按钮禁用及普通成员隐藏。只读连接器检查未来180天，预览15场课程可新建，未对真实系统提交。新增 Calendar events readonly scope 尚未授权，生产 v17 及后台记录未改，自动同步未启用。必须完成拥有者权限确认、Google授权、正式发布及真实读回后才可声称接通。
