@@ -283,7 +283,7 @@ function renderDetail() {
             performance.append(el('p', name(row.userId) + ': ' + englishMessage(warning), 'warning'));
     }
     const actions = el('div', '', 'toolbar no-print');
-    actions.append(button('Print / Save PDF', () => window.print()), button('Export event CSV', () => download(`events/${e.id}/export`, e.name + '.csv')));
+    actions.append(button('Print / Save PDF', () => { selectPane(performance); window.print(); }), button('Export event CSV', () => download(`events/${e.id}/export`, e.name + '.csv')));
     for (const version of r.submissions)
         actions.append(button('View version ' + version.version, async () => { const snapshot = await api(`events/${e.id}/history?version=${version.version}`); const box = el('div'); box.append(el('h3', `Submitted version ${version.version} · ${name(version.actor)} · ${date(version.createdAt)}`), table(snapshot.rows, snapshot.total, snapshot.rates)); section.append(box); }));
     if (me.role === 'admin') {
