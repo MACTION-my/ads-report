@@ -11,13 +11,13 @@ interface Preview {rows:Stats[];errors:{line:number;message:string}[];matches:st
 interface InboxItem {eventId:string;eventName:string;type:string;status:string}
 interface TeamPrivacyMember extends Member {active:boolean;hiddenFromTeam:boolean;canLogin:boolean;phone?:string;deleted?:boolean;memberVersion?:string}
 interface TeamPrivacySettings {revision:number;members:TeamPrivacyMember[]}
-interface InitialData {user:Member;users:Member[];reports:Report[];inbox:InboxItem[];capabilities?:{teamVisibility:boolean;teamMembers?:boolean}}
+interface InitialData {user:Member;users:Member[];reports:Report[];inbox:InboxItem[];capabilities?:{teamVisibility:boolean;teamMembers?:boolean;calendarSync?:boolean}}
 const $=<T extends HTMLElement=HTMLElement>(id:string)=>document.getElementById(id) as T;
 const fields=['newLeads','junk','pta','attended','closedDeals','salesAmount','commission','dealIncentive'] as const;
 const labels:Record<string,string>={newLeads:'New Leads (from ads)',junk:'Junk (invalid / fake leads)',pta:'PTA (confirmed to attend)',newLeadPta:'New-lead PTA (optional)',attended:'Attended (actual turnout)',closedDeals:'Closed Deals',salesAmount:'Amount (RM)',commission:'Commission (manual, RM)',dealIncentive:'Approved Incentive (RM)'};
 const rateLabels:Record<string,string>={leadToJunk:'Lead → Junk',leadToWon:'Lead → Won',ptaToWon:'PTA → Won',leadsToPta:'Lead → PTA',leadToAttended:'Lead → Attended',ptaToAttended:'PTA → Attended',attendedToWon:'Attended → Won'};
 const stateLabels:Record<string,string>={draft:'Draft',scheduled:'Scheduled',awaiting_data:'Awaiting data',submitted:'Final',needs_correction:'Needs correction',finalized:'Final',overdue:'Overdue',cancelled:'Cancelled'};
-let canManageMembers=false;
+let canManageMembers=false,canSyncCalendar=false;
 let me:Member,users:Member[]=[],reports:Report[]=[],selected:Report|null=null,editing:EventData|null=null,importPreview:{csv:string;revision:number}|null=null;
 const endpoint=document.querySelector<HTMLMetaElement>('meta[name="event-hub-endpoint"]')?.content||'';
 // Translate legacy backend validation text without changing stored business data.
@@ -228,7 +228,7 @@ function updateNavigation(){
   document.querySelectorAll<HTMLElement>('.section-kicker,[data-inbox]').forEach(node=>node.hidden=view!=='#overview');
   document.querySelectorAll<HTMLElement>('.filter-bar').forEach(node=>node.hidden=view==='#teamPrivacy');
   document.querySelectorAll<HTMLElement>('.connection-note').forEach(node=>node.hidden=view!=='#eventPanel');
-  $('create').hidden=me.role!=='admin'||view!=='#eventPanel';$('copyLatest').hidden=$('create').hidden;$('calendarSync').hidden=$('create').hidden||!gasMode;$('monthly').hidden=view!=='#overview';
+  $('create').hidden=me.role!=='admin'||view!=='#eventPanel';$('copyLatest').hidden=$('create').hidden;$('calendarSync').hidden=$('create').hidden||!canSyncCalendar;$('monthly').hidden=view!=='#overview';
 }
 async function navigateView(){
   updateNavigation();if(!me||$('content').hidden)return;
@@ -245,7 +245,7 @@ async function initialize(initial?:InitialData){
   $<HTMLInputElement>('month').value=new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Kuala_Lumpur'}).slice(0,7);
   let result=initial;
   if(!result){if(gasMode)result=await api<InitialData>('bootstrap');else{const [identity,loadedReports,inbox]=await Promise.all([api<{user:Member;users:Member[]}>('me'),api<Report[]>('events'),api<InboxItem[]>('inbox')]);result={...identity,reports:loadedReports,inbox};}}
-  me=result.user;users=result.users;canManageMembers=Boolean(result.capabilities?.teamMembers);$('manageVisibility').hidden=me.role!=='admin'||!result.capabilities?.teamVisibility;$('manageMembersMobile').hidden=$('manageVisibility').hidden;$('visibilityScope').hidden=false;$('visibilityScope').textContent=me.role==='admin'?'Admin view · Complete company data':'Team view · Shows only data shared with the team';$('identity').textContent=me.displayName+' · '+({admin:'Admin',pic:'Person in charge',telesales:'Team member',viewer:'Viewer'}[me.role]);$('create').hidden=me.role!=='admin';
+  me=result.user;users=result.users;canSyncCalendar=Boolean(result.capabilities?.calendarSync);canManageMembers=Boolean(result.capabilities?.teamMembers);$('manageVisibility').hidden=me.role!=='admin'||!result.capabilities?.teamVisibility;$('manageMembersMobile').hidden=$('manageVisibility').hidden;$('visibilityScope').hidden=false;$('visibilityScope').textContent=me.role==='admin'?'Admin view · Complete company data':'Team view · Shows only data shared with the team';$('identity').textContent=me.displayName+' · '+({admin:'Admin',pic:'Person in charge',telesales:'Team member',viewer:'Viewer'}[me.role]);$('create').hidden=me.role!=='admin';
   const allPic=el('option','All PICs') as HTMLOptionElement;allPic.value='';$('pic').replaceChildren(allPic);for(const old of $('content').querySelectorAll('[data-inbox]'))old.remove();
   for(const user of users){const option=el('option',user.displayName) as HTMLOptionElement;option.value=user.id;$('pic').append(option);}
   reports=result.reports;render();$('content').hidden=false;message('');

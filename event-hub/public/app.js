@@ -3,7 +3,7 @@ const fields = ['newLeads', 'junk', 'pta', 'attended', 'closedDeals', 'salesAmou
 const labels = { newLeads: 'New Leads (from ads)', junk: 'Junk (invalid / fake leads)', pta: 'PTA (confirmed to attend)', newLeadPta: 'New-lead PTA (optional)', attended: 'Attended (actual turnout)', closedDeals: 'Closed Deals', salesAmount: 'Amount (RM)', commission: 'Commission (manual, RM)', dealIncentive: 'Approved Incentive (RM)' };
 const rateLabels = { leadToJunk: 'Lead → Junk', leadToWon: 'Lead → Won', ptaToWon: 'PTA → Won', leadsToPta: 'Lead → PTA', leadToAttended: 'Lead → Attended', ptaToAttended: 'PTA → Attended', attendedToWon: 'Attended → Won' };
 const stateLabels = { draft: 'Draft', scheduled: 'Scheduled', awaiting_data: 'Awaiting data', submitted: 'Final', needs_correction: 'Needs correction', finalized: 'Final', overdue: 'Overdue', cancelled: 'Cancelled' };
-let canManageMembers = false;
+let canManageMembers = false, canSyncCalendar = false;
 let me, users = [], reports = [], selected = null, editing = null, importPreview = null;
 const endpoint = document.querySelector('meta[name="event-hub-endpoint"]')?.content || '';
 // Translate legacy backend validation text without changing stored business data.
@@ -656,7 +656,7 @@ function updateNavigation() {
     document.querySelectorAll('.connection-note').forEach(node => node.hidden = view !== '#eventPanel');
     $('create').hidden = me.role !== 'admin' || view !== '#eventPanel';
     $('copyLatest').hidden = $('create').hidden;
-    $('calendarSync').hidden = $('create').hidden || !gasMode;
+    $('calendarSync').hidden = $('create').hidden || !canSyncCalendar;
     $('monthly').hidden = view !== '#overview';
 }
 async function navigateView() {
@@ -700,6 +700,7 @@ async function initialize(initial) {
     }
     me = result.user;
     users = result.users;
+    canSyncCalendar = Boolean(result.capabilities?.calendarSync);
     canManageMembers = Boolean(result.capabilities?.teamMembers);
     $('manageVisibility').hidden = me.role !== 'admin' || !result.capabilities?.teamVisibility;
     $('manageMembersMobile').hidden = $('manageVisibility').hidden;

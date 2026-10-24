@@ -1,6 +1,12 @@
 # Google Sheets / Apps Script 运行方式
 
-## Calendar 单向排期同步（代码完成，待拥有者授权和正式发布）
+## Calendar 单向排期同步
+
+用户最终选择每天一次，暂不新增 Apps Script Calendar 授权。默认 appsscript.json 保持原 Sheets/script scopes；可选的 Calendar v3/只读 scope 清单单独存 appsscript.calendar.json，未经再次明确授权不得替换。生产不设置 HUB_CALENDAR_ENABLED，现有小时任务只催交。后台 calendar-import 接受已有 Admin 会话提交的课程快照，复用相同去重与保护逻辑；Calendar 读取由已连接的 Calendar 插件完成，不把 OAuth token 存进系统。
+
+本地 calendar-import-client.mjs 用忽略的 qa/calendar-sync-owner.json 读取现有管理员登录配置，不打印手机号或会话。--inspect 输出已关联 Calendar ID；给定 fresh JSON 路径时备份写入前/后，提交一次并核对成员、已有业绩、版本摘要、名单汇总和新活动零值状态。每天的 Codex 线程任务通过 Calendar 连接器读取排期后运行该客户端；电脑及 Codex 需运行。来源快照、私有登录配置、运行备份均不得提交 GitHub。新建活动无分配团队，由 Admin 后续分配。
+
+以下为尚未启用的直接 Google 定时同步选项，只有用户未来明确同意新授权时才可启用：
 
 Calendar v3 高级服务及 calendar.events.readonly scope 用于仅读取活动。默认关闭；HUB_CALENDAR_ENABLED=true 才执行，HUB_CALENDAR_ID 默认为拥有者 primary。正式开启前必须取得拥有者对新增 Calendar 读取权限的确认并完成 Google 授权。已有小时站内提醒任务完成后执行同步，不另建重复触发器。Admin 在 Event Pipeline 可打开 Sync Calendar 查看连接状态、最后成功时间和错误，并 Sync now；普通成员无控制按钮或接口权限。
 

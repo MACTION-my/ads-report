@@ -19,6 +19,11 @@ test('Calendar creates empty courses once, uses stable instance IDs and never re
  syncCalendarSnapshot(hub,'admin','primary',[item('course-1','Online 绩效 - 李金昭','2026-11-06T20:00:00+08:00')]);assert.equal(data.Events.length,1);assert.equal(e.eventDate,'2026-11-06');assert.equal(e.submissionDeadline,'2026-11-06T23:59:00+08:00');
  e.archived=true;e.deletedAt=hub.now;assert.equal(syncCalendarSnapshot(hub,'admin','primary',[item()]).counts.skipped,1);assert.equal(e.archived,true);
 });
+test('Connector snapshot import uses existing Admin session and keeps Calendar OAuth optional',()=>{
+ const {data,hub}=setup();assert.throws(()=>hub.execute('staff','calendar-import',{calendarId:'primary',items:[item()]}),/Admin/);
+ assert.equal(hub.execute('admin','calendar-import',{calendarId:'primary',items:[item()]}).counts.created,1);assert.equal(hub.execute('admin','calendar-import',{calendarId:'primary',items:[item()]}).counts.unchanged,1);assert.equal(data.Stats.length,0);
+ const manifest=JSON.parse(readFileSync(new URL('../google/appsscript.json',import.meta.url),'utf8'));assert(!manifest.oauthScopes.some(s=>s.includes('/calendar')));assert(!manifest.dependencies.enabledAdvancedServices.some(s=>s.serviceId==='calendar'));
+});
 test('Calendar runtime authenticates Admin before fetching and rejects client-supplied source data',()=>{
  const runtime=readFileSync(new URL('../google/Runtime.gs',import.meta.url),'utf8');let fetched=0;class TestError extends Error{constructor(message,status){super(message);this.status=status;}}
  const ctx=vm.createContext({console,HubError:TestError,assert:(ok,message,status)=>{if(!ok)throw new TestError(message,status);},SheetHub:class{admin(actor){if(actor!=='admin')throw new TestError('Admin required',403);}},Utilities:{getUuid:()=> 'ref'}});vm.runInContext(runtime,ctx);
