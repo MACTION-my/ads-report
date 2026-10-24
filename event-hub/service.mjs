@@ -141,7 +141,7 @@ export class Hub {
         assert(rows.length>0,'空报表不能提交');
         assert(event.assignedUserIds.every(userId=>rows.some(row=>row.userId===userId)),'分配人员仍有缺报，请填写零值或说明');
         assert(!rows.some(row=>warnings(row).length) || body.acknowledgeWarnings===true,'请确认异常数据警告');
-        event.status='submitted';event.reportVersion++;event.submittedBy=actor;event.submittedAt=new Date().toISOString();
+        event.status='finalized';event.reportVersion++;event.submittedBy=actor;event.submittedAt=new Date().toISOString();event.finalizedBy=actor;event.finalizedAt=event.submittedAt;
         this.db.prepare('INSERT INTO submissions(eventId,version,snapshot,actor,createdAt) VALUES(?,?,?,?,?)')
           .run(id,event.reportVersion,JSON.stringify({event,rows,total:totals(rows),rates:rates(totals(rows))}),actor,event.submittedAt);
       }else {
@@ -152,7 +152,6 @@ export class Hub {
           event.status='needs_correction';event.correctionReason=body.reason.slice(0,4000);
         }else if(body.action==='finalize') {
           assert(event.status==='submitted','只有已提交报表可最终确认');
-          assert(this.rows(id).every(row=>row.commission!==null&&row.dealIncentive!==null),'佣金及奖励须先核准；请退回补齐');
           event.status='finalized';event.finalizedBy=actor;event.finalizedAt=new Date().toISOString();
         }else if(body.action==='archive') event.archived=true;
         else if(body.action==='cancel') {assert(!['submitted','finalized'].includes(event.status),'锁定报表须先退回');event.status='cancelled';}

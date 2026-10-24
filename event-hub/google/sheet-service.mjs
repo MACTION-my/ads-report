@@ -62,13 +62,13 @@ export class SheetHub {
   transition(actor,event,body){assert(event.revision===body.revision,'版本冲突',409);const before=JSON.parse(JSON.stringify(event));
     if(body.action==='submit'){
       this.edit(actor,event,body.revision);const rows=this.rows(event.id);assert(rows.length&&event.assignedUserIds.every(id=>rows.some(row=>row.userId===id)),'仍有人员未填报');assert(!rows.some(row=>warnings(row).length)||body.acknowledgeWarnings===true,'请确认异常数据警告');
-      event.status='submitted';event.reportVersion++;event.submittedBy=actor;event.submittedAt=this.now;
-      this.data.Versions.push({eventId:event.id,version:event.reportVersion,status:'submitted',actorUserId:actor,createdAt:this.now,eventSnapshotJson:JSON.stringify(event)});
+      event.status='finalized';event.reportVersion++;event.submittedBy=actor;event.submittedAt=this.now;event.finalizedBy=actor;event.finalizedAt=this.now;
+      this.data.Versions.push({eventId:event.id,version:event.reportVersion,status:'finalized',actorUserId:actor,createdAt:this.now,eventSnapshotJson:JSON.stringify(event)});
       for(const row of rows)this.data.VersionStats.push({eventId:event.id,version:event.reportVersion,userId:row.userId,statsSnapshotJson:JSON.stringify(row)});
       this.changed.add('Versions');this.changed.add('VersionStats');
     }else{this.admin(actor);
       if(body.action==='return'){assert(['submitted','finalized'].includes(event.status),'当前状态不可退回');assert(typeof body.reason==='string'&&body.reason.trim(),'退回必须说明原因');event.status='needs_correction';event.correctionReason=body.reason.slice(0,4000);}
-      else if(body.action==='finalize'){assert(event.status==='submitted','只有已提交报表可确认');assert(this.rows(event.id).every(row=>row.commission!==null&&row.dealIncentive!==null),'佣金/奖励仍未核准，请退回补齐');event.status='finalized';event.finalizedBy=actor;event.finalizedAt=this.now;}
+      else if(body.action==='finalize'){assert(event.status==='submitted','只有已提交报表可确认');event.status='finalized';event.finalizedBy=actor;event.finalizedAt=this.now;}
       else if(body.action==='archive')event.archived=true;
       else if(body.action==='cancel'){assert(!['submitted','finalized'].includes(event.status),'锁定报表须先退回');event.status='cancelled';}
       else assert(false,'未知状态操作');
@@ -85,7 +85,7 @@ export class SheetHub {
     if(path==='template')return '\uFEFF'+csvHeaders.join(',')+'\r\n';
     if(path==='attendance-template')return '\uFEFF'+attendanceHeaders.join(',')+'\r\n';
     if(path==='audit'){this.admin(actor);return this.data.Audit.slice(-200).reverse();}
-    if(path.startsWith('export?')){const month=path.match(/[?&]month=(\d{4}-\d{2})(?:&|$)/)?.[1];assert(month,'月份无效');return csvExport(this.data.Events.filter(e=>e.eventDate.startsWith(month)&&e.status==='finalized'&&!e.archived).flatMap(e=>this.visibleReport(actor,this.report(e.id)).rows));}
+    if(path.startsWith('export?')){const month=path.match(/[?&]month=(\d{4}-\d{2})(?:&|$)/)?.[1];assert(month,'月份无效');return csvExport(this.data.Events.filter(e=>e.eventDate.startsWith(month)&&['submitted','finalized'].includes(e.status)&&!e.archived).flatMap(e=>this.visibleReport(actor,this.report(e.id)).rows));}
     const match=path.match(/^events\/([^/?]+)(?:\/(own-row|rows|transition|export|history|preview|import|attendance|attendance-preview|attendance-import))?(?:\?version=(\d+))?$/);assert(match,'接口不存在',404);
     const [,id,action,version]=match,event=this.event(id);
     assert(id!==visibilitySettingsId,'接口不存在',404);

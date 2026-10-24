@@ -16,7 +16,7 @@ const $=<T extends HTMLElement=HTMLElement>(id:string)=>document.getElementById(
 const fields=['newLeads','junk','pta','attended','closedDeals','salesAmount','commission','dealIncentive'] as const;
 const labels:Record<string,string>={newLeads:'New Leads (from ads)',junk:'Junk (invalid / fake leads)',pta:'PTA (confirmed to attend)',newLeadPta:'New-lead PTA (optional)',attended:'Attended (actual turnout)',closedDeals:'Closed Deals',salesAmount:'Amount (RM)',commission:'Commission (manual, RM)',dealIncentive:'Approved Incentive (RM)'};
 const rateLabels:Record<string,string>={leadToJunk:'Lead → Junk',leadToWon:'Lead → Won',ptaToWon:'PTA → Won',leadsToPta:'Lead → PTA',leadToAttended:'Lead → Attended',ptaToAttended:'PTA → Attended',attendedToWon:'Attended → Won'};
-const stateLabels:Record<string,string>={draft:'Draft',scheduled:'Scheduled',awaiting_data:'Awaiting data',submitted:'Submitted · awaiting review',needs_correction:'Needs correction',finalized:'Final',overdue:'Overdue',cancelled:'Cancelled'};
+const stateLabels:Record<string,string>={draft:'Draft',scheduled:'Scheduled',awaiting_data:'Awaiting data',submitted:'Final',needs_correction:'Needs correction',finalized:'Final',overdue:'Overdue',cancelled:'Cancelled'};
 let canManageMembers=false;
 let me:Member,users:Member[]=[],reports:Report[]=[],selected:Report|null=null,editing:EventData|null=null,importPreview:{csv:string;revision:number}|null=null;
 const endpoint=document.querySelector<HTMLMetaElement>('meta[name="event-hub-endpoint"]')?.content||'';
@@ -53,7 +53,7 @@ function card(title:string,value:string){const node=el('div','','card');node.app
 function button(text:string,action:()=>Promise<void>|void,className=''){const node=el('button',text,className) as HTMLButtonElement;node.type='button';node.onclick=run(async()=>{node.disabled=true;try{await action();}finally{node.disabled=false;}});return node;}
 function filtered(){
   const month=$<HTMLInputElement>('month').value,brand=$<HTMLSelectElement>('brand').value,pic=$<HTMLSelectElement>('pic').value,state=$<HTMLSelectElement>('state').value,query=$<HTMLInputElement>('search').value.toLowerCase();
-  return reports.filter(r=>!r.event.archived&&r.event.eventDate.startsWith(month)&&(!brand||r.event.brand===brand)&&(!pic||r.event.picUserId===pic)&&r.event.name.toLowerCase().includes(query)&&(!state||(state==='pending'?['draft','scheduled','awaiting_data','needs_correction','overdue'].includes(r.event.displayStatus):r.event.displayStatus===state)));
+  return reports.filter(r=>!r.event.archived&&r.event.eventDate.startsWith(month)&&(!brand||r.event.brand===brand)&&(!pic||r.event.picUserId===pic)&&r.event.name.toLowerCase().includes(query)&&(!state||(state==='pending'?['draft','scheduled','awaiting_data','needs_correction','overdue'].includes(r.event.displayStatus):(state==='finalized'?['submitted','finalized'].includes(r.event.status):r.event.displayStatus===state))));
 }
 function aggregate(rows:Stats[]):{total:Stats;rates:Record<string,number|null>} {
   const total=Object.fromEntries(fields.map(key=>[key,rows.some(r=>r[key]==null)?null:rows.reduce((sum,r)=>sum+(r[key]||0),0)])) as unknown as Stats;
@@ -62,7 +62,7 @@ function aggregate(rows:Stats[]):{total:Stats;rates:Record<string,number|null>} 
 }
 function render(){
   const list=filtered(),active=list.filter(r=>r.event.status!=='cancelled'),rows=active.flatMap(r=>r.rows),{total}=aggregate(rows);
-  $('summary').replaceChildren(card('Revenue · RM',money(total.salesAmount)),card('Attended',String(total.attended)),card('Closed Deals',String(total.closedDeals)),card('Pending submissions',String(active.filter(r=>!['submitted','finalized'].includes(r.event.status)).length)),card('Scheduled events',String(active.length)),card('Submitted incl. finals',String(active.filter(r=>['submitted','finalized'].includes(r.event.status)).length)),card('Overdue submissions',String(active.filter(r=>r.event.displayStatus==='overdue').length)),card('Final reports',String(active.filter(r=>r.event.status==='finalized').length)));
+  $('summary').replaceChildren(card('Revenue · RM',money(total.salesAmount)),card('Attended',String(total.attended)),card('Closed Deals',String(total.closedDeals)),card('Pending submissions',String(active.filter(r=>!['submitted','finalized'].includes(r.event.status)).length)),card('Scheduled events',String(active.length)),card('Overdue submissions',String(active.filter(r=>r.event.displayStatus==='overdue').length)),card('Final reports',String(active.filter(r=>['submitted','finalized'].includes(r.event.status)).length)));
   const table=$('events');table.replaceChildren();
   for(const report of list.sort((a,b)=>a.event.eventDate.localeCompare(b.event.eventDate))){const e=report.event,tr=el('tr');
     const title=el('td');title.append(el('span',e.brand,'brand-label'),document.createTextNode(e.name));tr.append(title);
@@ -90,9 +90,9 @@ function table(rows:Stats[],total:Report['total'],rates:Record<string,number|nul
 function renderDetail(){
   if(!selected)return;const r=selected,e=r.event,section=$('detail');section.hidden=false;section.replaceChildren();
   section.append(el('h2',e.brand+' · '+e.name),el('p',`${e.eventDate} · PIC ${name(e.picUserId)} · ${stateLabels[e.displayStatus]} · v${e.reportVersion} · Revision ${e.revision}`),el('p',`Deadline ${isPlaceholder(e)?'Not set':date(e.submissionDeadline)} · Submitted by ${e.submittedBy?name(e.submittedBy):'Not submitted'} · ${e.submittedAt?date(e.submittedAt):''}`));
-  if(e.status!=='finalized')section.append(el('p','Draft / not final. Do not use for final settlement.','notice'));
-  if(e.legacySourceSection)section.append(el('p','Historical snapshot imported from Drive. Source values are preserved and have not been newly approved. Empty template rows were skipped.','notice'));
-  section.append(el('p',`Commission or incentive pending: ${r.completeness.unapprovedCommission} member(s).`));
+  if(!['submitted','finalized'].includes(e.status))section.append(el('p','Draft / not final. Do not use for final settlement.','notice'));
+  if(e.legacySourceSection)section.append(el('p','Historical snapshot imported from Drive. Source values are preserved. Empty template rows were skipped.','notice'));
+  section.append(el('p',`Commission or incentive not entered: ${r.completeness.unapprovedCommission} member(s).`));
   section.append(el('p','Awaiting submission: '+(r.completeness.pendingUserIds.map(name).join(', ')||'Everyone has submitted')));
   section.append(el('p',`Attendance records: ${r.attendanceSummary.records}; attended: ${r.attendanceSummary.attended}; unassigned: ${r.attendanceSummary.unattributed}. Attendance lists are reviewed separately and do not overwrite performance counts.`));
   if(r.attendanceSummary.records && r.attendanceSummary.attended!==r.total.attended)section.append(el('p','Attendance list and performance counts differ. PIC review required.','warning'));
@@ -107,7 +107,6 @@ function renderDetail(){
     if(editable(e))actions.append(button('Edit event',()=>showEvent(e)),button('Cancel event',async()=>{if(confirm('Cancel this event? History will be retained.'))await transition('cancel');}));
     actions.append(button('Duplicate event',()=>showEvent(e,true)),button('Archive',async()=>{if(confirm('Archive this event? It will be hidden from totals, but records will be retained.'))await transition('archive');}));
     if(['submitted','finalized'].includes(e.status))actions.append(button('Return for correction',async()=>{const reason=prompt('Enter the reason for correction');if(reason?.trim())await transition('return',{reason});}));
-    if(e.status==='submitted')actions.append(button('Approve final report',async()=>{if(confirm('Confirm that results, commission and incentives have been reviewed?'))await transition('finalize');}));
   }
   if(controls(e)&&e.legacySourceFileId&&/^[A-Za-z0-9_-]+$/.test(e.legacySourceFileId)){const source=el('a','Open original Drive report','source-report-link') as HTMLAnchorElement;source.href='https://docs.google.com/spreadsheets/d/'+e.legacySourceFileId+'/edit';source.target='_blank';source.rel='noopener';actions.append(source);}
   section.append(actions);
@@ -140,7 +139,7 @@ function renderInputs(section:HTMLElement,r:Report,own=false){
     for(const group of groups){const fieldset=el('fieldset','','input-group'),inner=el('div','','inputs');fieldset.append(el('legend',group.title));for(const key of group.keys){const label=el('label',labels[key]),input=el('input') as HTMLInputElement;input.type='number';input.min='0';input.step=['salesAmount','commission','dealIncentive'].includes(key)?'.01':'1';input.value=old?.[key]===null?'':String(old?.[key]??(['newLeadPta','commission','dealIncentive'].includes(key)?'':0));input.required=!['newLeadPta','commission','dealIncentive'].includes(key);if(me.role!=='admin'&&(key==='dealIncentive'||key==='commission'&&id!==me.id))input.readOnly=true;rowInputs[key]=input;label.append(input);inner.append(label);}fieldset.append(inner);grid.append(fieldset);}
     const notesLabel=el('label','Exceptions / notes'),notes=el('textarea') as HTMLTextAreaElement;notes.value=old?.notes||'';notes.maxLength=4000;rowInputs.notes=notes;notesLabel.append(notes);person.append(grid,notesLabel);form.append(person);inputs.set(id,rowInputs);
   }
-  const save=el('button',own?'Submit my results':'Save draft') as HTMLButtonElement;save.type='submit';const submit=button('Submit & lock',async()=>{if(!form.reportValidity())return;if(!confirm('Save these entries, then submit and lock the report? Confirm ownership of any unusual figures first.'))return;await saveData();await transition('submit',{acknowledgeWarnings:true});});
+  const save=el('button',own?'Submit my results':'Save draft') as HTMLButtonElement;save.type='submit';const submit=button('Complete event' ,async()=>{if(!form.reportValidity())return;if(!confirm('Save these entries as the final report and lock this event? No approval is required. Confirm ownership of any unusual figures first.'))return;await saveData();await transition('submit',{acknowledgeWarnings:true});});
   const saveData=async()=>{const rows=[...inputs].map(([userId,values])=>Object.fromEntries([['userId',userId],['newLeadPta',r.rows.find(row=>row.userId===userId)?.newLeadPta??null],...Object.entries(values).map(([key,input])=>[key,key==='notes'?input.value:input.value===''?null:Number(input.value)])]));selected=await api<Report>('events/'+r.event.id+(own?'/own-row':'/rows'),own?{revision:selected!.event.revision,row:rows[0],acknowledgeWarnings:true}:{revision:selected!.event.revision,rows});};
   form.onsubmit=event=>{event.preventDefault();if(own&&!confirm('Confirm your figures and ownership of any exceptions, then submit?'))return;void run(async()=>{save.disabled=true;try{await saveData();await refresh();renderDetail();message(own?'Your results have been submitted and included in the totals.':'Draft saved.');}finally{save.disabled=false;}})();};
   form.append(save);if(!own)form.append(document.createTextNode(' '),submit);section.append(form);

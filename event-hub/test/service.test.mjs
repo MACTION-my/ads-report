@@ -24,14 +24,15 @@ test('snapshot immutable, locked submit, correction reason and new version',()=>
     hub.transition('pic',id,{revision:2,action:'submit'});
     assert.throws(()=>hub.saveRows('pic',id,{revision:3,rows:[row]}));
     assert.throws(()=>hub.transition('pic',id,{revision:3,action:'finalize'}));
-    hub.transition('admin',id,{revision:3,action:'finalize'});
-    assert.throws(()=>hub.transition('admin',id,{revision:4,action:'return'}));
-    hub.transition('admin',id,{revision:4,action:'return',reason:'更正归属'});
-    hub.saveRows('admin',id,{revision:5,rows:[{...row,commission:0,dealIncentive:50,salesAmount:2000}]});
-    hub.transition('pic',id,{revision:6,action:'submit'});
+    assert.equal(hub.event(id).status,'finalized');
+    assert.equal(hub.history('viewer',id,1).event.status,'finalized');
+    assert.throws(()=>hub.transition('admin',id,{revision:3,action:'return'}));
+    hub.transition('admin',id,{revision:3,action:'return',reason:'更正归属'});
+    hub.saveRows('admin',id,{revision:4,rows:[{...row,commission:0,dealIncentive:50,salesAmount:2000}]});
+    hub.transition('pic',id,{revision:5,action:'submit'});
     assert.equal(hub.history('viewer',id,1).total.salesAmount,1058.4);
     assert.equal(hub.history('viewer',id,2).total.salesAmount,2000);
-    assert.ok(hub.logs('admin').length>=7);assert.throws(()=>hub.logs('viewer'));
+    assert.ok(hub.logs('admin').length>=6);assert.throws(()=>hub.logs('viewer'));
   }finally{hub.close();}
 });
 test('import requires explicit mode, validates and commits atomically',()=>{

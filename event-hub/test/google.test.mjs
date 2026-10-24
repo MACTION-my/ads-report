@@ -32,10 +32,11 @@ test('Google service: self-write isolation, snapshot, correction and server role
   hub.execute('admin',`events/${event.id}/transition`,{revision:4,action:'submit'});
   assert.throws(()=>hub.execute('a',`events/${event.id}/own-row`,{revision:5,row:row('a')}));
   assert.throws(()=>hub.execute('a',`events/${event.id}/transition`,{revision:5,action:'finalize'}));
-  hub.execute('admin',`events/${event.id}/transition`,{revision:5,action:'finalize'});
+  assert.equal(hub.event(event.id).status,'finalized');
+  assert.equal(hub.execute('viewer',`events/${event.id}/history?version=1`).event.status,'finalized');
   assert.equal(hub.execute('viewer',`events/${event.id}/history?version=1`).total.salesAmount,200);
-  assert.throws(()=>hub.execute('admin',`events/${event.id}/transition`,{revision:6,action:'return'}));
-  hub.execute('admin',`events/${event.id}/transition`,{revision:6,action:'return',reason:'Correction'});
+  assert.throws(()=>hub.execute('admin',`events/${event.id}/transition`,{revision:5,action:'return'}));
+  hub.execute('admin',`events/${event.id}/transition`,{revision:5,action:'return',reason:'Correction'});
   assert.equal(hub.event(event.id).status,'needs_correction');assert.ok(hub.changed.has('VersionStats'));
 });
 test('Google state codec preserves cents, nulls and complete metadata',()=>{

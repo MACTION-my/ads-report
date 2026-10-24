@@ -45,9 +45,8 @@ try{
   await page.getByRole('button',{name:'Save draft',exact:true}).click();
   await page.getByRole('status').filter({hasText:'Draft saved.'}).waitFor();
   page.on('dialog',dialog=>dialog.accept());
-  await page.getByRole('button',{name:'Submit & lock',exact:true}).click();
-  await page.getByRole('button',{name:'Approve final report',exact:true}).waitFor();
-  await page.getByRole('button',{name:'Approve final report',exact:true}).click();
+  await page.getByRole('button',{name:'Complete event',exact:true}).click();
+  if(await page.getByRole('button',{name:'Approve final report',exact:true}).count())throw Error('Unexpected approval step');
   await page.getByText('Final · v1',{exact:false}).waitFor();
   await page.setViewportSize({width:1366,height:1000});await page.screenshot({path:fileURLToPath(new URL('../qa/desktop.png',import.meta.url)),fullPage:true});
   await page.setViewportSize({width:390,height:844});await page.screenshot({path:fileURLToPath(new URL('../qa/mobile.png',import.meta.url)),fullPage:true});

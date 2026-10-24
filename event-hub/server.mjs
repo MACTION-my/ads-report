@@ -46,7 +46,7 @@ export function createServer(hub,secret) {
       if(path==='/report/api/attendance-template' && req.method==='GET')return send(200,'\uFEFF'+attendanceHeaders.join(',')+'\r\n','text/csv; charset=utf-8');
       if(path==='/report/api/export' && req.method==='GET') {
         const month=url.searchParams.get('month');assert(/^\d{4}-\d{2}$/.test(month||''),'月份格式无效');
-        const records=hub.list(actor).filter(report=>report.event.eventDate.startsWith(month)&&report.event.status==='finalized'&&!report.event.archived);
+        const records=hub.list(actor).filter(report=>report.event.eventDate.startsWith(month)&&['submitted','finalized'].includes(report.event.status)&&!report.event.archived);
         return send(200,csvExport(records.flatMap(report=>report.rows.map(row=>({...row,eventId:report.event.id})))),'text/csv; charset=utf-8');
       }
       const match=path.match(/^\/report\/api\/events\/([^/]+)(?:\/(rows|own-row|transition|preview|import|export|history|attendance|attendance-preview|attendance-import))?$/);

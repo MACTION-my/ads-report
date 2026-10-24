@@ -75,3 +75,5 @@ node reminders.mjs
 已提供可测试的管理、汇总、提交/审核、受限名单、站内待办、导入导出和浏览器打印 PDF。PDF 是浏览器打印保存，不是服务端生成。没有 XLSX 导入/导出、自动排期、客户级成交自动归属、Sheets/GHL/Zoom 同步或正式佣金算法。公司账号和真实数据连接未接通，所以目前不能免除所有人工确认。
 
 Admin Team Member: sidebar entry (mobile action on small screens) lists registered phone access and historical identities. New members are telesales only; duplicate normalized phones and names are rejected. Disable login preserves performance data. This management capability is available on the Google production backend, not the optional Node backend.
+
+Event completion no longer needs approval: Admin/PIC uses Complete event after entering the assigned results, creating a locked final snapshot directly. Individual submissions do not lock teammates out. Legacy submitted records count and export as completed without rewriting immutable history.

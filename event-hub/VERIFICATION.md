@@ -1,5 +1,7 @@
 # 验证记录 — 2026-10-23（马来西亚）
 
+2026-10-24 取消审批：移除 Submitted incl. finals 卡片。Admin/PIC 完成整场提交后直接 finalized，记录完成者/时间并生成最终版快照；无单独批准步骤。保留分配人员完整性、异常确认、版本冲突、锁定和退回更正；个人填报仍为 draft，避免提前锁定同事。未知佣金/奖励保留空值，不再等待批准。旧 submitted 记录在页面、Final 筛选/计数和月度导出中按完成记录兼容处理，不重写历史快照及原始金额。35 项 Node 测试、TypeScript strict、Build、语法和桌面/手机及 Google 模拟流程通过；首次沙箱 HTTP 回环 EACCES，获准重跑通过。外部通知、自动 Drive 报表等接入范围不变。
+
 2026-10-24 转化率展示修正（e1de6ed，Pages 40079217339，Google v10 发布成功）：移除 Dashboard 按当前月份/筛选汇总的 Conversion Rates 卡片；打开单场活动后展示 Event Conversion Rates，并标注本场名称和日期，直接使用该报告服务端返回的 rates。原单人/单场 Total 转化率表格保留，金额及原始数据不变。35 项 Node 测试、TypeScript strict、Build、语法、桌面/手机及 Google 模拟流程通过；没有新增服务连接。
 
 2026-10-24 成员管理与列表简化（a5f9ac4，Google v9，Pages 40079021812 发布成功）：左侧 Admin 专用 Team Member 入口，手机提供同名入口；列出手机号、角色、登录状态和历史数据可见范围。Admin 可新增普通 telesales 手机账号，服务端规范化号码、拒绝重复号码/姓名及非 Admin 调用；客户端传入 admin role 不会升级权限。沿用既有启停/隐私接口、原子提交、审计和会话活跃检查，不删除历史数据。普通成员接口不返回电话号码。移除侧栏重复 MACTION ACADEMY / Must Action.；活动列表移除 Deadline、Report status 两列，详情审核与催交保留。35 项 Node 测试、TypeScript strict、Build、语法和桌面/手机及 Google 模拟新增成员流程通过；真实账号未被新增或停用。发布后真实接口只读核对仍为 24 场历史记录、68 条绩效、6 个活跃账号，原金额全部吻合。可选 Node 后端不支持成员管理，通过 capability 隐藏入口；邮件/WhatsApp、自动 Drive 报表等未接通项不变。
