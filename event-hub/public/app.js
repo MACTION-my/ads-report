@@ -26,7 +26,7 @@ function googleCall(method, args) {
         else {
             if (reply.status === 401 || reply.status === 403 && method === 'hubCall')
                 showLogin();
-            reject(new Error(reply.error || 'Request failed'));
+            reject(new RequestError(reply.error || 'Request failed', reply.status));
         } };
         if (endpoint) {
             if (!/^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec$/.test(endpoint)) {
@@ -34,7 +34,7 @@ function googleCall(method, args) {
                 return;
             }
             void fetch(endpoint, { method: 'POST', credentials: 'omit', redirect: 'follow', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ method, args }) }).then(async (response) => { if (!response.ok)
-                throw new Error('Backend connection failed'); receive(await response.json()); }).catch(() => reject(new Error('Unable to connect. Please try again shortly.')));
+                throw new Error('Backend connection failed'); receive(await response.json()); }).catch(() => reject(new RequestError(method === 'hubCall' && args[2] != null ? 'Connection interrupted. The update may have saved. Refresh and check before retrying.' : 'Unable to connect. Check your connection and try again.')));
             return;
         }
         const runner = window.google?.script?.run;
@@ -59,21 +59,33 @@ const name = (id) => users.find(u => u.id === id)?.displayName || reports.flatMa
 const date = (iso) => new Date(iso).toLocaleString('en-MY', { timeZone: 'Asia/Kuala_Lumpur', hour12: false });
 function el(tag, text = '', className = '') { const node = document.createElement(tag); node.textContent = text; if (className)
     node.className = className; return node; }
-function message(text) { $('message').textContent = englishMessage(text); }
+function message(text) { $('message').textContent = englishMessage(text); $('message').dataset.kind = 'info'; }
+function saved(text) { message(text + ' Saved at ' + new Date().toLocaleTimeString('en-MY', { timeZone: 'Asia/Kuala_Lumpur', hour12: false }) + ' (MYT).'); $('message').dataset.kind = 'success'; }
+class RequestError extends Error {
+    status;
+    constructor(message, status) {
+        super(message);
+        this.status = status;
+    }
+}
+function reportError(error) { const status = error instanceof RequestError ? error.status : undefined; let text = error instanceof Error ? error.message : String(error); if (status === 409)
+    text += ' Your changes were not applied. Refresh the latest record before editing again.';
+else if (status === 503)
+    text += ' Keep your entries and retry when saving finishes.'; message(text); $('message').dataset.kind = 'error'; }
 async function api(path, body) {
     if (gasMode)
         return googleCall('hubCall', [sessionToken, path, body === undefined ? null : body]);
     const response = await fetch('/report/api/' + path, { method: body === undefined ? 'GET' : 'POST', credentials: 'same-origin', headers: body === undefined ? {} : { 'Content-Type': 'application/json', 'X-Event-Hub-Request': '1' }, body: body === undefined ? undefined : JSON.stringify(body) });
     const result = await response.json();
     if (!response.ok)
-        throw new Error(result.error || 'Request failed');
+        throw new RequestError(result.error || 'Request failed', response.status);
     return result;
 }
 function run(action) { return async () => { try {
     await action();
 }
 catch (error) {
-    message(error instanceof Error ? error.message : String(error));
+    reportError(error);
 } }; }
 function card(title, value) { const node = el('div', '', 'card'); node.append(el('span', title), el('strong', value)); return node; }
 function button(text, action, className = '') { const node = el('button', text, className); node.type = 'button'; node.onclick = run(async () => { node.disabled = true; try {
@@ -105,13 +117,16 @@ function render() {
     for (const report of list.sort((a, b) => a.event.eventDate.localeCompare(b.event.eventDate))) {
         const e = report.event, tr = el('tr');
         const title = el('td');
-        title.append(el('span', e.brand, 'brand-label'), document.createTextNode(e.name));
+        title.append(el('span', e.brand, 'brand-label'), document.createTextNode(e.name), el('small', report.completeness.pendingUserIds.length ? 'Missing: ' + report.completeness.pendingUserIds.map(name).join(', ') : e.assignedUserIds.length ? 'All assigned members have entered results' : 'No team assigned', 'entry-progress'));
         tr.append(title);
         tr.append(el('td', e.eventDate + ' / ' + name(e.picUserId)));
         for (const text of [String(report.total.attended), String(report.total.closedDeals), money(report.total.salesAmount)])
             tr.append(el('td', text));
         const cell = el('td');
+        cell.className = 'event-actions';
         cell.append(button('Open', async () => { await openReport(e.id); }));
+        if (me.role === 'admin')
+            cell.append(button('Edit', () => editEventFromList(e), 'secondary'), button('Copy', () => showEvent(e, true), 'secondary'), button('Delete', () => deleteEvent(e), 'secondary'));
         tr.append(cell);
         table.append(tr);
     }
@@ -124,6 +139,23 @@ function render() {
         tr.append(td);
         table.append(tr);
     }
+    let deletedPanel = document.getElementById('deletedEvents');
+    if (deletedPanel)
+        deletedPanel.remove();
+    if (me.role === 'admin') {
+        const deleted = reports.filter(r => r.event.deletedAt);
+        if (deleted.length) {
+            deletedPanel = el('details', '', 'deleted-events');
+            deletedPanel.id = 'deletedEvents';
+            deletedPanel.append(el('summary', `Deleted events (${deleted.length})`));
+            for (const report of deleted) {
+                const row = el('p', report.event.name + ' · ' + report.event.eventDate + ' ');
+                row.append(button('Restore event', async () => { await api(`events/${report.event.id}/transition`, { revision: report.event.revision, action: 'restore' }); await refresh(); saved('Event restored.'); }, 'secondary'));
+                deletedPanel.append(row);
+            }
+            $('eventPanel').append(deletedPanel);
+        }
+    }
     const rankingRows = active.flatMap(report => report.rows.filter(row => !report.event.rankingExcludedUserIds?.includes(row.userId)));
     const groups = new Map();
     for (const row of rankingRows)
@@ -133,6 +165,24 @@ function render() {
     if (!ranks.length)
         $('ranking').append(el('p', 'Team results will appear after the first submission.', 'rank-empty'));
 }
+async function deleteEvent(event) { if (!confirm(`Delete ${event.name}? It will be removed from lists and totals. Historical records remain and you can restore it from Deleted events.`))
+    return; await api(`events/${event.id}/transition`, { revision: event.revision, action: 'delete' }); if (selected?.event.id === event.id) {
+    selected = null;
+    $('detail').hidden = true;
+} await refresh(); saved('Event deleted. Restore is available in Deleted events.'); }
+async function editEventFromList(event) { if (!editable(event)) {
+    if (!['submitted', 'finalized'].includes(event.status)) {
+        message('This event cannot be edited in its current state.');
+        return;
+    }
+    const reason = prompt('This event is Final. Enter a reason to reopen it for editing:');
+    if (!reason?.trim())
+        return;
+    const report = await api(`events/${event.id}/transition`, { revision: event.revision, action: 'return', reason });
+    await refresh();
+    showEvent(report.event);
+    return;
+} showEvent(event); }
 async function refresh() { reports = await api('events'); render(); }
 function isPlaceholder(e) { return Boolean(e.legacyPlaceholderDeadline && e.legacyPlaceholderDeadline === e.submissionDeadline); }
 function controls(e) { return me.role === 'admin' || me.id === e.picUserId; }
@@ -168,12 +218,46 @@ function renderDetail() {
     section.hidden = currentView() !== '#eventPanel';
     section.replaceChildren();
     section.append(el('h2', e.brand + ' · ' + e.name), el('p', `${e.eventDate} · PIC ${name(e.picUserId)} · ${stateLabels[e.displayStatus]} · v${e.reportVersion} · Revision ${e.revision}`), el('p', `Deadline ${isPlaceholder(e) ? 'Not set' : date(e.submissionDeadline)} · Submitted by ${e.submittedBy ? name(e.submittedBy) : 'Not submitted'} · ${e.submittedAt ? date(e.submittedAt) : ''}`));
+    section.append(el('p', 'Last saved: ' + (e.updatedAt ? date(e.updatedAt) : 'No saved timestamp recorded'), 'saved-time'));
     if (!['submitted', 'finalized'].includes(e.status))
         section.append(el('p', 'Draft / not final. Do not use for final settlement.', 'notice'));
     if (e.legacySourceSection)
         section.append(el('p', 'Historical snapshot imported from Drive. Source values are preserved. Empty template rows were skipped.', 'notice'));
     section.append(el('p', `Commission or incentive not entered: ${r.completeness.unapprovedCommission} member(s).`));
-    section.append(el('p', 'Awaiting submission: ' + (r.completeness.pendingUserIds.map(name).join(', ') || 'Everyone has submitted')));
+    const progress = el('section', '', 'submission-checklist');
+    progress.append(el('h3', 'Team submission progress'));
+    if (!e.assignedUserIds.length)
+        progress.append(el('p', 'No team assigned. Edit this event to assign its responsible members.'));
+    for (const userId of e.assignedUserIds) {
+        const row = r.rows.find(item => item.userId === userId), line = el('div', '', 'submission-line');
+        line.append(el('strong', name(userId)), el('span', row?.submittedAt ? 'Submitted' : row ? 'Saved' : 'Missing', row ? 'entry-saved' : 'entry-missing'));
+        if (row?.updatedAt || row?.submittedAt)
+            line.append(el('small', 'Last entry ' + date(row.updatedAt || row.submittedAt)));
+        progress.append(line);
+    }
+    section.append(progress);
+    const performance = el('section', '', 'event-pane'), attendance = el('section', '', 'event-pane');
+    performance.id = 'eventPerformancePane';
+    attendance.id = 'eventAttendancePane';
+    attendance.hidden = true;
+    const tabs = el('div', '', 'toolbar event-tabs no-print');
+    tabs.setAttribute('role', 'tablist');
+    tabs.setAttribute('aria-label', 'Event sections');
+    const selectPane = (pane) => { performance.hidden = pane !== performance; attendance.hidden = pane !== attendance; for (const tab of tabs.querySelectorAll('[role=tab]'))
+        tab.setAttribute('aria-selected', String(tab.getAttribute('aria-controls') === pane.id)); };
+    const performanceTab = button('Performance', () => selectPane(performance));
+    performanceTab.setAttribute('role', 'tab');
+    performanceTab.setAttribute('aria-controls', performance.id);
+    performanceTab.setAttribute('aria-selected', 'true');
+    tabs.append(performanceTab);
+    if (controls(e)) {
+        const attendanceTab = button('Attendance', () => selectPane(attendance), 'secondary');
+        attendanceTab.setAttribute('role', 'tab');
+        attendanceTab.setAttribute('aria-controls', attendance.id);
+        attendanceTab.setAttribute('aria-selected', 'false');
+        tabs.append(attendanceTab);
+    }
+    section.append(tabs, performance, attendance);
     section.append(el('p', `Attendance records: ${r.attendanceSummary.records}; attended: ${r.attendanceSummary.attended}; unassigned: ${r.attendanceSummary.unattributed}. Attendance lists are reviewed separately and do not overwrite performance counts.`));
     if (r.attendanceSummary.records && r.attendanceSummary.attended !== r.total.attended)
         section.append(el('p', 'Attendance list and performance counts differ. PIC review required.', 'warning'));
@@ -188,15 +272,15 @@ function renderDetail() {
     conversionCards.id = 'aggregate';
     conversionCards.append(...Object.entries(r.rates).map(([key, value]) => card(rateLabels[key], rate(value))));
     conversion.append(conversionHead, conversionCards);
-    section.append(conversion);
-    section.append(table(r.rows, r.total, r.rates));
+    performance.append(conversion);
+    performance.append(table(r.rows, r.total, r.rates));
     if (e.notes)
-        section.append(el('p', 'Event notes: ' + e.notes));
+        performance.append(el('p', 'Event notes: ' + e.notes));
     for (const row of r.rows) {
         if (row.notes)
-            section.append(el('p', name(row.userId) + ': ' + row.notes));
+            performance.append(el('p', name(row.userId) + ': ' + row.notes));
         for (const warning of row.warnings || [])
-            section.append(el('p', name(row.userId) + ': ' + englishMessage(warning), 'warning'));
+            performance.append(el('p', name(row.userId) + ': ' + englishMessage(warning), 'warning'));
     }
     const actions = el('div', '', 'toolbar no-print');
     actions.append(button('Print / Save PDF', () => window.print()), button('Export event CSV', () => download(`events/${e.id}/export`, e.name + '.csv')));
@@ -206,7 +290,7 @@ function renderDetail() {
         if (editable(e))
             actions.append(button('Edit event', () => showEvent(e)), button('Cancel event', async () => { if (confirm('Cancel this event? History will be retained.'))
                 await transition('cancel'); }));
-        actions.append(button('Duplicate event', () => showEvent(e, true)), button('Archive', async () => { if (confirm('Archive this event? It will be hidden from totals, but records will be retained.'))
+        actions.append(button('Duplicate event', () => showEvent(e, true)), button('Delete event', () => deleteEvent(e), 'secondary'), button('Archive', async () => { if (confirm('Archive this event? It will be hidden from totals, but records will be retained.'))
             await transition('archive'); }));
         if (['submitted', 'finalized'].includes(e.status))
             actions.append(button('Return for correction', async () => { const reason = prompt('Enter the reason for correction'); if (reason?.trim())
@@ -219,15 +303,19 @@ function renderDetail() {
         source.rel = 'noopener';
         actions.append(source);
     }
-    section.append(actions);
+    section.insertBefore(actions, tabs);
     if (controls(e))
-        renderAttendance(section, r);
+        renderAttendance(attendance, r);
     if (editable(e) && e.assignedUserIds.length)
-        renderInputs(section, r);
+        renderInputs(performance, r);
     else if (!e.archived && ['scheduled', 'draft', 'awaiting_data', 'needs_correction'].includes(e.status) && e.assignedUserIds.includes(me.id) && ['telesales', 'pic'].includes(me.role))
-        renderInputs(section, r, true);
-    if (me.role === 'admin' && editable(e))
-        renderImport(section, r);
+        renderInputs(performance, r, true);
+    if (me.role === 'admin' && editable(e)) {
+        const advanced = el('details', '', 'no-print');
+        advanced.append(el('summary', 'Import performance CSV (optional)'));
+        renderImport(advanced, r);
+        performance.append(advanced);
+    }
 }
 function renderAttendance(section, r) {
     const box = el('div', '', 'no-print person');
@@ -252,7 +340,7 @@ function renderAttendance(section, r) {
         let ready = null;
         const commit = button('Save attendance list', async () => { if (!ready)
             return; if (!confirm('Confirm ' + (mode.value === 'replace' ? 'Replace entire attendance list' : 'merge attendance records') + '?'))
-            return; selected = await api(`events/${r.event.id}/attendance-import`, { ...ready, mode: mode.value }); await refresh(); renderDetail(); message('Attendance saved and deduplicated. Performance counts were not changed.'); });
+            return; selected = await api(`events/${r.event.id}/attendance-import`, { ...ready, mode: mode.value }); await refresh(); renderDetail(); saved('Attendance saved and deduplicated. Performance counts were not changed.'); });
         commit.disabled = true;
         file.onchange = () => { ready = null; commit.disabled = true; output.textContent = ''; };
         mode.onchange = () => { commit.disabled = !ready || !mode.value; };
@@ -311,7 +399,7 @@ function renderInputs(section, r, own = false) {
         await saveData();
         await refresh();
         renderDetail();
-        message(own ? 'Your results have been submitted and included in the totals.' : 'Draft saved.');
+        saved(own ? 'Your results have been submitted and included in the totals.' : 'Draft saved.');
     }
     finally {
         save.disabled = false;
@@ -461,7 +549,7 @@ function renderTeamPrivacy(settings) {
     }
 }
 async function transition(action, extra = {}) { if (!selected)
-    return; selected = await api(`events/${selected.event.id}/transition`, { revision: selected.event.revision, action, ...extra }); await refresh(); renderDetail(); message('Status updated.'); }
+    return; selected = await api(`events/${selected.event.id}/transition`, { revision: selected.event.revision, action, ...extra }); await refresh(); renderDetail(); saved('Event saved as ' + (selected?.event.status === 'finalized' ? 'Final' : stateLabels[selected.event.status]) + '.'); }
 async function download(path, fileName) { let blob; if (gasMode)
     blob = new Blob([await api(path)], { type: 'text/csv;charset=utf-8' });
 else {
@@ -487,15 +575,23 @@ function showEvent(event = null, duplicate = false) {
             control('eventDate').value = event.eventDate;
             control('deadline').value = isPlaceholder(event) ? '' : new Date(Date.parse(event.submissionDeadline) + 8 * 3600_000).toISOString().slice(0, 16);
         }
-        else
-            control('name').value = event.name + ' (new event)';
+        else {
+            control('notes').value = '';
+            control('name').value = event.name.replace(/\s*·\s*\d{4}-\d{2}-\d{2}.*$/, '') + ' (new event)';
+            control('deadline').value = '';
+        }
     }
     $('members').replaceChildren(...users.map(user => { const label = el('label', user.displayName, 'member'), checkbox = el('input'); checkbox.type = 'checkbox'; checkbox.name = 'assigned'; checkbox.value = user.id; checkbox.checked = event?.assignedUserIds.includes(user.id) || false; label.prepend(checkbox); return label; }));
+    $('eventFormHint').textContent = duplicate ? 'Copies the active PIC and team only. Choose a new date and deadline. Results and attendance start empty.' : 'Set the date, assign your team and start tracking results.';
     $('eventDialog').showModal();
 }
-$('eventForm').onsubmit = event => { event.preventDefault(); void run(async () => { const form = new FormData($('eventForm')); const body = { name: form.get('name'), brand: form.get('brand'), eventDate: form.get('eventDate'), submissionDeadline: form.get('deadline') + ':00+08:00', picUserId: form.get('picUserId'), assignedUserIds: form.getAll('assigned'), venue: form.get('venue'), notes: form.get('notes'), revision: editing?.revision }; const report = await api('events' + (editing ? '/' + editing.id : ''), body); $('eventDialog').close(); await refresh(); await openReport(report.event.id); message('Event saved.'); })(); };
+$('eventForm').onsubmit = event => { event.preventDefault(); void run(async () => { const form = new FormData($('eventForm')); const body = { name: form.get('name'), brand: form.get('brand'), eventDate: form.get('eventDate'), submissionDeadline: form.get('deadline') + ':00+08:00', picUserId: form.get('picUserId'), assignedUserIds: form.getAll('assigned'), venue: form.get('venue'), notes: form.get('notes'), revision: editing?.revision }; const report = await api('events' + (editing ? '/' + editing.id : ''), body); $('eventDialog').close(); await refresh(); await openReport(report.event.id); saved('Event saved.'); })(); };
 $('closeDialog').onclick = () => $('eventDialog').close();
 $('create').onclick = () => showEvent();
+$('copyLatest').onclick = () => { const latest = reports.filter(r => !r.event.archived && (!$('brand').value || r.event.brand === $('brand').value)).sort((a, b) => b.event.eventDate.localeCompare(a.event.eventDate))[0]; if (!latest) {
+    message('No previous event found. Create your first event instead.');
+    return;
+} showEvent(latest.event, true); };
 $('refresh').onclick = run(refresh);
 for (const id of ['month', 'brand', 'pic', 'state', 'search'])
     $(id).addEventListener('input', render);
@@ -530,6 +626,7 @@ function updateNavigation() {
     document.querySelectorAll('.filter-bar').forEach(node => node.hidden = view === '#teamPrivacy');
     document.querySelectorAll('.connection-note').forEach(node => node.hidden = view !== '#eventPanel');
     $('create').hidden = me.role !== 'admin' || view !== '#eventPanel';
+    $('copyLatest').hidden = $('create').hidden;
     $('monthly').hidden = view !== '#overview';
 }
 async function navigateView() {

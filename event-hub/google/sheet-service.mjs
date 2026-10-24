@@ -86,6 +86,8 @@ export class SheetHub {
     }else{this.admin(actor);
       if(body.action==='return'){assert(['submitted','finalized'].includes(event.status),'当前状态不可退回');assert(typeof body.reason==='string'&&body.reason.trim(),'退回必须说明原因');event.status='needs_correction';event.correctionReason=body.reason.slice(0,4000);}
       else if(body.action==='finalize'){assert(event.status==='submitted','只有已提交报表可确认');event.status='finalized';event.finalizedBy=actor;event.finalizedAt=this.now;}
+      else if(body.action==='delete'){assert(!event.deletedAt,'Event already deleted');event.deletedAt=this.now;event.deletedBy=actor;event.archived=true;}
+      else if(body.action==='restore'){assert(event.deletedAt,'Event is not deleted');delete event.deletedAt;delete event.deletedBy;event.archived=false;}
       else if(body.action==='archive')event.archived=true;
       else if(body.action==='cancel'){assert(!['submitted','finalized'].includes(event.status),'锁定报表须先退回');event.status='cancelled';}
       else assert(false,'未知状态操作');
@@ -97,14 +99,14 @@ export class SheetHub {
     if(path==='team-members')return this.teamMembers(actor,body);
     if(path==='team-visibility')return this.teamVisibility(actor,body);
     if(path==='me'&&body===undefined){const me=this.members().find(row=>row.id===actor);return {user:me,users:this.members().filter(m=>me.role==='admin'||!this.hiddenIds().has(m.id)),capabilities:{teamVisibility:true,teamMembers:true}};}
-    if(path==='events')return body===undefined?this.data.Events.filter(e=>e.id!==visibilitySettingsId).map(event=>this.report(event.id)):this.saveEvent(actor,body,null);
+    if(path==='events')return body===undefined?this.data.Events.filter(e=>e.id!==visibilitySettingsId&&(this.user(actor).role==='admin'||!e.deletedAt)).map(event=>this.report(event.id)):this.saveEvent(actor,body,null);
     if(path==='inbox')return this.data.Reminders.filter(row=>row.recipientUserId===actor&&row.deliveryStatus==='delivered_in_app').filter(row=>{const e=this.event(row.eventId);return !e.archived&&!['submitted','finalized','cancelled'].includes(e.status)&&(e.picUserId===actor||this.user(actor).role==='admin'||!this.rows(e.id).some(item=>item.userId===actor));}).map(row=>({...row,eventName:canonicalEvent(this.event(row.eventId)).name,status:this.event(row.eventId).status}));
     if(path==='template')return '\uFEFF'+csvHeaders.join(',')+'\r\n';
     if(path==='attendance-template')return '\uFEFF'+attendanceHeaders.join(',')+'\r\n';
     if(path==='audit'){this.admin(actor);return this.data.Audit.slice(-200).reverse();}
     if(path.startsWith('export?')){const month=path.match(/[?&]month=(\d{4}-\d{2})(?:&|$)/)?.[1];assert(month,'月份无效');return csvExport(this.data.Events.filter(e=>e.eventDate.startsWith(month)&&['submitted','finalized'].includes(e.status)&&!e.archived).flatMap(e=>this.visibleReport(actor,this.report(e.id)).rows));}
     const match=path.match(/^events\/([^/?]+)(?:\/(own-row|rows|transition|export|history|preview|import|attendance|attendance-preview|attendance-import))?(?:\?version=(\d+))?$/);assert(match,'接口不存在',404);
-    const [,id,action,version]=match,event=this.event(id);
+    const [,id,action,version]=match,event=this.event(id);assert(!event.deletedAt||this.user(actor).role==='admin','Event not found',404);
     assert(id!==visibilitySettingsId,'接口不存在',404);
     if(!action)return body===undefined?this.report(id):this.saveEvent(actor,body,id);
     if(action==='history'){const stored=this.data.Versions.find(row=>row.eventId===id&&row.version===Number(version));assert(stored,'版本不存在',404);const rows=this.data.VersionStats.filter(row=>row.eventId===id&&row.version===Number(version)).map(row=>JSON.parse(row.statsSnapshotJson));return {event:canonicalEvent(JSON.parse(stored.eventSnapshotJson)),rows,total:totals(rows),rates:rates(totals(rows))};}

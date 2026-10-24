@@ -46,3 +46,7 @@ test('import requires explicit mode, validates and commits atomically',()=>{
     assert.equal(hub.db.prepare('SELECT count(*) AS n FROM importJobs').get().n,1);
   }finally{hub.close();}
 });
+
+test('Admin can recover a deleted event without losing data or its final snapshot',()=>{
+ const {hub,id,row}=fixture();try{hub.saveRows('admin',id,{revision:1,rows:[row]});hub.transition('pic',id,{revision:2,action:'submit'});const snapshot=hub.history('admin',id,1);assert.throws(()=>hub.transition('pic',id,{revision:3,action:'delete'}));hub.transition('admin',id,{revision:3,action:'delete'});assert.equal(hub.list('viewer').length,0);assert.throws(()=>hub.report('viewer',id));assert.throws(()=>hub.history('viewer',id,1));hub.transition('admin',id,{revision:4,action:'restore'});assert.equal(hub.event(id).status,'finalized');assert.deepEqual(hub.history('viewer',id,1),snapshot);assert.equal(hub.rows(id)[0].salesAmount,1058.4);}finally{hub.close();}
+});

@@ -46,7 +46,11 @@ function hubSession_(data){
   const cache=CacheService.getScriptCache();
   return new PhoneSessions({cache:cache,digest:function(value){return Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256,value,Utilities.Charset.UTF_8).map(function(byte){return ('0'+((byte+256)%256).toString(16)).slice(-2);}).join('');},randomToken:function(){return Utilities.getUuid().replace(/-/g,'')+Utilities.getUuid().replace(/-/g,'');},now:Date.now(),enabled:hubProperties_().getProperty('HUB_PHONE_ONLY_ENABLED')==='true',members:data.Members});
 }
-function hubEnvelope_(operation){try{return {ok:true,data:operation()};}catch(error){if(!(error instanceof HubError))console.error(String(error.message||error));return {ok:false,error:error instanceof HubError?error.message:'服务处理失败，请管理员检查 Apps Script 执行记录',status:error instanceof HubError?error.status:500};}}
+function hubEnvelope_(operation){try{return {ok:true,data:operation()};}catch(error){
+  if(error instanceof HubError)return {ok:false,error:error.message,status:error.status};
+  const reference=typeof Utilities!=='undefined'?Utilities.getUuid().slice(0,8):'unknown';console.error('Hub error '+reference+': '+String(error.stack||error.message||error));
+  return {ok:false,error:'The server could not finish this request. Refresh to check the saved state before retrying. Error reference: '+reference,status:500};
+}}
 function hubWithLock_(operation){const lock=LockService.getScriptLock();assert(lock.tryLock(1000),'Another update is still saving. Please try again shortly.',503);try{return operation();}finally{lock.releaseLock();}}
 function hubLogin(phone){return hubEnvelope_(function(){const data=hubLoad_(['Members']);return hubSession_(data).login(phone);});}
 function hubInitial_(hub,actor){const identity=hub.execute(actor,'me');return {user:identity.user,users:identity.users,capabilities:identity.capabilities,reports:hub.execute(actor,'events'),inbox:hub.execute(actor,'inbox')};}

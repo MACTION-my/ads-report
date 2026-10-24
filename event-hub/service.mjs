@@ -35,14 +35,14 @@ export class Hub {
       .map(record=>{const row=JSON.parse(record.data);for(const key of money) if(row[key]!==null) row[key]/=100;return {...row,displayName:record.displayName};});
   }
   report(actor,id) {
-    this.user(actor); const event=this.event(id), rows=this.rows(id), total=totals(rows);
+    this.user(actor); const event=this.event(id);assert(!event.deletedAt||this.user(actor).role==='admin','Event not found',404);const rows=this.rows(id), total=totals(rows);
     const submissions=this.db.prepare('SELECT version,actor,createdAt FROM submissions WHERE eventId=? ORDER BY version DESC').all(id);
     return {event:{...event,displayStatus:status(event)},rows:rows.map(row=>({...row,rates:rates(row),warnings:warnings(row)})),total,rates:rates(total),submissions,
       attendanceSummary:this.attendanceSummary(id),
       completeness:{rows:rows.length,pendingUserIds:event.assignedUserIds.filter(id=>!rows.some(row=>row.userId===id)),missingNewLeadPta:rows.filter(row=>row.newLeadPta===null).length,unapprovedCommission:rows.filter(row=>row.commission===null||row.dealIncentive===null).length}};
   }
   list(actor) {
-    this.user(actor);return this.db.prepare('SELECT id FROM events').all().map(({id})=>this.report(actor,id));
+    this.user(actor);return this.db.prepare('SELECT id FROM events').all().filter(({id})=>this.user(actor).role==='admin'||!this.event(id).deletedAt).map(({id})=>this.report(actor,id));
   }
   saveEvent(actor,input,id=null) {
     this.admin(actor);
@@ -153,7 +153,9 @@ export class Hub {
         }else if(body.action==='finalize') {
           assert(event.status==='submitted','只有已提交报表可最终确认');
           event.status='finalized';event.finalizedBy=actor;event.finalizedAt=new Date().toISOString();
-        }else if(body.action==='archive') event.archived=true;
+        }else if(body.action==='delete'){assert(!event.deletedAt,'Event already deleted');event.deletedAt=new Date().toISOString();event.deletedBy=actor;event.archived=true;}
+        else if(body.action==='restore'){assert(event.deletedAt,'Event is not deleted');delete event.deletedAt;delete event.deletedBy;event.archived=false;}
+        else if(body.action==='archive') event.archived=true;
         else if(body.action==='cancel') {assert(!['submitted','finalized'].includes(event.status),'锁定报表须先退回');event.status='cancelled';}
         else assert(false,'未知状态操作');
       }
@@ -181,12 +183,12 @@ export class Hub {
     });
   }
   history(actor,id,version) {
-    this.user(actor);const result=this.db.prepare('SELECT snapshot FROM submissions WHERE eventId=? AND version=?').get(id,version);
+    this.user(actor);assert(!this.event(id).deletedAt||this.user(actor).role==='admin','Event not found',404);const result=this.db.prepare('SELECT snapshot FROM submissions WHERE eventId=? AND version=?').get(id,version);
     assert(result,'版本不存在',404);const snapshot=JSON.parse(result.snapshot);return {...snapshot,event:canonicalEvent(snapshot.event)};
   }
   logs(actor) {this.admin(actor);return this.db.prepare('SELECT * FROM auditLogs ORDER BY id DESC LIMIT 200').all();}
   attendanceAccess(actor,id) {
-    const user=this.user(actor),event=this.event(id);
+    const user=this.user(actor),event=this.event(id);assert(!event.deletedAt||user.role==='admin','Event not found',404);
     assert(user.role==='admin'||event.picUserId===actor,'客户名单仅 Admin 或本场 PIC 可见',403);return event;
   }
   attendanceSummary(id) {

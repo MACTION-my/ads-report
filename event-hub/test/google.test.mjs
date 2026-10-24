@@ -101,3 +101,11 @@ test('Dashboard reads and sign-in bypass busy writer locks; mutations return a r
  assert.equal(vm.runInContext("hubCall('token','events',null)",context).ok,true);assert.equal(vm.runInContext("hubLogin('0123456789')",context).ok,true);assert.equal(locks,0);
  const busy=vm.runInContext("hubCall('token','team-members',{action:'edit'})",context);assert.equal(busy.ok,false);assert.equal(busy.status,503);assert.match(busy.error,/still saving/);assert.equal(locks,1);assert.equal(loads,2);
 });
+
+test('deleted events restore with the same identity and immutable final history',()=>{
+ const state=data();let seq=0;const hub=new SheetHub(state,'2026-10-24T00:00:00Z',()=>String(++seq));let event=hub.execute('admin','events',{brand:'Pinyu',name:'Restore test',eventDate:'2026-10-21',submissionDeadline:'2030-01-01T00:00:00Z',picUserId:'admin',assignedUserIds:['a']}).event;
+ hub.execute('a',`events/${event.id}/own-row`,{revision:event.revision,row:row('a')});hub.execute('admin',`events/${event.id}/transition`,{revision:hub.event(event.id).revision,action:'submit'});const before=JSON.stringify(state.VersionStats),amount=hub.report(event.id).total.salesAmount,revision=hub.event(event.id).revision;
+ assert.throws(()=>hub.execute('a',`events/${event.id}/transition`,{revision,action:'delete'}),/Admin/);hub.execute('admin',`events/${event.id}/transition`,{revision,action:'delete'});assert.equal(hub.execute('a','events').length,0);assert.throws(()=>hub.execute('a',`events/${event.id}/history?version=1`),/not found/);assert.throws(()=>hub.execute('admin',`events/${event.id}/transition`,{revision,action:'restore'}),/冲突/);
+ hub.execute('admin',`events/${event.id}/transition`,{revision:hub.event(event.id).revision,action:'restore'});assert.equal(hub.event(event.id).status,'finalized');assert.equal(hub.report(event.id).total.salesAmount,amount);assert.equal(JSON.stringify(state.VersionStats),before);assert.equal(hub.execute('a','events').length,1);
+ const copy=hub.execute('admin','events',{...hub.event(event.id),name:'Copy',eventDate:'2026-10-25'});assert.equal(copy.rows.length,0);assert.equal(copy.attendanceSummary.records,0);assert.equal(copy.total.salesAmount,0);assert.deepEqual(copy.event.assignedUserIds,['a']);assert.equal(copy.event.status,'scheduled');
+});
