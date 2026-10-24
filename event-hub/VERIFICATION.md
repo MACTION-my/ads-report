@@ -4,7 +4,9 @@
 
 新增 Admin-only source-refresh RPC，输入为核对后的来源快照；校验 source ID/digest、目标关联/日期/品牌、精确人员映射、总计、版本冲突、重复事件及归档状态。更新前保留当前数据版本，追加最终版快照，保留 Attendance、账号/停用/隐私状态；相同 digest 重试不重复写入。新模块不读取 Drive、不安装触发器、不含私有来源。更新使用已有原子 Sheets commit，不绕过系统锁。
 
-日期展示及活动日期/截止输入统一 DD.MM.YYYY（截止加 HH:mm，Malaysia），后台事件键保持 ISO，不改旧快照；无效日历日期拒绝保存。识别 Franchise JB/KL Offline 文件名。42 项 Node 测试、TypeScript strict、Build、语法、桌面/手机流程通过；含源刷新权限、幂等、旧快照/Attendance 保留、停用成员不重新启用、总计不符/同日期重复拒绝及日期输入回归。当前尚在部署/导入中，不能视为实际数据更新完成。
+日期展示及活动日期/截止输入统一 DD.MM.YYYY（截止加 HH:mm，Malaysia），后台事件键保持 ISO，不改旧快照；无效日历日期拒绝保存。识别 Franchise JB/KL Offline 文件名。42 项 Node 测试、TypeScript strict、Build、语法、桌面/手机流程通过；含源刷新权限、幂等、旧快照/Attendance 保留、停用成员不重新启用、总计不符/同日期重复拒绝及日期输入回归。
+
+实际发布：实现 441751e，Pages 40091257725 成功，Google 稳定部署已更新 v17。六场已顺序写入并用真实 API 读回核对全部六项总计、行数和 finalized 状态；三场占位保留原 ID，三场新建。当前 30 场非归档活动、76 条绩效。全体 Members（含号码/删除/停用/隐私/版本）与导入前完全一致，非目标活动完整读回不变，原名单汇总保留；相同来源重试返回 unchanged。源快照、写入前后备份、检查点与摘要仅存忽略的 qa 目录。Pinyu 08/10 的成交1/金额0、21/10 的成交0/金额1058.40 按原表保留，不擅自修正。自动复制 Drive 模板、系统完成后自动导出到 Drive 均未接通；本次不新增 Drive 授权或定时同步。
 
 2026-10-24 五项流程优化（e79a885，Google v15 首发；最终 v16、Pages 40084797888 发布成功（打印兼容 0236e25））：活动列表 Admin 专用 Edit/Copy/Delete；Final 的 Edit 先填写原因重新打开，保留原快照。Delete 使用 archived+deletedAt 软删除，Deleted events 可恢复相同 ID、状态、名单和历史；普通成员无法读取已删除活动及直达历史/出席，列表和汇总排除。Node 与 Google 都实现删除/恢复并保持版本冲突/权限检查。复制入口包括行内 Copy 和 Copy previous event，保留可用 PIC/团队和场地，要求新日期/截止，清空旧备注，业绩及名单新场为空；不复制来源溯源或历史金额。
 
