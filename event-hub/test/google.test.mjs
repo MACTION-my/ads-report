@@ -49,12 +49,12 @@ test('Google reminders persist once and exclude completed members',()=>{
   hub.execute('a',`events/${event.id}/own-row`,{revision:1,row:row('a')});assert.equal(hub.remind().deliveredInApp,2);assert.equal(hub.remind().deliveredInApp,0);assert.equal(hub.execute('a','inbox').length,0);assert.equal(hub.execute('b','inbox').length,1);
 });
 test('Apps Script bundle has valid V8 syntax and public endpoints',()=>{
-  const files=['../core.mjs','../phone.mjs','../attendance.mjs','sheet-schema.mjs','sheet-state.mjs','phone-sessions.mjs','sheet-service.mjs'];
+  const files=['../core.mjs','../phone.mjs','../attendance.mjs','sheet-schema.mjs','sheet-state.mjs','phone-sessions.mjs','source-refresh.mjs','sheet-service.mjs'];
   const source=files.map(file=>readFileSync(new URL('../google/'+file,import.meta.url),'utf8').replace(/^import .*?;\r?\n/gm,'').replace(/^export /gm,'')).join('\n')+'\n'+readFileSync(new URL('../google/Runtime.gs',import.meta.url),'utf8');
   new vm.Script(source);assert.ok(source.includes('function hubLogin('));assert.ok(source.includes('function runScheduledReminders_('));
 });
 test('Apps Script commit uses one atomic batch and treats user text as strings',()=>{
-  const files=['../core.mjs','../phone.mjs','../attendance.mjs','sheet-schema.mjs','sheet-state.mjs','phone-sessions.mjs','sheet-service.mjs'];
+  const files=['../core.mjs','../phone.mjs','../attendance.mjs','sheet-schema.mjs','sheet-state.mjs','phone-sessions.mjs','source-refresh.mjs','sheet-service.mjs'];
   const source=files.map(file=>readFileSync(new URL('../google/'+file,import.meta.url),'utf8').replace(/^import .*?;\r?\n/gm,'').replace(/^export /gm,'')).join('\n')+'\n'+readFileSync(new URL('../google/Runtime.gs',import.meta.url),'utf8');
   const calls=[];
   const context=vm.createContext({PropertiesService:{getScriptProperties:()=>({getProperty:()=> 'test-book'})},Sheets:{Spreadsheets:{get:()=>({sheets:['Stats','Audit'].map(title=>({properties:{title,sheetId:123,gridProperties:{rowCount:1000}}}))}),batchUpdate:(body,id)=>calls.push({body,id})}}});
@@ -77,7 +77,7 @@ test('Public POST transport dispatches only existing authenticated handlers and 
 });
 
 test('Combined login reads one Sheets batch, returns no phones, and rechecks disabled sessions',()=>{
-  const files=['../core.mjs','../phone.mjs','../attendance.mjs','sheet-schema.mjs','sheet-state.mjs','phone-sessions.mjs','sheet-service.mjs'];
+  const files=['../core.mjs','../phone.mjs','../attendance.mjs','sheet-schema.mjs','sheet-state.mjs','phone-sessions.mjs','source-refresh.mjs','sheet-service.mjs'];
   const source=files.map(file=>readFileSync(new URL('../google/'+file,import.meta.url),'utf8').replace(/^import .*?;\r?\n/gm,'').replace(/^export /gm,'')).join('\n')+'\n'+readFileSync(new URL('../google/Runtime.gs',import.meta.url),'utf8');
   const state=data(),cache=new Map(),calls=[];let released=0;
   const context=vm.createContext({console,PropertiesService:{getScriptProperties:()=>({getProperty:key=>key==='HUB_PHONE_ONLY_ENABLED'?'true':'test-book'})},CacheService:{getScriptCache:()=>({get:key=>cache.get(key),put:(key,value)=>cache.set(key,value),remove:key=>cache.delete(key)})},Utilities:{DigestAlgorithm:{SHA_256:'sha'},Charset:{UTF_8:'utf8'},computeDigest:(_algorithm,value)=>Array.from(createHash('sha256').update(value).digest()),getUuid:()=> 'a'.repeat(32)},LockService:{getScriptLock:()=>({waitLock(){},releaseLock(){released++;}})},Sheets:{Spreadsheets:{Values:{batchGet:(_id,options)=>{calls.push(options);return {valueRanges:options.ranges.map(range=>{const name=range.split("'")[1];return {values:encodeSheetTable(name,state[name])};})};}}}}});

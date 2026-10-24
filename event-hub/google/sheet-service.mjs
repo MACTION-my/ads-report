@@ -3,6 +3,7 @@ import {parseAttendance,attendanceHeaders} from '../attendance.mjs';
 import {visibilitySettingsId,hiddenTeamIds,eventHasHiddenData,projectTeamReport} from '../visibility.mjs';
 import {canonicalBrand,canonicalEvent} from '../brands.mjs';
 import {normalizeMalaysiaPhone} from '../phone.mjs';
+import {refreshSourceReport} from './source-refresh.mjs';
 
 // Pure domain service shared by Apps Script and tests. The adapter commits all changed
 // tables in one atomic Sheets batch under a script lock; no SQL emulator is involved.
@@ -96,6 +97,7 @@ export class SheetHub {
   attendanceAccess(actor,event){assert(this.user(actor).role==='admin'||event.picUserId===actor,'名单明细仅 Admin / 本场 PIC 可见',403);}
   execute(actor,path,body){const result=this.executeRaw(actor,path,body);if(result?.event&&Array.isArray(result.rows))return this.visibleReport(actor,result);if(path==='events'&&body===undefined)return result.map(report=>this.visibleReport(actor,report));return result;}
   executeRaw(actor,path,body){this.user(actor);assert(typeof path==='string'&&path.length<=300,'路径无效');
+    if(path==='source-refresh')return refreshSourceReport(this,actor,body);
     if(path==='team-members')return this.teamMembers(actor,body);
     if(path==='team-visibility')return this.teamVisibility(actor,body);
     if(path==='me'&&body===undefined){const me=this.members().find(row=>row.id===actor);return {user:me,users:this.members().filter(m=>me.role==='admin'||!this.hiddenIds().has(m.id)),capabilities:{teamVisibility:true,teamMembers:true}};}

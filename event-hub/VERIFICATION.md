@@ -1,5 +1,11 @@
 # 验证记录 — 2026-10-23（马来西亚）
 
+2026-10-24 指定来源刷新与日期格式：用户选择系统为主、Drive 偶尔导入，不启用后台轮询或双向覆盖。只读读取用户指定 6 份 Conversion，选 Pinyu 唯一 Total Pinyu 汇总区块，Franchise 唯一区块；按文件日期与 B3 日期核对，保留原始数字/佣金/奖励，跳过无记录模板行，未导入 Attendance。三场 Pinyu 原零值占位活动原 ID 更新，三场 Franchise 按 Online / Offline JB / Offline KL 区分。原始报表不修改。
+
+新增 Admin-only source-refresh RPC，输入为核对后的来源快照；校验 source ID/digest、目标关联/日期/品牌、精确人员映射、总计、版本冲突、重复事件及归档状态。更新前保留当前数据版本，追加最终版快照，保留 Attendance、账号/停用/隐私状态；相同 digest 重试不重复写入。新模块不读取 Drive、不安装触发器、不含私有来源。更新使用已有原子 Sheets commit，不绕过系统锁。
+
+日期展示及活动日期/截止输入统一 DD.MM.YYYY（截止加 HH:mm，Malaysia），后台事件键保持 ISO，不改旧快照；无效日历日期拒绝保存。识别 Franchise JB/KL Offline 文件名。42 项 Node 测试、TypeScript strict、Build、语法、桌面/手机流程通过；含源刷新权限、幂等、旧快照/Attendance 保留、停用成员不重新启用、总计不符/同日期重复拒绝及日期输入回归。当前尚在部署/导入中，不能视为实际数据更新完成。
+
 2026-10-24 五项流程优化（e79a885，Google v15 首发；最终 v16、Pages 40084797888 发布成功（打印兼容 0236e25））：活动列表 Admin 专用 Edit/Copy/Delete；Final 的 Edit 先填写原因重新打开，保留原快照。Delete 使用 archived+deletedAt 软删除，Deleted events 可恢复相同 ID、状态、名单和历史；普通成员无法读取已删除活动及直达历史/出席，列表和汇总排除。Node 与 Google 都实现删除/恢复并保持版本冲突/权限检查。复制入口包括行内 Copy 和 Copy previous event，保留可用 PIC/团队和场地，要求新日期/截止，清空旧备注，业绩及名单新场为空；不复制来源溯源或历史金额。
 
 列表显示缺报人员，单场显示每人 Missing/Saved/Submitted 及最后记录时间，空团队明确要求分配。单场集中 Performance/Attendance 页签，CSV 高级导入折叠；名单仍遵守 Admin/PIC 权限及导入预览。保存成功显示 MYT 时间，单场显示最后保存时间；409 冲突、503 繁忙、网络中断与服务端500分别提示，未知写入结果要求先刷新核对；未知后端异常有非敏感错误引用及日志。40 项 Node 测试、2 项 Python、TypeScript strict、Build、语法及桌面/手机流程通过；真实接口只读核对 24 场历史活动、68 条绩效、6 个活跃账号及原金额不变。模拟 Google 实际复制/编辑/名单上传/删除/恢复，核对恢复名单与零继承业绩。未新增外部通知或自动 Drive 报表接入。没有修改、删除或复制真实活动。页签打印兼容补充：从 Attendance 打印先切回完整 Performance，浏览器回归通过；最后 TypeScript、Build、语法通过。

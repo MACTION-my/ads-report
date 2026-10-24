@@ -2,7 +2,7 @@ import {assert,validateRow,totals,rates,warnings} from './core.mjs';
 
 const months={JAN:1,FEB:2,MAR:3,APR:4,MAY:5,JUN:6,JUL:7,AUG:8,SEP:9,OCT:10,NOV:11,DEC:12};
 export function sourceIdentity(title){
-  const brand=/^\[Pinyu\]/i.test(title)?'Pinyu':/^\[Franchise(?: A-Z)?\]/i.test(title)?'Franchise':null;
+  const brand=/^\[Pinyu\]/i.test(title)?'Pinyu':/^\[Franchise(?: A-Z)?(?: (?:JB|KL))?(?: (?:Offline|Online))?\]/i.test(title)?'Franchise':null;
   const match=title.match(/-\s*(\d{1,2})\s*([a-z]+)\s+(\d{4})\s*$/i);
   if(!brand||!match||!months[match[2].slice(0,3).toUpperCase()])return {brand,eventDate:null};
   const eventDate=`${match[3]}-${String(months[match[2].slice(0,3).toUpperCase()]).padStart(2,'0')}-${match[1].padStart(2,'0')}`;

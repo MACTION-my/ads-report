@@ -56,7 +56,14 @@ function googleCall(method, args) {
 const money = (v) => v === null || v === undefined ? 'Pending / N/A' : v.toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const rate = (v) => v === null || v === undefined ? 'N/A' : v.toFixed(1) + '%';
 const name = (id) => users.find(u => u.id === id)?.displayName || reports.flatMap(r => r.rows).find(row => row.userId === id)?.displayName || id;
-const date = (iso) => new Date(iso).toLocaleString('en-MY', { timeZone: 'Asia/Kuala_Lumpur', hour12: false });
+const calendarDate = (iso) => iso.replace(/^(\d{4})-(\d{2})-(\d{2})$/, '$3.$2.$1');
+const eventName = (value) => value.replace(/\b(\d{4})-(\d{2})-(\d{2})\b/g, '$3.$2.$1');
+function inputDate(value) { const match = value.trim().match(/^(\d{2})\.(\d{2})\.(\d{4})$/); if (!match)
+    throw new Error('Use DD.MM.YYYY, for example 24.10.2026'); const iso = match[3] + '-' + match[2] + '-' + match[1]; if (!Number.isFinite(Date.parse(iso)) || new Date(iso).toISOString().slice(0, 10) !== iso)
+    throw new Error('Enter a valid calendar date (DD.MM.YYYY)'); return iso; }
+function inputDeadline(value) { const match = value.trim().match(/^(\d{2}\.\d{2}\.\d{4}) (\d{2}):(\d{2})$/); if (!match || Number(match[2]) > 23 || Number(match[3]) > 59)
+    throw new Error('Use DD.MM.YYYY HH:mm, for example 24.10.2026 18:00'); return inputDate(match[1]) + 'T' + match[2] + ':' + match[3] + ':00+08:00'; }
+const date = (iso) => new Date(iso).toLocaleString('en-GB', { timeZone: 'Asia/Kuala_Lumpur', hour12: false }).replaceAll('/', '.');
 function el(tag, text = '', className = '') { const node = document.createElement(tag); node.textContent = text; if (className)
     node.className = className; return node; }
 function message(text) { $('message').textContent = englishMessage(text); $('message').dataset.kind = 'info'; }
@@ -117,9 +124,9 @@ function render() {
     for (const report of list.sort((a, b) => a.event.eventDate.localeCompare(b.event.eventDate))) {
         const e = report.event, tr = el('tr');
         const title = el('td');
-        title.append(el('span', e.brand, 'brand-label'), document.createTextNode(e.name), el('small', report.completeness.pendingUserIds.length ? 'Missing: ' + report.completeness.pendingUserIds.map(name).join(', ') : e.assignedUserIds.length ? 'All assigned members have entered results' : 'No team assigned', 'entry-progress'));
+        title.append(el('span', e.brand, 'brand-label'), document.createTextNode(eventName(e.name)), el('small', report.completeness.pendingUserIds.length ? 'Missing: ' + report.completeness.pendingUserIds.map(name).join(', ') : e.assignedUserIds.length ? 'All assigned members have entered results' : 'No team assigned', 'entry-progress'));
         tr.append(title);
-        tr.append(el('td', e.eventDate + ' / ' + name(e.picUserId)));
+        tr.append(el('td', calendarDate(e.eventDate) + ' / ' + name(e.picUserId)));
         for (const text of [String(report.total.attended), String(report.total.closedDeals), money(report.total.salesAmount)])
             tr.append(el('td', text));
         const cell = el('td');
@@ -149,7 +156,7 @@ function render() {
             deletedPanel.id = 'deletedEvents';
             deletedPanel.append(el('summary', `Deleted events (${deleted.length})`));
             for (const report of deleted) {
-                const row = el('p', report.event.name + ' · ' + report.event.eventDate + ' ');
+                const row = el('p', eventName(report.event.name) + ' · ' + calendarDate(report.event.eventDate) + ' ');
                 row.append(button('Restore event', async () => { await api(`events/${report.event.id}/transition`, { revision: report.event.revision, action: 'restore' }); await refresh(); saved('Event restored.'); }, 'secondary'));
                 deletedPanel.append(row);
             }
@@ -217,7 +224,7 @@ function renderDetail() {
     const r = selected, e = r.event, section = $('detail');
     section.hidden = currentView() !== '#eventPanel';
     section.replaceChildren();
-    section.append(el('h2', e.brand + ' · ' + e.name), el('p', `${e.eventDate} · PIC ${name(e.picUserId)} · ${stateLabels[e.displayStatus]} · v${e.reportVersion} · Revision ${e.revision}`), el('p', `Deadline ${isPlaceholder(e) ? 'Not set' : date(e.submissionDeadline)} · Submitted by ${e.submittedBy ? name(e.submittedBy) : 'Not submitted'} · ${e.submittedAt ? date(e.submittedAt) : ''}`));
+    section.append(el('h2', e.brand + ' · ' + eventName(e.name)), el('p', `${calendarDate(e.eventDate)} · PIC ${name(e.picUserId)} · ${stateLabels[e.displayStatus]} · v${e.reportVersion} · Revision ${e.revision}`), el('p', `Deadline ${isPlaceholder(e) ? 'Not set' : date(e.submissionDeadline)} · Submitted by ${e.submittedBy ? name(e.submittedBy) : 'Not submitted'} · ${e.submittedAt ? date(e.submittedAt) : ''}`));
     section.append(el('p', 'Last saved: ' + (e.updatedAt ? date(e.updatedAt) : 'No saved timestamp recorded'), 'saved-time'));
     if (!['submitted', 'finalized'].includes(e.status))
         section.append(el('p', 'Draft / not final. Do not use for final settlement.', 'notice'));
@@ -267,7 +274,7 @@ function renderDetail() {
         section.append(el('p', 'Awaiting actual data. Zero totals are placeholders, not confirmed results. Use Edit event to assign a team and set a submission deadline.', 'notice'));
     const conversion = el('section', '', 'conversion-panel'), conversionHead = el('div', '', 'section-head'), conversionTitle = el('div');
     conversionTitle.append(el('span', 'THIS EVENT', 'eyebrow'), el('h2', 'Event Conversion Rates'));
-    conversionHead.append(conversionTitle, el('span', e.name + ' · ' + e.eventDate, 'hint'));
+    conversionHead.append(conversionTitle, el('span', eventName(e.name) + ' · ' + calendarDate(e.eventDate), 'hint'));
     const conversionCards = el('div', '', 'cards');
     conversionCards.id = 'aggregate';
     conversionCards.append(...Object.entries(r.rates).map(([key, value]) => card(rateLabels[key], rate(value))));
@@ -570,14 +577,14 @@ function showEvent(event = null, duplicate = false) {
     select.replaceChildren(...users.map(user => { const option = el('option', user.displayName); option.value = user.id; return option; }));
     if (event) {
         for (const key of ['name', 'brand', 'venue', 'notes', 'picUserId'])
-            control(key).value = event[key];
+            control(key).value = key === 'name' ? eventName(event[key]) : event[key];
         if (!duplicate) {
-            control('eventDate').value = event.eventDate;
-            control('deadline').value = isPlaceholder(event) ? '' : new Date(Date.parse(event.submissionDeadline) + 8 * 3600_000).toISOString().slice(0, 16);
+            control('eventDate').value = calendarDate(event.eventDate);
+            control('deadline').value = isPlaceholder(event) ? '' : calendarDate(new Date(Date.parse(event.submissionDeadline) + 8 * 3600_000).toISOString().slice(0, 10)) + ' ' + new Date(Date.parse(event.submissionDeadline) + 8 * 3600_000).toISOString().slice(11, 16);
         }
         else {
             control('notes').value = '';
-            control('name').value = event.name.replace(/\s*·\s*\d{4}-\d{2}-\d{2}.*$/, '') + ' (new event)';
+            control('name').value = eventName(event.name).replace(/\s*·\s*(?:\d{4}-\d{2}-\d{2}|\d{2}\.\d{2}\.\d{4}).*$/, '') + ' (new event)';
             control('deadline').value = '';
         }
     }
@@ -585,7 +592,7 @@ function showEvent(event = null, duplicate = false) {
     $('eventFormHint').textContent = duplicate ? 'Copies the active PIC and team only. Choose a new date and deadline. Results and attendance start empty.' : 'Set the date, assign your team and start tracking results.';
     $('eventDialog').showModal();
 }
-$('eventForm').onsubmit = event => { event.preventDefault(); void run(async () => { const form = new FormData($('eventForm')); const body = { name: form.get('name'), brand: form.get('brand'), eventDate: form.get('eventDate'), submissionDeadline: form.get('deadline') + ':00+08:00', picUserId: form.get('picUserId'), assignedUserIds: form.getAll('assigned'), venue: form.get('venue'), notes: form.get('notes'), revision: editing?.revision }; const report = await api('events' + (editing ? '/' + editing.id : ''), body); $('eventDialog').close(); await refresh(); await openReport(report.event.id); saved('Event saved.'); })(); };
+$('eventForm').onsubmit = event => { event.preventDefault(); void run(async () => { const form = new FormData($('eventForm')); const body = { name: form.get('name'), brand: form.get('brand'), eventDate: inputDate(String(form.get('eventDate') || '')), submissionDeadline: inputDeadline(String(form.get('deadline') || '')), picUserId: form.get('picUserId'), assignedUserIds: form.getAll('assigned'), venue: form.get('venue'), notes: form.get('notes'), revision: editing?.revision }; const report = await api('events' + (editing ? '/' + editing.id : ''), body); $('eventDialog').close(); await refresh(); await openReport(report.event.id); saved('Event saved.'); })(); };
 $('closeDialog').onclick = () => $('eventDialog').close();
 $('create').onclick = () => showEvent();
 $('copyLatest').onclick = () => { const latest = reports.filter(r => !r.event.archived && (!$('brand').value || r.event.brand === $('brand').value)).sort((a, b) => b.event.eventDate.localeCompare(a.event.eventDate))[0]; if (!latest) {
@@ -697,7 +704,7 @@ async function initialize(initial) {
         box.dataset.inbox = 'true';
         box.append(el('h2', 'My submission reminders'));
         for (const item of pending)
-            box.append(button(item.eventName + ' · ' + item.type, async () => { await openReport(item.eventId); }));
+            box.append(button(eventName(item.eventName) + ' · ' + item.type, async () => { await openReport(item.eventId); }));
         $('content').prepend(box);
     }
     $('login').hidden = true;
