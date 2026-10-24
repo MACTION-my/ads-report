@@ -77,3 +77,5 @@ node reminders.mjs
 Admin Team Member: sidebar entry (mobile action on small screens) lists registered phone access and historical identities. New members are telesales only; duplicate normalized phones and names are rejected. Disable login preserves performance data. This management capability is available on the Google production backend, not the optional Node backend.
 
 Event completion no longer needs approval: Admin/PIC uses Complete event after entering the assigned results, creating a locked final snapshot directly. Individual submissions do not lock teammates out. Legacy submitted records count and export as completed without rewriting immutable history.
+
+Team Member editing and recoverable deletion are Admin-only. Edit changes name/phone with a concurrency token. Delete revokes login and moves the identity into Deleted members; Restore retains the same ID and historical results, with login disabled until explicitly enabled. Admin identities are protected.

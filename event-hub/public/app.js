@@ -366,7 +366,7 @@ function renderTeamPrivacy(settings) {
     thead.append(header);
     table.append(thead);
     const tbody = el('tbody');
-    for (const member of settings.members) {
+    for (const member of settings.members.filter(m => !m.deleted)) {
         const tr = el('tr');
         tr.append(el('td', member.displayName), el('td', (member.phone || 'No registered phone') + ' / ' + member.role), el('td', member.canLogin ? (member.active ? 'Enabled' : 'Disabled') : 'No login'), el('td', member.hiddenFromTeam ? 'Admin only' : 'Shared with team'));
         const actions = el('td');
@@ -374,6 +374,37 @@ function renderTeamPrivacy(settings) {
             selected = await api('events/' + selected.event.id);
             renderDetail();
         } message('Team privacy settings saved.'); };
+        const memberAction = async (body) => { const result = await api('team-members', { userId: member.id, memberVersion: member.memberVersion, ...body }); renderTeamPrivacy(result); users = (await api('me')).users; await refresh(); if (selected) {
+            selected = await api('events/' + selected.event.id);
+            renderDetail();
+        } message('Member updated. Historical results are preserved.'); };
+        if (canManageMembers && member.role !== 'admin')
+            actions.append(button('Edit', () => {
+                const editor = el('form', '', 'toolbar member-add'), nameLabel = el('label', 'Member name'), phoneLabel = el('label', 'Member phone'), nameInput = el('input'), phoneInput = el('input');
+                nameInput.value = member.displayName;
+                nameInput.required = true;
+                nameInput.maxLength = 200;
+                phoneInput.type = 'tel';
+                phoneInput.value = member.phone || '';
+                phoneInput.required = Boolean(member.phone);
+                nameLabel.append(nameInput);
+                phoneLabel.append(phoneInput);
+                const save = el('button', 'Save changes');
+                save.type = 'submit';
+                editor.append(nameLabel, phoneLabel, save, button('Cancel', () => editor.remove(), 'secondary'));
+                editor.onsubmit = event => { event.preventDefault(); void run(async () => { save.disabled = true; try {
+                    await memberAction({ action: 'edit', displayName: nameInput.value, phone: phoneInput.value });
+                }
+                finally {
+                    save.disabled = false;
+                } })(); };
+                panel.querySelector('.member-editor')?.remove();
+                editor.classList.add('member-editor');
+                panel.insertBefore(editor, wrap);
+                editor.scrollIntoView({ behavior: 'smooth' });
+                nameInput.focus();
+            }, 'secondary'), button('Delete', async () => { if (confirm(`Delete ${member.displayName} from Team Member and revoke login? Historical reports remain unchanged. You can restore the member later.`))
+                await memberAction({ action: 'delete' }); }, 'secondary'));
         if (member.role === 'admin')
             actions.append(el('span', 'Admin account'));
         else {
@@ -389,6 +420,17 @@ function renderTeamPrivacy(settings) {
     table.append(tbody);
     wrap.append(table);
     panel.append(wrap);
+    const deleted = settings.members.filter(m => m.deleted);
+    if (deleted.length) {
+        const archive = el('details', '', 'member-add');
+        archive.append(el('summary', `Deleted members (${deleted.length})`));
+        for (const member of deleted) {
+            const row = el('p', member.displayName + ' ');
+            row.append(button('Restore member', async () => { const result = await api('team-members', { action: 'restore', userId: member.id, memberVersion: member.memberVersion }); renderTeamPrivacy(result); message('Member restored with login disabled. Enable login when ready.'); }, 'secondary'));
+            archive.append(row);
+        }
+        panel.append(archive);
+    }
 }
 async function transition(action, extra = {}) { if (!selected)
     return; selected = await api(`events/${selected.event.id}/transition`, { revision: selected.event.revision, action, ...extra }); await refresh(); renderDetail(); message('Status updated.'); }

@@ -19,7 +19,7 @@ export class SheetHub {
       assert(body&&typeof body==='object'&&body.revision===(config?.revision||0),'Visibility settings changed. Refresh and try again.',409);
       const target=this.data.Members.find(m=>m.userId===body.userId);assert(target&&target.role!=='admin','Admin accounts cannot be changed here',403);
       assert(typeof body.hidden==='boolean'||typeof body.active==='boolean','Choose a visibility or login action');
-      if(typeof body.active==='boolean'){assert(!body.active||target.phone&&target.loginStatus==='phone_only','This historical record has no registered login');target.active=body.active;target.updatedAt=this.now;this.changed.add('Members');}
+      if(typeof body.active==='boolean'){assert(target.loginStatus!=='deleted','Restore the deleted member first');assert(!body.active||target.phone&&target.loginStatus==='phone_only','This historical record has no registered login');target.active=body.active;target.updatedAt=this.now;this.changed.add('Members');}
       if(!config){config={id:visibilitySettingsId,brand:'Pinyu',name:'System visibility settings',eventDate:'2099-12-31',submissionDeadline:'2099-12-31T00:00:00Z',picUserId:actor,assignedUserIds:[],status:'cancelled',revision:0,reportVersion:0,notes:'',venue:'',archived:true,teamHiddenUserIds:[]};this.data.Events.push(config);}
       const ids=this.hiddenIds();if(typeof body.hidden==='boolean'){if(body.hidden)ids.add(target.userId);else ids.delete(target.userId);}config.teamHiddenUserIds=[...ids];this.touch(config);this.audit(actor,'member.visibility',target.userId,{hidden:ids.has(target.userId),active:target.active});
     }
@@ -27,15 +27,26 @@ export class SheetHub {
   }
   teamMembers(actor,body){
     this.admin(actor);
+    const version=m=>JSON.stringify([m.displayName,m.phone||'',m.loginStatus||'',m.role,m.active,m.updatedAt||'']);
     if(body!==undefined){
-      assert(body&&typeof body.displayName==='string'&&body.displayName.trim()&&body.displayName.trim().length<=200,'Name is required (maximum 200 characters)');
-      const phone=normalizeMalaysiaPhone(body.phone),displayName=body.displayName.trim();
-      assert(!this.data.Members.some(m=>m.phone===phone),'This phone already has an account. Enable the existing login instead.',409);
-      assert(!this.data.Members.some(m=>m.displayName.trim().toLowerCase()===displayName.toLowerCase()),'This name already exists. Use a distinct name to avoid duplicate historical records.',409);
-      const userId=this.uuid();this.data.Members.push({userId,displayName,phone,role:'telesales',active:true,loginStatus:'phone_only',updatedAt:this.now});this.changed.add('Members');
-      this.audit(actor,'member.create',userId,{displayName,role:'telesales'});
+      const action=body.action||'create';assert(['create','edit','delete','restore'].includes(action),'Invalid member action');
+      const target=action==='create'?null:this.data.Members.find(m=>m.userId===body.userId);
+      if(action!=='create'){assert(target,'Member not found',404);assert(target.role!=='admin','Admin accounts cannot be changed here',403);assert(body.memberVersion===version(target),'Member changed. Refresh and try again.',409);}
+      if(action==='delete'){assert(target.loginStatus!=='deleted','Member already deleted');target.active=false;target.loginStatus='deleted';}
+      else if(action==='restore'){assert(target.loginStatus==='deleted','Member is not deleted');target.loginStatus=target.phone?'phone_only':'historical';target.active=false;}
+      else{
+        assert(!target||target.loginStatus!=='deleted','Restore the member before editing');
+        assert(typeof body.displayName==='string'&&body.displayName.trim()&&body.displayName.trim().length<=200,'Name is required (maximum 200 characters)');
+        const displayName=body.displayName.trim(),phone=body.phone?normalizeMalaysiaPhone(body.phone):'';
+        assert(action!=='create'||phone,'Phone number is required');assert(!target?.phone||phone,'A registered phone cannot be removed. Disable login instead.');
+        assert(!phone||!this.data.Members.some(m=>m!==target&&m.phone===phone),'This phone already has an account. Restore or enable the existing login instead.',409);
+        assert(!this.data.Members.some(m=>m!==target&&m.displayName.trim().toLowerCase()===displayName.toLowerCase()),'This name already exists. Use a distinct name to avoid duplicate historical records.',409);
+        if(target){target.displayName=displayName;target.phone=phone;if(phone)target.loginStatus='phone_only';}
+        else this.data.Members.push({userId:this.uuid(),displayName,phone,role:'telesales',active:true,loginStatus:'phone_only',updatedAt:this.now});
+      }
+      if(target)target.updatedAt=this.now;this.changed.add('Members');this.audit(actor,'member.'+action,target?.userId||this.data.Members[this.data.Members.length-1].userId,{displayName:target?.displayName||body.displayName});
     }
-    const result=this.teamVisibility(actor);return {...result,members:result.members.map(m=>({...m,phone:this.data.Members.find(row=>row.userId===m.id).phone||''}))};
+    const result=this.teamVisibility(actor);return {...result,members:result.members.map(m=>{const row=this.data.Members.find(r=>r.userId===m.id);return {...m,phone:row.phone||'',deleted:row.loginStatus==='deleted',memberVersion:version(row)};})};
   }
   event(id){const event=this.data.Events.find(row=>row.id===id);assert(event,'活动不存在',404);return event;}
   rows(id){return this.data.Stats.filter(row=>row.eventId===id).map(row=>({...row,displayName:this.data.Members.find(u=>u.userId===row.userId)?.displayName||row.userId}));}

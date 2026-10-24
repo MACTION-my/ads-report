@@ -14,3 +14,18 @@ test('only Admin creates unique phone logins; disable preserves records and reje
  hub.execute('admin','team-visibility',{revision:0,userId:member.id,active:false});assert.throws(()=>sessions.actor(login.token));assert.equal(data.Members.length,2);
  hub.execute('admin','team-visibility',{revision:1,userId:member.id,active:true});assert.equal(sessions.actor(sessions.login('0123456789').token),member.id);
 });
+
+test('member edits and recoverable deletion preserve history, enforce concurrency and protect Admin',()=>{
+ const data=Object.fromEntries(Object.keys(sheetSchema).map(k=>[k,[]]));data.Members=[{userId:'admin',displayName:'Owner',role:'admin',active:true}];let id=0;const hub=new SheetHub(data,'2026-10-24T00:00:00Z',()=>String(++id));
+ let settings=hub.execute('admin','team-members',{displayName:'Original',phone:'0123456789'}),member=settings.members.find(m=>m.displayName==='Original');data.Stats.push({eventId:'history',userId:member.id,salesAmount:100});
+ assert.throws(()=>hub.execute(member.id,'team-members',{action:'delete',userId:member.id,memberVersion:member.memberVersion}),/Admin/);
+ assert.throws(()=>hub.execute('admin','team-members',{action:'delete',userId:'admin'}),/Admin accounts/);
+ settings=hub.execute('admin','team-members',{action:'edit',userId:member.id,memberVersion:member.memberVersion,displayName:'Updated',phone:'0134567890',role:'admin'});
+ assert.throws(()=>hub.execute('admin','team-members',{action:'delete',userId:member.id,memberVersion:member.memberVersion}),/changed/);
+ member=settings.members.find(m=>m.id===member.id);assert.equal(member.role,'telesales');assert.equal(member.phone,'+60134567890');assert.equal(data.Stats[0].userId,member.id);
+ settings=hub.execute('admin','team-members',{action:'delete',userId:member.id,memberVersion:member.memberVersion});member=settings.members.find(m=>m.id===member.id);assert.equal(member.deleted,true);assert.equal(member.active,false);assert.equal(member.canLogin,false);assert.throws(()=>hub.execute(member.id,'me'));
+ assert.throws(()=>hub.execute('admin','team-visibility',{revision:0,userId:member.id,active:true}),/Restore/);assert.equal(data.Stats[0].salesAmount,100);
+ settings=hub.execute('admin','team-members',{action:'restore',userId:member.id,memberVersion:member.memberVersion});member=settings.members.find(m=>m.id===member.id);assert.equal(member.deleted,false);assert.equal(member.active,false);assert.equal(member.canLogin,true);
+ hub.execute('admin','team-visibility',{revision:0,userId:member.id,active:true});assert.equal(hub.execute(member.id,'me').user.displayName,'Updated');assert.equal(data.Stats[0].salesAmount,100);
+ assert.ok(data.Audit.some(r=>r.action==='member.delete'));
+});
