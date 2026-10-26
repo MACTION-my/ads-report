@@ -16,7 +16,7 @@ function doPost(event){
 function hubProperties_(){return PropertiesService.getScriptProperties();}
 function hubBook_(){const id=hubProperties_().getProperty('HUB_SPREADSHEET_ID');assert(id,'后台总表尚未配置',503);return SpreadsheetApp.openById(id);}
 function hubLoad_(names){
-  const selected=names||Object.keys(sheetSchema),tables=Object.fromEntries(Object.keys(sheetSchema).map(function(name){return [name,[]];}));
+  const selected=names||Object.keys(sheetSchema).filter(function(name){return name!=='Appointments';}),tables=Object.fromEntries(Object.keys(sheetSchema).map(function(name){return [name,[]];}));
   const ranges=selected.map(function(name){assert(sheetSchema[name],'未知后台页签');return "'"+name+"'!A1:"+String.fromCharCode(64+sheetSchema[name].length)+'20001';});
   const id=hubProperties_().getProperty('HUB_SPREADSHEET_ID');assert(id,'后台总表尚未配置',503);
   const result=Sheets.Spreadsheets.Values.batchGet(id,{ranges:ranges,valueRenderOption:'UNFORMATTED_VALUE',dateTimeRenderOption:'FORMATTED_STRING'});
@@ -59,6 +59,10 @@ function hubStart(phone){return hubEnvelope_(function(){const data=hubLoad_(hubI
 function hubLogout(token){return hubEnvelope_(function(){return hubSession_({Members:[]}).logout(token);});}
 function hubCall(token,path,body){return hubEnvelope_(function(){
   assert(JSON.stringify(body||{}).length<=2500000,'数据过大');
+  if(path==='appointments'){
+    const identity=hubLoad_(['Members']),actor=hubSession_(identity).actor(token);new SheetHub(identity,new Date().toISOString(),function(){return Utilities.getUuid();}).user(actor);
+    return hubWithLock_(function(){hubEnsureAppointments_();const data=hubLoad_(['Members','Appointments','Audit']),hub=new SheetHub(data,new Date().toISOString(),function(){return Utilities.getUuid();});const result=hub.execute(actor,path,body===null?undefined:body);hubCommit_(hub);return result;});
+  }
   if(path==='calendar-status'||path==='calendar-sync'){
     const identity=hubLoad_(['Members']),actor=hubSession_(identity).actor(token);new SheetHub(identity,new Date().toISOString(),function(){return Utilities.getUuid();}).admin(actor);
     if(path==='calendar-status')return {enabled:hubProperties_().getProperty('HUB_CALENDAR_ENABLED')==='true',lastSync:hubProperties_().getProperty('HUB_CALENDAR_LAST_SYNC')||'',lastError:hubProperties_().getProperty('HUB_CALENDAR_LAST_ERROR')||''};
@@ -71,6 +75,8 @@ function hubCall(token,path,body){return hubEnvelope_(function(){
   // Reads use one Sheets batch and never queue behind unrelated long-running writes.
   return body===null||body===undefined?operation():hubWithLock_(operation);
 });}
+// Additive migration only; never rewrite an existing sheet or its headers.
+function hubEnsureAppointments_(){const id=hubProperties_().getProperty('HUB_SPREADSHEET_ID'),sheets=Sheets.Spreadsheets.get(id,{fields:'sheets.properties'}).sheets;if(sheets.some(s=>s.properties.title==='Appointments'))return;const used=new Set(sheets.map(s=>s.properties.sheetId));let sheetId=1;while(used.has(sheetId))sheetId++;Sheets.Spreadsheets.batchUpdate({requests:[{addSheet:{properties:{sheetId:sheetId,title:'Appointments',gridProperties:{rowCount:1000,columnCount:sheetSchema.Appointments.length}}}},{updateCells:{start:{sheetId:sheetId,rowIndex:0,columnIndex:0},rows:[{values:sheetSchema.Appointments.map(value=>({userEnteredValue:{stringValue:value}}))}],fields:'userEnteredValue'}}]},id);}
 // Private functions ending in _ cannot be invoked through google.script.run.
 function runScheduledReminders_(){const lock=LockService.getScriptLock();lock.waitLock(20000);let result;try{const data=hubLoad_(),hub=new SheetHub(data,new Date().toISOString(),function(){return Utilities.getUuid();});result=hub.remind();hubCommit_(hub);}finally{lock.releaseLock();}if(hubProperties_().getProperty('HUB_CALENDAR_ENABLED')==='true')hubCalendarSync_();console.log(JSON.stringify(result));return result;}
 function installHubTrigger_(){assert(hubProperties_().getProperty('HUB_PHONE_ONLY_ENABLED')==='true','先完成部署配置');const existing=ScriptApp.getProjectTriggers().filter(function(trigger){return trigger.getHandlerFunction()==='runScheduledReminders_';});if(!existing.length)ScriptApp.newTrigger('runScheduledReminders_').timeBased().everyHours(1).create();return {installed:existing.length===0};}

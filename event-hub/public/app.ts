@@ -11,13 +11,13 @@ interface Preview {rows:Stats[];errors:{line:number;message:string}[];matches:st
 interface InboxItem {eventId:string;eventName:string;type:string;status:string}
 interface TeamPrivacyMember extends Member {active:boolean;hiddenFromTeam:boolean;canLogin:boolean;phone?:string;deleted?:boolean;memberVersion?:string}
 interface TeamPrivacySettings {revision:number;members:TeamPrivacyMember[]}
-interface InitialData {user:Member;users:Member[];reports:Report[];inbox:InboxItem[];capabilities?:{teamVisibility:boolean;teamMembers?:boolean;calendarSync?:boolean}}
+interface InitialData {user:Member;users:Member[];reports:Report[];inbox:InboxItem[];capabilities?:{teamVisibility:boolean;teamMembers?:boolean;calendarSync?:boolean;appointments?:boolean}}
 const $=<T extends HTMLElement=HTMLElement>(id:string)=>document.getElementById(id) as T;
 const fields=['newLeads','junk','pta','attended','closedDeals','salesAmount','commission','dealIncentive'] as const;
 const labels:Record<string,string>={newLeads:'New Leads (from ads)',junk:'Junk (invalid / fake leads)',pta:'PTA (confirmed to attend)',newLeadPta:'New-lead PTA (optional)',attended:'Attended (actual turnout)',closedDeals:'Closed Deals',salesAmount:'Amount (RM)',commission:'Commission (manual, RM)',dealIncentive:'Approved Incentive (RM)'};
 const rateLabels:Record<string,string>={leadToJunk:'Lead → Junk',leadToWon:'Lead → Won',ptaToWon:'PTA → Won',leadsToPta:'Lead → PTA',leadToAttended:'Lead → Attended',ptaToAttended:'PTA → Attended',attendedToWon:'Attended → Won'};
 const stateLabels:Record<string,string>={draft:'Draft',scheduled:'Scheduled',awaiting_data:'Awaiting data',submitted:'Final',needs_correction:'Needs correction',finalized:'Final',overdue:'Overdue',cancelled:'Cancelled'};
-let canManageMembers=false,canSyncCalendar=false;
+let canManageMembers=false,canSyncCalendar=false,hasAppointments=false;
 let me:Member,users:Member[]=[],reports:Report[]=[],selected:Report|null=null,editing:EventData|null=null,importPreview:{csv:string;revision:number}|null=null;
 const endpoint=document.querySelector<HTMLMetaElement>('meta[name="event-hub-endpoint"]')?.content||'';
 // Translate legacy backend validation text without changing stored business data.
@@ -28,7 +28,7 @@ const backendMessages:Record<string,string>={
 function englishMessage(text:string){for(const [original,translated]of Object.entries(backendMessages).sort((a,b)=>b[0].length-a[0].length))text=text.replaceAll(original,translated);return text;}
 const gasMode=Boolean(window.google?.script?.run||endpoint);
 let sessionToken='';
-function showLogin(){document.body.classList.add('is-login');sessionToken='';try{sessionStorage.removeItem('eventHubSession');}catch{}$('teamPrivacy').hidden=true;$('manageVisibility').hidden=true;$('manageMembersMobile').hidden=true;$('visibilityScope').hidden=true;$('login').hidden=false;$('content').hidden=true;$('logout').hidden=true;$('identity').textContent='';$('detail').replaceChildren();selected=null;reports=[];}
+function showLogin(){appointments=[];editingAppointment=null;$<HTMLDialogElement>('appointmentDialog').close();document.body.classList.add('is-login');sessionToken='';try{sessionStorage.removeItem('eventHubSession');}catch{}$('teamPrivacy').hidden=true;$('manageVisibility').hidden=true;$('manageMembersMobile').hidden=true;$('visibilityScope').hidden=true;$('login').hidden=false;$('content').hidden=true;$('logout').hidden=true;$('identity').textContent='';$('detail').replaceChildren();selected=null;reports=[];}
 function googleCall<T>(method:'hubLogin'|'hubStart'|'hubLogout'|'hubCall',args:unknown[]):Promise<T>{return new Promise((resolve,reject)=>{
   const receive=(reply:GoogleReply)=>{if(reply.ok)resolve(reply.data as T);else{if(reply.status===401||reply.status===403&&method==='hubCall')showLogin();reject(new RequestError(reply.error||'Request failed',reply.status));}};
   if(endpoint){
@@ -215,7 +215,18 @@ $('runCalendarSync').onclick=run(async()=>{const btn=$<HTMLButtonElement>('runCa
 $('create').onclick=()=>showEvent();$('copyLatest').onclick=()=>{const latest=reports.filter(r=>!r.event.archived&&(!$<HTMLSelectElement>('brand').value||r.event.brand===$<HTMLSelectElement>('brand').value)).sort((a,b)=>b.event.eventDate.localeCompare(a.event.eventDate))[0];if(!latest){message('No previous event found. Create your first event instead.');return;}showEvent(latest.event,true);};$('refresh').onclick=run(refresh);
 for(const id of ['month','brand','pic','state','search'])$(id).addEventListener('input',render);
 $('monthly').onclick=run(()=>download('export?month='+$<HTMLInputElement>('month').value,'final-events-'+$<HTMLInputElement>('month').value+'.csv'));
-const viewNames:Record<string,string>={'#overview':'Dashboard','#eventPanel':'Event Pipeline','#rankingPanel':'Team Performance','#teamPrivacy':'Team Member'};
+interface Appointment {id:string;customer:string;ownerId:string;ownerName:string;startAt:string;endAt:string;link:string;notes:string;status:string;revision:number}
+let appointments:Appointment[]=[],editingAppointment:Appointment|null=null;
+function appointmentInput(iso:string){return new Date(iso).toLocaleString('en-GB',{timeZone:'Asia/Kuala_Lumpur',hour12:false}).replaceAll('/','.').replace(',','').slice(0,16);}
+async function loadAppointments(){const current=await api<Appointment[]>('appointments');appointments=current;renderAppointments();}
+function renderAppointments(){const list=$('zoomList');list.replaceChildren();const from=$<HTMLInputElement>('zoomFrom').value.trim(),to=$<HTMLInputElement>('zoomTo').value.trim();let start=-Infinity,end=Infinity;try{if(from)start=Date.parse(inputDate(from)+'T00:00:00+08:00');if(to)end=Date.parse(inputDate(to)+'T23:59:59+08:00');if(start>end)throw Error('From date must be before To date');}catch(error){list.append(el('p',(error as Error).message,'notice'));return;}
+ const visible=appointments.filter(a=>Date.parse(a.endAt)>start&&Date.parse(a.startAt)<=end&&($<HTMLInputElement>('showCancelled').checked||a.status==='booked'));for(const a of visible){const card=el('article','','appointment-card');card.append(el('strong',a.customer),el('p',date(a.startAt)+' → '+date(a.endAt)),el('p',a.ownerName+' · '+(a.status==='booked'?'Booked':'Cancelled')));if(a.notes)card.append(el('p',a.notes));if(a.link){const link=el('a','Open Zoom meeting') as HTMLAnchorElement;link.href=a.link;link.target='_blank';link.rel='noopener noreferrer';card.append(link);}if(a.status==='booked'&&(me.role==='admin'||a.ownerId===me.id)){const actions=el('div','','toolbar');actions.append(button('Edit booking',()=>showAppointment(a),'secondary'),button('Cancel booking',async()=>{if(!confirm('Cancel this booking and release its Zoom time?'))return;await api('appointments',{action:'cancel',id:a.id,revision:a.revision});await loadAppointments();saved('Booking cancelled. The Zoom time is available again.');},'secondary'));card.append(actions);}list.append(card);}if(!visible.length)list.append(el('p','No bookings in this date range.','rank-empty'));$('newAppointment').hidden=me.role==='viewer';}
+function showAppointment(a:Appointment|null=null){editingAppointment=a;const form=$<HTMLFormElement>('appointmentForm');form.reset();$('appointmentError').textContent='';$('appointmentTitle').textContent=a?'Edit Zoom appointment':'Book Zoom appointment';const options=users.filter(u=>u.role!=='viewer').map(u=>{const o=el('option',u.displayName) as HTMLOptionElement;o.value=u.id;return o;});$('appointmentOwner').replaceChildren(...options);$('appointmentOwnerLabel').hidden=me.role!=='admin';(form.elements.namedItem('ownerId') as HTMLSelectElement).value=a?.ownerId||me.id;if(a){for(const key of ['customer','link','notes'])(form.elements.namedItem(key) as HTMLInputElement).value=a[key as 'customer'];(form.elements.namedItem('start') as HTMLInputElement).value=appointmentInput(a.startAt);(form.elements.namedItem('end') as HTMLInputElement).value=appointmentInput(a.endAt);}$<HTMLDialogElement>('appointmentDialog').showModal();}
+$('newAppointment').onclick=()=>showAppointment();$('refreshAppointments').onclick=run(loadAppointments);$('closeAppointment').onclick=()=>$<HTMLDialogElement>('appointmentDialog').close();
+for(const id of ['zoomFrom','zoomTo','showCancelled'])$(id).addEventListener('input',renderAppointments);
+$<HTMLInputElement>('zoomFrom').value=calendarDate(malaysiaToday());
+$<HTMLFormElement>('appointmentForm').onsubmit=event=>{event.preventDefault();void(async()=>{const submit=$<HTMLButtonElement>('saveAppointment');submit.disabled=true;$('appointmentError').textContent='';try{const f=new FormData($<HTMLFormElement>('appointmentForm'));await api('appointments',{id:editingAppointment?.id,revision:editingAppointment?.revision,customer:f.get('customer'),startAt:inputDeadline(String(f.get('start'))),endAt:inputDeadline(String(f.get('end'))),ownerId:f.get('ownerId'),link:f.get('link'),notes:f.get('notes')});$<HTMLDialogElement>('appointmentDialog').close();await loadAppointments();saved('Zoom appointment booked.');}catch(error){$('appointmentError').textContent=englishMessage((error as Error).message);}finally{submit.disabled=false;}})();};
+const viewNames:Record<string,string>={'#overview':'Dashboard','#eventPanel':'Event Pipeline','#rankingPanel':'Team Performance','#teamPrivacy':'Team Member','#zoomPanel':'Zoom Appointments'};
 let teamPageLoading:Promise<void>|null=null;
 function currentView(){return viewNames[location.hash]?location.hash:'#overview';}
 function updateNavigation(){
@@ -224,9 +235,9 @@ function updateNavigation(){
   if(!loggedIn)return;
   if(view==='#teamPrivacy'&&$('manageVisibility').hidden){location.hash='#overview';return;}
   $('workspaceTitle').textContent=viewNames[view];document.title=viewNames[view]+' · MACTION';
-  $('summary').hidden=view!=='#overview';$('eventPanel').hidden=view!=='#eventPanel';$('rankingPanel').hidden=view!=='#rankingPanel';$('teamPrivacy').hidden=view!=='#teamPrivacy';$('detail').hidden=view!=='#eventPanel'||!selected;
+  $('summary').hidden=view!=='#overview';$('eventPanel').hidden=view!=='#eventPanel';$('rankingPanel').hidden=view!=='#rankingPanel';$('teamPrivacy').hidden=view!=='#teamPrivacy';$('zoomPanel').hidden=view!=='#zoomPanel';$('detail').hidden=view!=='#eventPanel'||!selected;
   document.querySelectorAll<HTMLElement>('.section-kicker,[data-inbox]').forEach(node=>node.hidden=view!=='#overview');
-  document.querySelectorAll<HTMLElement>('.filter-bar').forEach(node=>node.hidden=view==='#teamPrivacy');
+  document.querySelectorAll<HTMLElement>('.filter-bar').forEach(node=>node.hidden=view==='#teamPrivacy'||view==='#zoomPanel');
   document.querySelectorAll<HTMLElement>('.connection-note').forEach(node=>node.hidden=view!=='#eventPanel');
   $('create').hidden=me.role!=='admin'||view!=='#eventPanel';$('copyLatest').hidden=$('create').hidden;$('calendarSync').hidden=$('create').hidden||!canSyncCalendar;$('monthly').hidden=view!=='#overview';
 }
@@ -236,6 +247,7 @@ async function navigateView(){
     if(!teamPageLoading){$('teamPrivacy').replaceChildren(el('p','Loading members…','privacy-intro'));teamPageLoading=(async()=>{try{const settings=await api<TeamPrivacySettings>(canManageMembers?'team-members':'team-visibility');if(currentView()==='#teamPrivacy')renderTeamPrivacy(settings);}finally{teamPageLoading=null;}})();}
     await teamPageLoading;
   }
+  if(currentView()==='#zoomPanel'){if(!hasAppointments){location.hash='#overview';return;}await loadAppointments();}
   $('overview').scrollIntoView({behavior:'instant'});
 }
 window.addEventListener('hashchange',run(navigateView));window.addEventListener('popstate',run(navigateView));
@@ -245,7 +257,7 @@ async function initialize(initial?:InitialData){
   $<HTMLInputElement>('month').value=new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Kuala_Lumpur'}).slice(0,7);
   let result=initial;
   if(!result){if(gasMode)result=await api<InitialData>('bootstrap');else{const [identity,loadedReports,inbox]=await Promise.all([api<{user:Member;users:Member[]}>('me'),api<Report[]>('events'),api<InboxItem[]>('inbox')]);result={...identity,reports:loadedReports,inbox};}}
-  me=result.user;users=result.users;canSyncCalendar=Boolean(result.capabilities?.calendarSync);canManageMembers=Boolean(result.capabilities?.teamMembers);$('manageVisibility').hidden=me.role!=='admin'||!result.capabilities?.teamVisibility;$('manageMembersMobile').hidden=$('manageVisibility').hidden;$('visibilityScope').hidden=false;$('visibilityScope').textContent=me.role==='admin'?'Admin view · Complete company data':'Team view · Shows only data shared with the team';$('identity').textContent=me.displayName+' · '+({admin:'Admin',pic:'Person in charge',telesales:'Team member',viewer:'Viewer'}[me.role]);$('create').hidden=me.role!=='admin';
+  me=result.user;users=result.users;hasAppointments=Boolean(result.capabilities?.appointments);document.querySelectorAll<HTMLAnchorElement>('a[href="#zoomPanel"]').forEach(a=>a.hidden=!hasAppointments);canSyncCalendar=Boolean(result.capabilities?.calendarSync);canManageMembers=Boolean(result.capabilities?.teamMembers);$('manageVisibility').hidden=me.role!=='admin'||!result.capabilities?.teamVisibility;$('manageMembersMobile').hidden=$('manageVisibility').hidden;$('visibilityScope').hidden=false;$('visibilityScope').textContent=me.role==='admin'?'Admin view · Complete company data':'Team view · Shows only data shared with the team';$('identity').textContent=me.displayName+' · '+({admin:'Admin',pic:'Person in charge',telesales:'Team member',viewer:'Viewer'}[me.role]);$('create').hidden=me.role!=='admin';
   const allPic=el('option','All PICs') as HTMLOptionElement;allPic.value='';$('pic').replaceChildren(allPic);for(const old of $('content').querySelectorAll('[data-inbox]'))old.remove();
   for(const user of users){const option=el('option',user.displayName) as HTMLOptionElement;option.value=user.id;$('pic').append(option);}
   reports=result.reports;render();$('content').hidden=false;message('');

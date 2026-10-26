@@ -1,5 +1,6 @@
 // Separate operational entities; headers are stable API contracts, not staff input forms.
 export const sheetSchema={
+  Appointments:['id','customer','ownerId','ownerName','startAt','endAt','link','notes','status','revision','createdAt','createdBy','updatedAt'],
   Events:['eventId','brand','name','eventDate','picUserId','assignedUserIdsJson','submissionDeadline','status','revision','reportVersion','notes','updatedAt','metadataJson'],
   Stats:['eventId','userId','newLeads','junk','pta','newLeadPta','attended','closedDeals','salesAmountCents','commissionCents','dealIncentiveCents','notes','submittedAt','updatedBy','updatedAt'],
   Members:['userId','displayName','phone','loginStatus','role','active','updatedAt'],

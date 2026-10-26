@@ -1,5 +1,9 @@
 # 验证记录 — 2026-10-23（马来西亚）
 
+2026-10-26 Zoom Appointments 准备：用户确认团队共用一个 Zoom。新增独立预约页与 Appointments 表，填客户/预约名、MYT 起止、负责人、可选 Zoom 链接和备注；全部登录团队可查看，成员仅改/取消本人，Admin 可代建与管理。单资源区间重叠在服务器拒绝（可首尾相接），写锁覆盖迁移、最新读取、冲突检查及原子提交；revision 防旧页面覆盖。取消保留记录并释放时段，不永久删除。Appointments 延迟加载及锁内增量迁移，已有页签不改；原报表/日历流程不加载该表。Zoom URL 限 HTTPS Zoom 域名，不创建会议、不发邀请、不修改 Google Calendar。
+
+53项自动测试、TypeScript strict、Build、语法检查通过；Google 模拟浏览器在手机/桌面完成预约→撞期拒绝→取消→同时间再预约，界面无溢出。原报表桌面/手机回归通过。实际预约写入目前只在测试内存，未在生产制造测试预约；尚在发布，需以正式读回为准。
+
 2026-10-24 Calendar 正式导入及每日任务：实现 ead8d1d/4c17600，Google 稳定部署 v18 成功，Pages 40094108033 成功。未改变线上 appsscript.json、OAuth scope、Anyone/执行身份或 Google 定时触发器；没有授权 Calendar 高级服务。通过已连接的 Maction Calendar 只读取得今天至未来180天排期，过滤私人/Gmail行程，仅提交15场课程的必要排期字段。真实 Admin RPC 成功新建15场 scheduled 活动，无团队分配、无业绩和名单。写前/写后核对所有原有 rows/total/rates/submissions/attendanceSummary 以及完整成员状态一致。当前非归档45场、绩效77行（写入前已有77行，未强制使用早前76行快照）；再次执行返回15场 unchanged，未重复建立。运行备份、配置与源快照只存忽略的 qa。
 
 已通过 Codex automation_update 创建并读回 ACTIVE 的 maction 线程任务，每天09:00（Asia/Kuala_Lumpur），使用现有 Calendar 连接器和本地客户端；需要电脑及 Codex 在运行。尚未等到首次定时触发，当前实际手动完整导入/幂等复验成功，不声称定时执行已经发生。任务仅在有变化、人工核对或失败时通知。49项自动测试、TypeScript strict、Build、语法与Google模拟手机流程通过，原桌面/手机回归通过。无每日 Apps Script Calendar 直接接入、无 Drive 自动复制/报表写回。

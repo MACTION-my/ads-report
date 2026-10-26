@@ -1,5 +1,11 @@
 # Google Sheets / Apps Script 运行方式
 
+## 共用 Zoom 预约
+
+appointments RPC 使用现有手机号会话。全团队读取，非 viewer 可建本人预约，Admin 可指定活跃成员；成员只改/取消自己的记录。所有 booked 占用同一 Zoom，区间 start < other.end 且 end > other.start 即冲突，取消后释放。服务器解析含时区的时间、限定最长12小时及未来预约，返回UTC，页面以Malaysia展示。原负责人姓名存快照，号码转交不重命名旧预约。仅登记已有链接，不调用 Zoom API、不自动写 Calendar，也不把日历课程自动当成此 Zoom 的占用。
+
+Appointments 页签首次通过已认证 RPC 在现有 ScriptLock 内增量创建，addSheet + typed header 在一个 Sheets batch 完成；已有表绝不覆盖。预约读写在同一锁中重新读取 Members/Appointments/Audit；写入继续使用原子 commit。其他业务默认不加载 Appointments，避免拖慢登录/报告或干扰每日 Calendar 导入。表头不符继续拒绝，不清空重建。线上需要发布新 Code.gs/Index.html 及原生 /report 页面，无新 OAuth 或外部服务。
+
 ## Calendar 单向排期同步
 
 用户最终选择每天一次，暂不新增 Apps Script Calendar 授权。默认 appsscript.json 保持原 Sheets/script scopes；可选的 Calendar v3/只读 scope 清单单独存 appsscript.calendar.json，未经再次明确授权不得替换。生产不设置 HUB_CALENDAR_ENABLED，现有小时任务只催交。后台 calendar-import 接受已有 Admin 会话提交的课程快照，复用相同去重与保护逻辑；Calendar 读取由已连接的 Calendar 插件完成，不把 OAuth token 存进系统。

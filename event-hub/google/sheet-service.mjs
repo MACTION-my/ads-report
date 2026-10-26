@@ -5,6 +5,7 @@ import {canonicalBrand,canonicalEvent} from '../brands.mjs';
 import {normalizeMalaysiaPhone} from '../phone.mjs';
 import {refreshSourceReport} from './source-refresh.mjs';
 import {syncCalendarSnapshot} from './calendar-sync.mjs';
+import {zoomAppointments} from './appointments.mjs';
 
 // Pure domain service shared by Apps Script and tests. The adapter commits all changed
 // tables in one atomic Sheets batch under a script lock; no SQL emulator is involved.
@@ -98,11 +99,12 @@ export class SheetHub {
   attendanceAccess(actor,event){assert(this.user(actor).role==='admin'||event.picUserId===actor,'名单明细仅 Admin / 本场 PIC 可见',403);}
   execute(actor,path,body){const result=this.executeRaw(actor,path,body);if(result?.event&&Array.isArray(result.rows))return this.visibleReport(actor,result);if(path==='events'&&body===undefined)return result.map(report=>this.visibleReport(actor,report));return result;}
   executeRaw(actor,path,body){this.user(actor);assert(typeof path==='string'&&path.length<=300,'路径无效');
+    if(path==='appointments')return zoomAppointments(this,actor,body);
     if(path==='calendar-import'){this.admin(actor);assert(body&&typeof body==='object','Calendar snapshot required');return syncCalendarSnapshot(this,actor,body.calendarId,body.items);}
     if(path==='source-refresh')return refreshSourceReport(this,actor,body);
     if(path==='team-members')return this.teamMembers(actor,body);
     if(path==='team-visibility')return this.teamVisibility(actor,body);
-    if(path==='me'&&body===undefined){const me=this.members().find(row=>row.id===actor);return {user:me,users:this.members().filter(m=>me.role==='admin'||!this.hiddenIds().has(m.id)),capabilities:{teamVisibility:true,teamMembers:true}};}
+    if(path==='me'&&body===undefined){const me=this.members().find(row=>row.id===actor);return {user:me,users:this.members().filter(m=>me.role==='admin'||!this.hiddenIds().has(m.id)),capabilities:{teamVisibility:true,teamMembers:true,appointments:true}};}
     if(path==='events')return body===undefined?this.data.Events.filter(e=>e.id!==visibilitySettingsId&&(this.user(actor).role==='admin'||!e.deletedAt)).map(event=>this.report(event.id)):this.saveEvent(actor,body,null);
     if(path==='inbox')return this.data.Reminders.filter(row=>row.recipientUserId===actor&&row.deliveryStatus==='delivered_in_app').filter(row=>{const e=this.event(row.eventId);return !e.archived&&!['submitted','finalized','cancelled'].includes(e.status)&&(e.picUserId===actor||this.user(actor).role==='admin'||!this.rows(e.id).some(item=>item.userId===actor));}).map(row=>({...row,eventName:canonicalEvent(this.event(row.eventId)).name,status:this.event(row.eventId).status}));
     if(path==='template')return '\uFEFF'+csvHeaders.join(',')+'\r\n';

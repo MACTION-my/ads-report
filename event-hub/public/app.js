@@ -3,7 +3,7 @@ const fields = ['newLeads', 'junk', 'pta', 'attended', 'closedDeals', 'salesAmou
 const labels = { newLeads: 'New Leads (from ads)', junk: 'Junk (invalid / fake leads)', pta: 'PTA (confirmed to attend)', newLeadPta: 'New-lead PTA (optional)', attended: 'Attended (actual turnout)', closedDeals: 'Closed Deals', salesAmount: 'Amount (RM)', commission: 'Commission (manual, RM)', dealIncentive: 'Approved Incentive (RM)' };
 const rateLabels = { leadToJunk: 'Lead → Junk', leadToWon: 'Lead → Won', ptaToWon: 'PTA → Won', leadsToPta: 'Lead → PTA', leadToAttended: 'Lead → Attended', ptaToAttended: 'PTA → Attended', attendedToWon: 'Attended → Won' };
 const stateLabels = { draft: 'Draft', scheduled: 'Scheduled', awaiting_data: 'Awaiting data', submitted: 'Final', needs_correction: 'Needs correction', finalized: 'Final', overdue: 'Overdue', cancelled: 'Cancelled' };
-let canManageMembers = false, canSyncCalendar = false;
+let canManageMembers = false, canSyncCalendar = false, hasAppointments = false;
 let me, users = [], reports = [], selected = null, editing = null, importPreview = null;
 const endpoint = document.querySelector('meta[name="event-hub-endpoint"]')?.content || '';
 // Translate legacy backend validation text without changing stored business data.
@@ -15,7 +15,7 @@ function englishMessage(text) { for (const [original, translated] of Object.entr
     text = text.replaceAll(original, translated); return text; }
 const gasMode = Boolean(window.google?.script?.run || endpoint);
 let sessionToken = '';
-function showLogin() { document.body.classList.add('is-login'); sessionToken = ''; try {
+function showLogin() { appointments = []; editingAppointment = null; $('appointmentDialog').close(); document.body.classList.add('is-login'); sessionToken = ''; try {
     sessionStorage.removeItem('eventHubSession');
 }
 catch { } $('teamPrivacy').hidden = true; $('manageVisibility').hidden = true; $('manageMembersMobile').hidden = true; $('visibilityScope').hidden = true; $('login').hidden = false; $('content').hidden = true; $('logout').hidden = true; $('identity').textContent = ''; $('detail').replaceChildren(); selected = null; reports = []; }
@@ -625,7 +625,77 @@ $('refresh').onclick = run(refresh);
 for (const id of ['month', 'brand', 'pic', 'state', 'search'])
     $(id).addEventListener('input', render);
 $('monthly').onclick = run(() => download('export?month=' + $('month').value, 'final-events-' + $('month').value + '.csv'));
-const viewNames = { '#overview': 'Dashboard', '#eventPanel': 'Event Pipeline', '#rankingPanel': 'Team Performance', '#teamPrivacy': 'Team Member' };
+let appointments = [], editingAppointment = null;
+function appointmentInput(iso) { return new Date(iso).toLocaleString('en-GB', { timeZone: 'Asia/Kuala_Lumpur', hour12: false }).replaceAll('/', '.').replace(',', '').slice(0, 16); }
+async function loadAppointments() { const current = await api('appointments'); appointments = current; renderAppointments(); }
+function renderAppointments() {
+    const list = $('zoomList');
+    list.replaceChildren();
+    const from = $('zoomFrom').value.trim(), to = $('zoomTo').value.trim();
+    let start = -Infinity, end = Infinity;
+    try {
+        if (from)
+            start = Date.parse(inputDate(from) + 'T00:00:00+08:00');
+        if (to)
+            end = Date.parse(inputDate(to) + 'T23:59:59+08:00');
+        if (start > end)
+            throw Error('From date must be before To date');
+    }
+    catch (error) {
+        list.append(el('p', error.message, 'notice'));
+        return;
+    }
+    const visible = appointments.filter(a => Date.parse(a.endAt) > start && Date.parse(a.startAt) <= end && ($('showCancelled').checked || a.status === 'booked'));
+    for (const a of visible) {
+        const card = el('article', '', 'appointment-card');
+        card.append(el('strong', a.customer), el('p', date(a.startAt) + ' → ' + date(a.endAt)), el('p', a.ownerName + ' · ' + (a.status === 'booked' ? 'Booked' : 'Cancelled')));
+        if (a.notes)
+            card.append(el('p', a.notes));
+        if (a.link) {
+            const link = el('a', 'Open Zoom meeting');
+            link.href = a.link;
+            link.target = '_blank';
+            link.rel = 'noopener noreferrer';
+            card.append(link);
+        }
+        if (a.status === 'booked' && (me.role === 'admin' || a.ownerId === me.id)) {
+            const actions = el('div', '', 'toolbar');
+            actions.append(button('Edit booking', () => showAppointment(a), 'secondary'), button('Cancel booking', async () => { if (!confirm('Cancel this booking and release its Zoom time?'))
+                return; await api('appointments', { action: 'cancel', id: a.id, revision: a.revision }); await loadAppointments(); saved('Booking cancelled. The Zoom time is available again.'); }, 'secondary'));
+            card.append(actions);
+        }
+        list.append(card);
+    }
+    if (!visible.length)
+        list.append(el('p', 'No bookings in this date range.', 'rank-empty'));
+    $('newAppointment').hidden = me.role === 'viewer';
+}
+function showAppointment(a = null) { editingAppointment = a; const form = $('appointmentForm'); form.reset(); $('appointmentError').textContent = ''; $('appointmentTitle').textContent = a ? 'Edit Zoom appointment' : 'Book Zoom appointment'; const options = users.filter(u => u.role !== 'viewer').map(u => { const o = el('option', u.displayName); o.value = u.id; return o; }); $('appointmentOwner').replaceChildren(...options); $('appointmentOwnerLabel').hidden = me.role !== 'admin'; form.elements.namedItem('ownerId').value = a?.ownerId || me.id; if (a) {
+    for (const key of ['customer', 'link', 'notes'])
+        form.elements.namedItem(key).value = a[key];
+    form.elements.namedItem('start').value = appointmentInput(a.startAt);
+    form.elements.namedItem('end').value = appointmentInput(a.endAt);
+} $('appointmentDialog').showModal(); }
+$('newAppointment').onclick = () => showAppointment();
+$('refreshAppointments').onclick = run(loadAppointments);
+$('closeAppointment').onclick = () => $('appointmentDialog').close();
+for (const id of ['zoomFrom', 'zoomTo', 'showCancelled'])
+    $(id).addEventListener('input', renderAppointments);
+$('zoomFrom').value = calendarDate(malaysiaToday());
+$('appointmentForm').onsubmit = event => { event.preventDefault(); void (async () => { const submit = $('saveAppointment'); submit.disabled = true; $('appointmentError').textContent = ''; try {
+    const f = new FormData($('appointmentForm'));
+    await api('appointments', { id: editingAppointment?.id, revision: editingAppointment?.revision, customer: f.get('customer'), startAt: inputDeadline(String(f.get('start'))), endAt: inputDeadline(String(f.get('end'))), ownerId: f.get('ownerId'), link: f.get('link'), notes: f.get('notes') });
+    $('appointmentDialog').close();
+    await loadAppointments();
+    saved('Zoom appointment booked.');
+}
+catch (error) {
+    $('appointmentError').textContent = englishMessage(error.message);
+}
+finally {
+    submit.disabled = false;
+} })(); };
+const viewNames = { '#overview': 'Dashboard', '#eventPanel': 'Event Pipeline', '#rankingPanel': 'Team Performance', '#teamPrivacy': 'Team Member', '#zoomPanel': 'Zoom Appointments' };
 let teamPageLoading = null;
 function currentView() { return viewNames[location.hash] ? location.hash : '#overview'; }
 function updateNavigation() {
@@ -650,9 +720,10 @@ function updateNavigation() {
     $('eventPanel').hidden = view !== '#eventPanel';
     $('rankingPanel').hidden = view !== '#rankingPanel';
     $('teamPrivacy').hidden = view !== '#teamPrivacy';
+    $('zoomPanel').hidden = view !== '#zoomPanel';
     $('detail').hidden = view !== '#eventPanel' || !selected;
     document.querySelectorAll('.section-kicker,[data-inbox]').forEach(node => node.hidden = view !== '#overview');
-    document.querySelectorAll('.filter-bar').forEach(node => node.hidden = view === '#teamPrivacy');
+    document.querySelectorAll('.filter-bar').forEach(node => node.hidden = view === '#teamPrivacy' || view === '#zoomPanel');
     document.querySelectorAll('.connection-note').forEach(node => node.hidden = view !== '#eventPanel');
     $('create').hidden = me.role !== 'admin' || view !== '#eventPanel';
     $('copyLatest').hidden = $('create').hidden;
@@ -677,6 +748,13 @@ async function navigateView() {
         }
         await teamPageLoading;
     }
+    if (currentView() === '#zoomPanel') {
+        if (!hasAppointments) {
+            location.hash = '#overview';
+            return;
+        }
+        await loadAppointments();
+    }
     $('overview').scrollIntoView({ behavior: 'instant' });
 }
 window.addEventListener('hashchange', run(navigateView));
@@ -700,6 +778,8 @@ async function initialize(initial) {
     }
     me = result.user;
     users = result.users;
+    hasAppointments = Boolean(result.capabilities?.appointments);
+    document.querySelectorAll('a[href="#zoomPanel"]').forEach(a => a.hidden = !hasAppointments);
     canSyncCalendar = Boolean(result.capabilities?.calendarSync);
     canManageMembers = Boolean(result.capabilities?.teamMembers);
     $('manageVisibility').hidden = me.role !== 'admin' || !result.capabilities?.teamVisibility;
