@@ -42,9 +42,28 @@ def lead_value(actions):
             return float(a["value"])
     return 0.0
 
+# Explicitly retained account: Meta may omit an accessible account from me/adaccounts.
+REQUIRED_ACCOUNT_IDS = ("act_3967944443497832",)
+
 def list_accounts():
-    data = api_get("me/adaccounts", {"fields": "id,name", "limit": 500}).get("data", [])
-    return [(a["id"], a.get("name", a["id"])) for a in data]
+    accounts = {}
+    params = {"fields": "id,name", "limit": 500}
+    while True:
+        page = api_get("me/adaccounts", params)
+        for account in page.get("data", []):
+            accounts[account["id"]] = account.get("name", account["id"])
+        if not page.get("paging", {}).get("next"):
+            break
+        cursor = page.get("paging", {}).get("cursors", {}).get("after")
+        if not cursor or cursor == params.get("after"):
+            raise RuntimeError("Account pagination incomplete")
+        params["after"] = cursor
+    for account_id in REQUIRED_ACCOUNT_IDS:
+        if account_id not in accounts:
+            # Fail visibly if access is lost; never silently publish a missing account.
+            account = api_get(account_id, {"fields": "id,name"})
+            accounts[account["id"]] = account.get("name", account["id"])
+    return list(accounts.items())
 
 CHUNK_DAYS = 15   # 大户口按 15 天一段分批拉，避免单次数据量超限(400)
 
